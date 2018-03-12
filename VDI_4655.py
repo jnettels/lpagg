@@ -79,7 +79,8 @@ if __name__ == '__main__':
 #    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung'
 #    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE'
 #    base_folder = r'C:\Trnsys17\Work\futureSuN\SB\Load'
-    base_folder = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load'
+#    base_folder = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load'
+    base_folder = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load'
 
     holiday_file = os.path.join(base_folder, 'Typtage', 'Feiertage.xlsx')
     energy_factors_file = os.path.join(
@@ -564,7 +565,7 @@ if __name__ == '__main__':
 
         # print ('{:5.1f}% done'.format(j/total*100), end='\r')  # progress
 
-    # print load_curve_houses
+#    print(load_curve_houses)
 
     # Debugging: Show the daily sum of each energy demand type:
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
@@ -581,106 +582,116 @@ if __name__ == '__main__':
 
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     #       Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
+    #                        (Not part of the VDI 4655)
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
-    print('Calculate heatcurve temperatures')
+    if config_dict.get('Heizkurve', None) is not None:
+        print('Calculate heatcurve temperatures')
 
-    T_VL_N = config_dict['Heizkurve']['T_VL_N']       # °C
-    T_RL_N = config_dict['Heizkurve']['T_RL_N']       # °C
-    T_i = config_dict['Heizkurve']['T_i']             # °C
-    T_a_N = config_dict['Heizkurve']['T_a_N']         # °C
-    m = config_dict['Heizkurve']['m']
+        T_VL_N = config_dict['Heizkurve']['T_VL_N']       # °C
+        T_RL_N = config_dict['Heizkurve']['T_RL_N']       # °C
+        T_i = config_dict['Heizkurve']['T_i']             # °C
+        T_a_N = config_dict['Heizkurve']['T_a_N']         # °C
+        m = config_dict['Heizkurve']['m']
 
-    Q_loss_list = []
-    T_VL_list = []
-    T_RL_list = []
-    M_dot_list = []
+        Q_loss_list = []
+        T_VL_list = []
+        T_RL_list = []
+        M_dot_list = []
 
-    total = float(len(weather_data.index))
-    for j, date_obj in enumerate(weather_data.index):
-        T_a = weather_data.loc[date_obj]['TAMB']           # °C
-        hours = interpolation_freq.seconds / 3600.0        # h
-        c_p = 4.18                                         # kJ/(kg*K)
+        total = float(len(weather_data.index))
+        for j, date_obj in enumerate(weather_data.index):
+            T_a = weather_data.loc[date_obj]['TAMB']           # °C
+            hours = interpolation_freq.seconds / 3600.0        # h
+            c_p = 4.18                                         # kJ/(kg*K)
 
-        # Calculate temperatures and mass flow for heating
-        if (T_a < T_i):  # only calculate if heating is necessary
-            # Calculation according to:
-            #
-            # Knabe, Gottfried (1992): Gebäudeautomation. 1. Aufl.
-            # Berlin: Verl. für Bauwesen.
-            # Section 6.2.1., pages 267-268
+            # Calculate temperatures and mass flow for heating
+            if (T_a < T_i):  # only calculate if heating is necessary
+                # Calculation according to:
+                #
+                # Knabe, Gottfried (1992): Gebäudeautomation. 1. Aufl.
+                # Berlin: Verl. für Bauwesen.
+                # Section 6.2.1., pages 267-268
 
-            phi = (T_i - T_a) / (T_i - T_a_N)
-            dT_N = (T_VL_N - T_RL_N)                                 # K
-            dTm_N = (T_VL_N + T_RL_N)/2.0 - T_i                      # K
+                phi = (T_i - T_a) / (T_i - T_a_N)
+                dT_N = (T_VL_N - T_RL_N)                                 # K
+                dTm_N = (T_VL_N + T_RL_N)/2.0 - T_i                      # K
 
-            T_VL_Heiz = phi**(1/(1+m)) * dTm_N + 0.5*phi*dT_N + T_i      # °C
-            T_RL_Heiz = phi**(1/(1+m)) * dTm_N - 0.5*phi*dT_N + T_i      # °C
+                T_VL_Heiz = phi**(1/(1+m)) * dTm_N + 0.5*phi*dT_N + T_i  # °C
+                T_RL_Heiz = phi**(1/(1+m)) * dTm_N - 0.5*phi*dT_N + T_i  # °C
 
-            Q_Heiz = weather_data.loc[date_obj]['Q_Heiz_TT']             # kWh
-            Q_dot_Heiz = Q_Heiz / hours                                  # kW
-            M_dot_Heiz = Q_dot_Heiz/(c_p*(T_VL_Heiz - T_RL_Heiz))*3600   # kg/h
+                Q_Heiz = weather_data.loc[date_obj]['Q_Heiz_TT']         # kWh
+                Q_dot_Heiz = Q_Heiz / hours                              # kW
+                M_dot_Heiz = Q_dot_Heiz/(c_p*(T_VL_Heiz-T_RL_Heiz))*3600
+                # unit of M_dot_Heiz: kg/h
 
-        else:  # heating is not necessary
-            T_VL_Heiz = T_RL_N
-            T_RL_Heiz = T_RL_N
-            Q_dot_Heiz = 0
-            M_dot_Heiz = 0
+            else:  # heating is not necessary
+                T_VL_Heiz = T_RL_N
+                T_RL_Heiz = T_RL_N
+                Q_dot_Heiz = 0
+                M_dot_Heiz = 0
 
-        # Calculate temperatures and mass flow for domestic hot water (DHW/TWW)
-        T_VL_TWW = T_VL_N
-        T_RL_TWW = T_RL_N
+            # Calculate temperatures and mass flow for domestic hot water
+            T_VL_TWW = T_VL_N
+            T_RL_TWW = T_RL_N
 
-        Q_TWW = weather_data.loc[date_obj]['Q_TWW_TT']            # kWh
-        Q_dot_TWW = Q_TWW / hours                                 # kW
-        M_dot_TWW = Q_dot_TWW/(c_p*(T_VL_TWW - T_RL_TWW))*3600    # kg/h
+            Q_TWW = weather_data.loc[date_obj]['Q_TWW_TT']            # kWh
+            Q_dot_TWW = Q_TWW / hours                                 # kW
+            M_dot_TWW = Q_dot_TWW/(c_p*(T_VL_TWW - T_RL_TWW))*3600    # kg/h
 
-        # Mix heating and domestic hot water
-        M_dot = M_dot_Heiz + M_dot_TWW
+            # Mix heating and domestic hot water
+            M_dot = M_dot_Heiz + M_dot_TWW
 
-        if (M_dot > 0):
-            T_VL = (T_VL_Heiz*M_dot_Heiz + T_VL_TWW*M_dot_TWW) / M_dot
-            T_RL = (T_RL_Heiz*M_dot_Heiz + T_RL_TWW*M_dot_TWW) / M_dot
-        else:
-            T_VL = T_RL_N
-            T_RL = T_RL_N
+            if (M_dot > 0):
+                T_VL = (T_VL_Heiz*M_dot_Heiz + T_VL_TWW*M_dot_TWW) / M_dot
+                T_RL = (T_RL_Heiz*M_dot_Heiz + T_RL_TWW*M_dot_TWW) / M_dot
+            else:
+                T_VL = T_RL_N
+                T_RL = T_RL_N
 
-        # Calculate the heat loss from the pipes to the environment
-        # Careful: The heat loss calculation is far from perfect!
-        # For instance, it is only used when a massflow occurs (M_dot>0). As
-        # a result, smaller time step calculations will have much less losses,
-        # since the massflow is zero more often.
-        Q_loss = 0
-        if (M_dot > 0) and (config_dict.get('Verteilnetz') is not None):
-            length = config_dict['Verteilnetz']['length']            # m
-            q_loss = config_dict['Verteilnetz']['loss_coefficient']  # W/(m*K)
+            # Calculate the heat loss from the pipes to the environment
+            # Careful: The heat loss calculation is far from perfect!
+            # For instance, it is only used when a massflow occurs (M_dot>0).
+            # As a result, smaller time step calculations will have much less
+            # losses, since the massflow is zero more often.
+            Q_loss = 0
+            if (M_dot > 0) and (config_dict.get('Verteilnetz') is not None):
+                length = config_dict['Verteilnetz']['length']            # m
+                q_loss = config_dict['Verteilnetz']['loss_coefficient']
+                # unit of q_loss: W/(m*K)
 
-            dTm = (T_VL + T_RL)/2.0 - T_a                       # K
-            Q_dot_loss = length * q_loss * dTm / 1000.0         # kW
-            Q_loss = Q_dot_loss * hours                         # kWh
+                dTm = (T_VL + T_RL)/2.0 - T_a                       # K
+                Q_dot_loss = length * q_loss * dTm / 1000.0         # kW
+                Q_loss = Q_dot_loss * hours                         # kWh
 
-            # Calculate the increased mass flow based on the new heat flow
-            Q_dot = Q_dot_Heiz + Q_dot_TWW + Q_dot_loss         # kW
-            M_dot = Q_dot/(c_p*(T_VL - T_RL))*3600.0            # kg/h
+                # Calculate the increased mass flow based on the new heat flow
+                Q_dot = Q_dot_Heiz + Q_dot_TWW + Q_dot_loss         # kW
+                M_dot = Q_dot/(c_p*(T_VL - T_RL))*3600.0            # kg/h
 
-#            print(T_VL, T_RL, T_a, dTm)
-#            print(Q_dot_Heiz, Q_dot_TWW, Q_dot_loss, Q_loss)
-#            print(M_dot_Heiz + M_dot_TWW, M_dot)
+    #            print(T_VL, T_RL, T_a, dTm)
+    #            print(Q_dot_Heiz, Q_dot_TWW, Q_dot_loss, Q_loss)
+    #            print(M_dot_Heiz + M_dot_TWW, M_dot)
 
-        # Save calculation
-        Q_loss_list.append(Q_loss)
-        T_VL_list.append(T_VL)
-        T_RL_list.append(T_RL)
-        M_dot_list.append(M_dot)
-        print('{:5.1f}% done'.format(j/total*100), end='\r')  # print progress
+            # Save calculation
+            Q_loss_list.append(Q_loss)
+            T_VL_list.append(T_VL)
+            T_RL_list.append(T_RL)
+            M_dot_list.append(M_dot)
+            print('{:5.1f}% done'.format(j/total*100), end='\r')  # progress
 
-    weather_data['Q_loss'] = Q_loss_list
-    weather_data['T_VL'] = T_VL_list
-    weather_data['T_RL'] = T_RL_list
-    weather_data['M_dot'] = M_dot_list
+        weather_data['Q_loss'] = Q_loss_list
+        weather_data['T_VL'] = T_VL_list
+        weather_data['T_RL'] = T_RL_list
+        weather_data['M_dot'] = M_dot_list
+
+    else:  # Create dummy columns if no heatcurve calculation was performed
+        weather_data['Q_loss'] = 0
+        weather_data['T_VL'] = 0
+        weather_data['T_RL'] = 0
+        weather_data['M_dot'] = 0
 
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    #                            Normalize
+    #                Normalize results to a total of 1 kWh per year
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     if config_dict.get('normalize', False) is True:
         print('Normalize load profile')
