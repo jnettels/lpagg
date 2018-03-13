@@ -304,7 +304,7 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file):
 
      a) VDI 3807-1, 2013: Verbrauchskennwerte für Gebäude - Grundlagen
         Uses a fixed indoor reference temperature of 20°C:
-        G = (20 - 15) if t_amb < 15
+        G = (20 - t_m) if t_m < 15
 
      b) VDI 4710-2:
         G = sum (from n = 1 to z) of (T_g - T_m,n)
@@ -324,47 +324,54 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file):
     # Resample ambient temperatures in DataFrame to days and take mean
     tamb_avg_list = weather_data['TAMB'].resample('D', label='left',
                                                   closed='right').mean()
-    # tamb_avg_list = weather_data['TAMB']
-    # print tamb_avg_list
+#    tamb_avg_list = weather_data['TAMB']
+#    print(tamb_avg_list)
 
     #  Generate histogram information: (number of days with certain tamb_avg)
-    # step = 1
-    # min = round(tamb_avg_list.min()-1,0)
-    # max = round(tamb_avg_list.max()+1,0)
-    # bin_range = np.arange(min, max+step, step)
-    # out, bins  = pd.cut(tamb_avg_list, bins=bin_range,
-                        # include_lowest=True, right=False, retbins=True)
-    # print out.value_counts(sort=False)
+#    step = 1
+#    min = round(tamb_avg_list.min()-1, 0)
+#    max = round(tamb_avg_list.max()+1, 0)
+#    bin_range = np.arange(min, max+step, step)
+#    out, bins = pd.cut(tamb_avg_list, bins=bin_range,
+#                       include_lowest=True, right=False, retbins=True)
+#    print(out.value_counts(sort=False))
 
     # Define new DataFrame with the desired columns
     weather_data_daily = pd.DataFrame(data=tamb_avg_list,
-                                      columns=['TAMB', 'G', 'd_heat'])
+                                      columns=['TAMB'])
+#                                      columns=['TAMB', 'G20', 'heating days'])
 
     t_heat = 15  # °C heating temperature limit: t_m < t_heat
-    # t_heat = 10  # °C heating temperature limit: t_m < t_heat
+#    t_heat = 10  # °C heating temperature limit: t_m < t_heat
     for j, date_obj in enumerate(weather_data_daily.index):
         t_m = weather_data_daily.loc[date_obj]['TAMB']  # °C
         if t_m < t_heat:
-            G = (t_heat - t_m)  # VDI 4710-2: Flexible calculation
-            # G = (20 - t_m)  # VDI 3807-1: Fixed indoor reference temperature
-            d_heat = 1
+            G = (20 - t_m)  # VDI 3807-1: Fixed indoor reference temperature
+#            G = (t_heat - t_m)  # VDI 4710-2: Flexible calculation
+            d_heat = 1.0
         else:
             G = 0
-            d_heat = 0
-        weather_data_daily.loc[date_obj, 'G'] = G
-        weather_data_daily.loc[date_obj, 'd_heat'] = d_heat
+            d_heat = 0.0
+        weather_data_daily.loc[date_obj, 'G20/15'] = G
+        weather_data_daily.loc[date_obj, 'Heating days'] = d_heat
 
     tamb_avg = weather_data['TAMB'].mean()                        # °C
     IBEAM_H_sum = hours/1000*weather_data['IBEAM_H'].sum()        # kWh/m²
     IDIFF_H_sum = hours/1000*weather_data['IDIFF_H'].sum()        # kWh/m²
-    G_sum = weather_data_daily['G'].sum()                         # K*d
-    d_heat_sum = weather_data_daily['d_heat'].sum()               # d
+    G_sum = weather_data_daily['G20/15'].sum()                         # K*d
+    d_heat_sum = weather_data_daily['Heating days'].sum()          # d
     print('Year statistics for: '+weather_file)
-    print('   T_amb average = {:6.1f} deg C'.format(tamb_avg))
+    print('   T_amb average = {:6.1f} °C'.format(tamb_avg))
     print('   I_beam,h      = {:6.1f} kWh/m^2'.format(IBEAM_H_sum))
     print('   I_diff,h      = {:6.1f} kWh/m^2'.format(IDIFF_H_sum))
-    print('   G_{:2.0f}          = {:6.1f} K*d'.format(t_heat, G_sum))
+    print('   G20/{:2.0f}        = {:6.1f} K*d'.format(t_heat, G_sum))
     print('   Heating days  = {:6.1f} d'.format(d_heat_sum))
+
+    # Print table of montly sum / mean values
+    wd_sum = weather_data_daily[['G20/15', 'Heating days']].resample('M').sum()
+    wd_mean = weather_data_daily['TAMB'].resample('M').mean()
+    weather_data_monthly = pd.concat([wd_sum, wd_mean], axis=1)
+    print(weather_data_monthly)
 
     return True
 
