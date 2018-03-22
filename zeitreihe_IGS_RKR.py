@@ -21,6 +21,8 @@ import os                         # Operaing System
 import matplotlib.pyplot as plt   # Plotting library
 import calendar                   # Calendar
 import re                         # Regular expressions
+import requests
+import json
 
 # Global Pandas option for displaying terminal output
 pd.set_option('display.max_columns', 0)
@@ -35,6 +37,9 @@ interpolation_freq = pd.Timedelta('15 minutes')
 #interpolation_freq = pd.Timedelta('1 hours')
 
 bool_print_header = True
+#bool_print_header = False
+bool_print_type99_head = True
+#bool_print_type99_head = False
 bool_print_index = True
 #bool_print_index = False
 remove_leapyear = False
@@ -43,9 +48,10 @@ remove_leapyear = False
 base_folder = u'V:\\MA\\2_Projekte\\SIZ10015_futureSuN\\4_Bearbeitung\\AP4_Transformation\\AP404_Konzepte für zukünftige Systemlösungen\\Lastprofile\\VDI 4655\\Berechnung\\Wetter'
 base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\SB\Weather\\TRY_38265002816500'
 base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\HK\Weather\\TRY2010_03'
-base_folder = u'C:\\Users\\nettelstroth\\Downloads\\Wetter'
-'''
 base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Wetterdaten\DWD TRY 2011\Daten\TRY-Daten'
+base_folder = r'V:\MA\2_Projekte\SIZ10002_Hydraulik\5_Archiv\Backups Mani\Dissertation\3_Trnsys Modell\3_Wetterdaten\TRY Ortsgenau DWD\TRY_42255002859500'
+'''
+base_folder = r'C:\Users\nettelstroth\Downloads\Wetter'
 
 '''
 Ein Datentyp für die Wetterdaten muss definiert werden, damit die Werte
@@ -67,9 +73,7 @@ weather_file_list = [
 #    'TRY2045_38265002816500_Jahr.dat',
 #    'TRY2045_38265002816500_Somm.dat',
 #    'TRY2045_38265002816500_Wint.dat',
-#    'TRY2010_03_Jahr.dat',
-#    'TRY2015_39095002965500_Jahr.dat'
-    'TRY2010_13_Jahr.dat'
+    'TRY2010_03_Jahr.dat',
                     ]
 
 # Joing base_folder and weather files:
@@ -195,6 +199,72 @@ def read_DWD_weather_file(weather_file_path):
     return weather_data
 
 
+def get_TRNSYS_coordinates(weather_file_path):
+    '''Attempts to get the coordinates required for the TRNSYS Type99 input.
+
+    If values for 'Rechtswert' and 'Hochwert' are found (in DWD 2016 files),
+    they are converted from the "Lambert conformal conic projection" to the
+    TRNSYS format:
+        - decimal longitude and latitude
+        - 'east of greenwich' is defined 'negative'
+    by using the website http://epsg.io.
+
+    Args:
+        weather_file_path (str): path to a weather file
+
+    Returns:
+        TRNcoords (dict): Dictionary with longitude and latitude
+    '''
+    with open(weather_file_path, 'r') as weather_file:
+        regex = r'Rechtswert\s*:\s(?P<x>\d*).*\nHochwert\s*:\s(?P<y>\d*)'
+        match = re.search(regex, weather_file.read())
+        if match:  # Matches of the regular expression were found
+            url = 'http://epsg.io/trans?s_srs=3034&t_srs=4326'
+            response = requests.get(url, params=match.groupdict())
+            coords = response.json()  # Create dict from json object
+            TRNcoords = {'longitude': float(coords['x'])*-1,  # negative
+                         'latitude': float(coords['y'])}
+            print('Coordinates for TRNSYS: '+str(TRNcoords))
+            return TRNcoords
+
+        else:
+            return dict()
+
+
+def get_type99_header(weather_file_path, interpolate_freq):
+    '''Create the header for Type99 weather files.
+    '''
+
+    type99_header = '''<userdefined>
+ <longitude>   -0.000  ! east of greenwich: negative
+ <latitude>     0.000  !
+ <gmt>             1   ! time shift from GMT, east: positive (hours)
+ <interval>        1   ! Data file time interval between consecutive lines
+ <firsttime>       1   ! Time corresponding to first data line (hours)
+ <var> IBEAM_H <col> 2 <interp> 0 <add> 0 <mult> 1 <samp> -1 !...to read radiation in [W/m²]
+ <var> IDIFF_H <col> 3 <interp> 0 <add> 0 <mult> 1 <samp> -1 !...to read radiation in [W/m²]
+ <var> TAMB    <col> 4 <interp> 2 <add> 0 <mult> 1 <samp> -1 !...to read ambient temperature in [°C]
+ <var> WSPEED  <col> 5 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read wind speed in [m/s]
+ <var> RHUM    <col> 6 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read relative humidity in [%]
+ <var> WDIR    <col> 7 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read wind direction in [degree] (north=0°/360°; east=90°; south=180°: west=270°)
+ <var> CCOVER  <col> 8 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read cloud cover in [octas] (Bedeckungsgrad in Achtel)
+ <var> PAMB    <col> 9 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read ambient air pressure in [hPa]
+<data>
+   '''
+
+    replace_dict = get_TRNSYS_coordinates(weather_file_path)
+    replace_dict['interval'] = interpolation_freq.seconds / 3600.0  # h
+    replace_dict['firsttime'] = interpolation_freq.seconds / 3600.0  # h
+    replace_dict['gmt'] = 1  # currently fixed
+
+    for key, value in replace_dict.items():
+        re_find = r'<'+key+'>\s*(.*)\s!'
+        re_replace = r'<'+key+'>  '+str(value)+'  !'
+        type99_header = re.sub(re_find, re_replace, type99_header)
+
+    return type99_header
+
+
 def interpolate_weather_file(weather_file_path,
                              weather_data_type,
                              datetime_start,
@@ -276,7 +346,8 @@ def interpolate_weather_file(weather_file_path,
         weather_data['CCOVER'] = weather_data['CCOVER'].round(decimals=0)
 
         # Convert DateTime index to hours of the year
-        weather_data['HOUR']= (weather_data.index - datetime_start) / np.timedelta64(1, 'h')
+        weather_data['HOUR'] = (weather_data.index - datetime_start) / \
+            np.timedelta64(1, 'h')
 
         if debug_plotting is True:  # Plot the interpolated data
             weather_data[plot_value].plot(marker='x',
@@ -377,7 +448,8 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file):
 
 
 def print_IGS_weather_file(weather_data, print_folder, print_file,
-                           bool_print_index, bool_print_header):
+                           bool_print_index, bool_print_header,
+                           type99_header=None):
     '''Print the results to a file
     '''
 
@@ -388,6 +460,9 @@ def print_IGS_weather_file(weather_data, print_folder, print_file,
     print('Printing to '+print_path)
 
     print_file = open(print_path, 'w')
+    if type99_header is not None:
+        print_file.write(type99_header)
+
     weather_data.to_string(print_file,
                            index=bool_print_index,
                            header=bool_print_header)
@@ -432,9 +507,14 @@ if __name__ == "__main__":
                     entry_list.append(match_dict[entry])
                 print_file = '_'.join(entry_list)+'.dat'
 
+        if bool_print_type99_head:
+            type99_header = get_type99_header(weather_file_path,
+                                              interpolation_freq)
+
         print_folder = os.path.join(base_folder, 'Result')
         print_IGS_weather_file(weather_data, print_folder, print_file,
-                               bool_print_index, bool_print_header)
+                               bool_print_index, bool_print_header,
+                               type99_header=type99_header)
 
     # The script will be blocked until the user closes the plot window
     plt.show()
