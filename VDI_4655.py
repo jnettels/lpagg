@@ -32,6 +32,7 @@ import matplotlib.pyplot as plt  # Plotting library
 import time                      # Measure time
 import multiprocessing           # Parallel (Multi-) Processing
 import functools
+import numpy as np
 
 # Import other user-made modules (which must exist in the same folder)
 import zeitreihe_IGS_RKR        # Script for interpolation of IGS weather files
@@ -182,7 +183,7 @@ if __name__ == '__main__':
 
     # Alternative season determination method:
     # From 'BDEW Standardlastprofile':
-    if use_BDEW_seasons is True:
+    elif use_BDEW_seasons is True:
         # Winter:         01.11. to 20.03.
         # Summer:          15.05. to 14.09.
         # Transition:        21.03. to 14.05. and 15.09. to 31.10.
@@ -566,6 +567,63 @@ if __name__ == '__main__':
         # print ('{:5.1f}% done'.format(j/total*100), end='\r')  # progress
 
 #    print(load_curve_houses)
+
+    '''Create copies of houses where needed. Apply a normal distribution to
+    the copies, if a standard deviation 'sigma' is given in the config.
+    Remember: 68.3%, 95.5% and 99.7% of the values lie within one,
+    two and three standard deviations of the mean.
+    Example: With an interval of 15 min and a deviation of
+    sigma = 2 time steps, 68% of profiles are shifted up to ±30 min (±1σ).
+    27% of proflies are shifted ±30 to 60 min (±2σ) and another
+    4% are shifted ±60 to 90 min (±3σ).
+    '''
+    # Fix the 'randomness' (every run of the script generates the same results)
+    np.random.seed(4)
+    # Create copies for every house
+    for house_name in houses_list:
+        copies = houses_dict[house_name].get('copies', 0)
+        # Get standard deviation (spread or “width”) of the distribution:
+        sigma = houses_dict[house_name].get('sigma', False)
+        randoms = np.random.normal(0, sigma, copies)  # Array of random values
+        for copy in range(0, copies):
+            copy_name = house_name + '_c' + str(copy)
+            # Select the data of the house we want to copy
+            df_new = load_curve_houses[house_name]
+            # Rename the multiindex with the name of the copy
+            df_new = pd.concat([df_new], keys=[copy_name], names=['house'],
+                               axis=1)
+
+            if sigma:  # Optional: Shift the rows
+                shift_step = int(round(randoms[copy], 0))
+                if shift_step > 0:
+                    # Shifting forward in time pushes the last entries out of
+                    # the df and leaves the first entries empty. We take that
+                    # overlap and insert it at the beginning
+                    overlap = df_new[-shift_step:]
+                    df_shifted = df_new.shift(shift_step)
+                    df_shifted.dropna(inplace=True)
+                    overlap.index = df_new[:shift_step].index
+                    df_new = overlap.append(df_shifted)
+                elif shift_step < 0:
+                    # Retrieve overlap from the beginning of the df, shift
+                    # backwards in time, paste overlap at end of the df
+                    overlap = df_new[:abs(shift_step)]
+                    df_shifted = df_new.shift(shift_step)
+                    df_shifted.dropna(inplace=True)
+                    overlap.index = df_new[shift_step:].index
+                    df_new = df_shifted.append(overlap)
+                elif shift_step == 0:
+                    # No action required
+                    pass
+
+            # Merge the existing and new dataframes
+            load_curve_houses = pd.concat([load_curve_houses, df_new],
+                                          axis=1, sort=False)
+        if sigma and DEBUG:
+            print('Interval shifts applied to copies of house '+house_name+':')
+            print(np.round(randoms))
+            print('Mean=', np.mean(randoms), ' std=', np.std(randoms, ddof=1))
+
 
     # Debugging: Show the daily sum of each energy demand type:
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
