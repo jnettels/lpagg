@@ -22,7 +22,6 @@ import matplotlib.pyplot as plt   # Plotting library
 import calendar                   # Calendar
 import re                         # Regular expressions
 import requests
-import json
 
 # Global Pandas option for displaying terminal output
 pd.set_option('display.max_columns', 0)
@@ -352,6 +351,9 @@ def interpolate_weather_file(weather_file_path,
         if debug_plotting is True:  # Plot the interpolated data
             weather_data[plot_value].plot(marker='x',
                                           label=plot_value+' intpl.')
+    else:
+        # No interpolation required. But we need to slice from start to end
+        weather_data = weather_data[datetime_start:datetime_end]
 
     # Remove leapyear from DataFrame (optional)
     if calendar.isleap(current_year) is True:
@@ -374,10 +376,11 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file):
      Degree days (Gradtage) according to:
 
      a) VDI 3807-1, 2013: Verbrauchskennwerte für Gebäude - Grundlagen
+        "Gradtagszahlen"
         Uses a fixed indoor reference temperature of 20°C:
         G = (20 - t_m) if t_m < 15
 
-     b) VDI 4710-2:
+     b) VDI 4710-2: "Heizgradtage"
         G = sum (from n = 1 to z) of (T_g - T_m,n)
         where T_g = heating temperature limit
         and T_m = average temperature of day n
