@@ -2,9 +2,7 @@
 # -*- coding: utf-8 -*-
 
 '''
-Project: futureSuN
-
-Name: Implementation of VDI 4655
+Implementation of VDI 4655
 
 This script creates full year energy demand time series of domestic buildings
 for use in TRNSYS. This is achieved by an implementation of the VDI 4655,
@@ -26,6 +24,7 @@ called 'config_file', the location of which is defined down below.
 
 # --- Imports -----------------------------------------------------------------
 import pandas as pd              # Pandas
+from pandas.tseries.frequencies import to_offset
 import os                        # Operaing System
 import yaml                      # Read YAML configuration files
 import matplotlib.pyplot as plt  # Plotting library
@@ -38,81 +37,18 @@ import numpy as np
 import zeitreihe_IGS_RKR        # Script for interpolation of IGS weather files
 
 
-def get_energy_demand_values(weather_data, houses_list, houses_dict,
-                             energy_factor_types, energy_demands_types,
-                             load_curve_houses, load_profile_df,
-                             daily_energy_demand_houses, date_obj):
-    '''
-    This functions works through the lists houses_list and energy_factor_types
-    for a given time step (=date_obj) and multiplies the current load profile
-    value with the daily energy demand. It returns the result: the energy
-    demand values for all houses and energy types (in kWh)
-    '''
-
-    typtag = weather_data.loc[date_obj]['typtag']
-    for house_name in houses_list:
-        house_type = houses_dict[house_name]['house_type']
-        for i, energy_factor_type in enumerate(energy_factor_types):
-            energy_demand_type = energy_demands_types[i]
-            # Example: Q_Heiz_TT(t) = F_Heiz_TT(t) * Q_Heiz_TT
-            load_curve_houses.loc[date_obj][house_name, energy_demand_type] =\
-                load_profile_df.loc[date_obj][energy_factor_type,
-                                              house_type] *\
-                daily_energy_demand_houses.loc[house_name,
-                                               energy_demand_type][typtag]
-
-    return load_curve_houses.loc[date_obj]
-
-
-if __name__ == '__main__':
-    '''
-    The following is the 'main' function, which contains the rest of the script
-    '''
-    multiprocessing.freeze_support()
-
-    # --- Measure start time of this script -----------------------------------
-    start_time = time.time()
-
-    # Global Pandas option for displaying terminal output
-    pd.set_option('display.max_columns', 0)
-
-    # --- Script options ------------------------------------------------------
-#    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung'
-#    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE'
-#    base_folder = r'C:\Trnsys17\Work\futureSuN\SB\Load'
-#    base_folder = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load'
-    base_folder = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load'
-
-    holiday_file = os.path.join(base_folder, 'Typtage', 'Feiertage.xlsx')
-    energy_factors_file = os.path.join(
-        base_folder, 'Typtage', 'Faktoren für Energiebedarf je Typtag.xlsx')
-    typtage_file = os.path.join(base_folder, 'Typtage', 'Typtage.xlsx')
-    config_file = os.path.join(base_folder, 'VDI_4655_config.yaml')
-
-    # --- Import the config_dict from the YAML config_file --------------------
-    config_dict = yaml.load(open(config_file, 'r'))
-
-    # --- Read settings from the config_dict ----------------------------------
-    settings = config_dict['settings']
-    datetime_start = pd.datetime(*settings['start'])  # * reads list as args
-    datetime_end = pd.datetime(*settings['end'])
-    interpolation_freq = pd.Timedelta(settings['intervall'])
-#    datetime_start = pd.datetime(2017,1,1,00,00,00) # Example
-#    datetime_end = pd.datetime(2018,1,1,00,00,00)
-#    interpolation_freq = pd.Timedelta('14 minutes')
-#    interpolation_freq = pd.Timedelta('1 hours')
-    bool_print_header = settings.get('print_header', True)
-    bool_print_index = settings.get('print_index', True)
-    remove_leapyear = settings.get('remove_leapyear', False)
-    use_BDEW_seasons = settings.get('use_BDEW_seasons', False)
-
+def load_weather_file(settings):
     weather_file = settings['weather_file']
     weather_file_path = os.path.join(base_folder, 'Wetter', weather_file)
     weather_data_type = settings['weather_data_type']
-    print_file = settings['print_file']
-    bool_show_plot = settings.get('show_plot', False)
-
-    DEBUG = settings.get('Debug', False)
+    datetime_start = pd.datetime(*settings['start'])  # * reads list as args
+    datetime_end = pd.datetime(*settings['end'])
+#    datetime_start = pd.datetime(2017,1,1,00,00,00) # Example
+#    datetime_end = pd.datetime(2018,1,1,00,00,00)
+    interpolation_freq = pd.Timedelta(settings['intervall'])
+#    interpolation_freq = pd.Timedelta('14 minutes')
+#    interpolation_freq = pd.Timedelta('1 hours')
+    remove_leapyear = settings.get('remove_leapyear', False)
 
     # --- Savety check --------------------------------------------------------
     if interpolation_freq < pd.Timedelta('15 minutes'):
@@ -122,7 +58,7 @@ if __name__ == '__main__':
               'min steps and interpolation to smaller time intervals is ' +
               'not (yet) implemented.')
         interpolation_freq = pd.Timedelta('15 minutes')
-
+    settings['interpolation_freq'] = interpolation_freq
     """
     ---------------------------------------------------------------------------
     Read and interpolate "IGS Referenzklimaregion" files
@@ -144,17 +80,40 @@ if __name__ == '__main__':
         zeitreihe_IGS_RKR.analyse_weather_file(weather_data,
                                                interpolation_freq,
                                                weather_file)
+    weather_data.index.name = 'Time'
+    return weather_data
 
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    #                          VDI 4655 Implementation
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 
+def get_season_list_BDEW(weather_data):
+    '''
+    Winter:       01.11. to 20.03.
+    Summer:       15.05. to 14.09.
+    Transition:   21.03. to 14.05. and 15.09. to 31.10.
+    '''
+    season_list = []
+
+    for j, date_obj in enumerate(weather_data.index):
+        YEAR = date_obj.year
+        if date_obj <= pd.datetime(YEAR, 3, 21, 00, 00, 00) or \
+           date_obj > pd.datetime(YEAR, 10, 31, 00, 00, 00):
+            season_list.append('Winter')  # Winter
+
+        elif date_obj > pd.datetime(YEAR, 5, 15, 00, 00, 00) and \
+                date_obj <= pd.datetime(YEAR, 9, 15, 00, 00, 00):
+            season_list.append('Sommer')  # Summer
+
+        else:
+            season_list.append('Übergangszeit')  # Transition
+
+    return season_list
+
+
+def get_typical_days(weather_data, settings):
     # -------------------------------------------------------------------------
     # VDI 4655 - Step 1: Determine the "typtag" key for each timestep
     # -------------------------------------------------------------------------
-    print('Determine "typtag" keys for each time step')
-
     # Flag to determine if any holidays have been found:
+    interpolation_freq = pd.Timedelta(settings['intervall'])
     flag_holidays_found = False
 
     # --- Season --------------------------------------------------------------
@@ -172,39 +131,34 @@ if __name__ == '__main__':
     season_list = []
 
     # Read through list of temperatures line by line and apply the definition
-    if use_BDEW_seasons is False:
-        for tamb_avg in tamb_avg_list:
-            if tamb_avg < 5:
-                season_list.append('W')  # Winter
-            elif tamb_avg > 15:
-                season_list.append('S')  # Summer
-            else:
-                season_list.append('U')  # Übergang (Transition)
+    for tamb_avg in tamb_avg_list:
+        if tamb_avg < 5:
+            season_list.append('W')  # Winter
+        elif tamb_avg > 15:
+            season_list.append('S')  # Summer
+        else:
+            season_list.append('U')  # Übergang (Transition)
 
     # Alternative season determination method:
     # From 'BDEW Standardlastprofile':
-    elif use_BDEW_seasons is True:
-        # Winter:         01.11. to 20.03.
-        # Summer:          15.05. to 14.09.
-        # Transition:        21.03. to 14.05. and 15.09. to 31.10.
-        for j, date_obj in enumerate(weather_data.index):
-            YEAR = date_obj.year
-            if date_obj <= pd.datetime(YEAR, 3, 21, 00, 00, 00) or \
-               date_obj > pd.datetime(YEAR, 10, 31, 00, 00, 00):
-                season_list.append('W')  # Winter
-
-            elif date_obj > pd.datetime(YEAR, 5, 15, 00, 00, 00) and \
-                    date_obj <= pd.datetime(YEAR, 9, 15, 00, 00, 00):
-                season_list.append('S')  # Summer
-
-            else:
-                season_list.append('U')  # Übergang (Transition)
+    season_list_BDEW = get_season_list_BDEW(weather_data)
 
     # Save the results in the weather_data DataFrame
     weather_data['TAMB_d'] = tamb_avg_list
-    weather_data['season'] = season_list
+    if use_BDEW_seasons is False:
+        weather_data['season'] = season_list
+    elif use_BDEW_seasons is True:
+        weather_data['season'] = season_list_BDEW
+        weather_data['season'].replace(to_replace={'Winter': 'W',
+                                                   'Sommer': 'S',
+                                                   'Übergangszeit': 'U'},
+                                       inplace=True)
+
+    # Store the BDEW seasons separately
+    weather_data['season_BDEW'] = season_list_BDEW
 
     steps_per_day = 24 / (interpolation_freq.seconds / 3600.0)
+    settings['steps_per_day'] = steps_per_day
     if DEBUG:
         print('Number of days in winter:     ' +
               str(season_list.count('W')/steps_per_day))
@@ -225,18 +179,27 @@ if __name__ == '__main__':
     # of the next day. Thus the resulting list of weekdays is shifted by one
     # time step.
     weekdays_list = []
+    weekdays_list_BDEW = []
     for date_obj in weather_data.index:
         if date_obj.dayofweek == 6:  # 6 equals Sunday
             weekdays_list.append('S')
+            weekdays_list_BDEW.append('Sonntag')
         elif date_obj.date() in holidays.index:
             weekdays_list.append('S')
+            weekdays_list_BDEW.append('Sonntag')
             flag_holidays_found = True
+        elif date_obj.dayofweek == 5:  # 5 equals Saturday
+            weekdays_list.append('S')
+            weekdays_list_BDEW.append('Samstag')
         else:
             weekdays_list.append('W')
+            weekdays_list_BDEW.append('Werktag')
 
     # Solution to problem: We take the first list entry, then add the rest of
     # the list minus the very last entry.
     weather_data['weekday'] = [weekdays_list[0]] + weekdays_list[:-1]
+    weather_data['weekday_BDEW'] = [weekdays_list_BDEW[0]] + \
+        weekdays_list_BDEW[:-1]
 
     # Print a warning, if necessary
     if flag_holidays_found is False:
@@ -270,21 +233,22 @@ if __name__ == '__main__':
                        }
     weather_data.replace(to_replace=typtage_replace, inplace=True)
 
-    # -------------------------------------------------------------------------
-    # VDI 4655 - Step 2:
-    # Match 'typtag' keys and reference load profile factors for each timestep
-    # (for each 'typtag' key, one load profile is defined by VDI 4655)
-    # -------------------------------------------------------------------------
-    print('Read in reference load profile factors and match them to ' +
-          '"typtag" keys for each timestep')
 
+def load_profile_factors(settings):
+    '''VDI 4655 - Step 2:
+    Match 'typtag' keys and reference load profile factors for each timestep
+    (for each 'typtag' key, one load profile is defined by VDI 4655)
+    '''
+    interpolation_freq = settings['interpolation_freq']
     # Define all 'typtag' combinations and house types:
     typtage_combinations = ['UWH', 'UWB', 'USH', 'USB', 'SWX',
                             'SSX', 'WWH', 'WWB', 'WSH', 'WSB']
     house_types = ['EFH', 'MFH']
+    settings['typtage_combinations'] = typtage_combinations
 
     if DEBUG:
         print('Number of typical days:')
+        steps_per_day = settings['steps_per_day']
         N_typtage = weather_data['typtag'].value_counts()/steps_per_day
         for item in typtage_combinations:
             if item not in N_typtage.index:
@@ -332,6 +296,7 @@ if __name__ == '__main__':
     # Create a new DataFrame with the load profile for the chosen time period,
     # using the correct house type, 'typtag' and time step
     energy_factor_types = ['F_Heiz_n_TT', 'F_el_n_TT', 'F_TWW_n_TT']
+    settings['energy_factor_types'] = energy_factor_types
 
     # Contruct the two-dimensional multiindex of the new DataFrame
     # (One column for each energy_factor_type of each house)
@@ -368,43 +333,25 @@ if __name__ == '__main__':
 #        print(load_profile_df.resample('D', label='left',
 #                                       closed='right').sum())
 
-    # -------------------------------------------------------------------------
-    # VDI 4655 - Step 3: Load houses and generate their load profiles
-    #
-    # In the end, we will multiply the energy factors contained in DataFrame
-    # load_profile_df for each time step of the weather_data with the
-    # corresponding daily energy demand of each house we want to simulate. This
-    # will yield the DataFrame load_curve_houses, which contains the actual
-    # energy demand of each house in each time step.
-    # -------------------------------------------------------------------------
+    return load_profile_df
 
-    # (6) Application of guideline:
-    # -------------------------------------------------------------------------
-    # The following numbered sections are the implementations of the
-    # corresponding sections in the VDI 4655.
 
-    # (6.1) Specification of building type:
-    # -------------------------------------------------------------------------
-    # Building type (EFH or MFH) is defined by user in YAML file.
-    # - "single-family houses are residential buildings with up to
-    #    three flasts and one common heating system"
-    # - "multi-family houses are residential buildings with no less
-    #    then four flasts and one common heating system"
-
-    # (6.2) Specification of annual energy demand:
-    # -------------------------------------------------------------------------
-    print('Read in houses and calculate their annual energy demand')
-
+def get_annual_energy_demand(settings):
+    '''Read in houses and calculate their annual energy demand
+    '''
     # Get the dictionary of houses from the config_dict
     houses_dict = config_dict['houses']
     houses_list = sorted(houses_dict.keys())
+    settings['houses_list'] = houses_list
+    settings['houses_list_VDI'] = []
+    settings['houses_list_BDEW'] = []
 
     # Calculate annual energy demand of houses
     # and store the result in the dict containing the house info
     for house_name in houses_list:
         house_type = houses_dict[house_name]['house_type']
-        N_Pers = houses_dict[house_name]['N_Pers']
-        N_WE = houses_dict[house_name]['N_WE']
+        N_Pers = houses_dict[house_name].get('N_Pers', None)
+        N_WE = houses_dict[house_name].get('N_WE', None)
         if house_type == 'EFH':
             # (6.2.2) Calculate annual electrical energy demand of houses:
             if N_Pers < 3:
@@ -417,12 +364,22 @@ if __name__ == '__main__':
             # (6.2.3) Calculate annual DHW energy demand of houses:
             Q_TWW_a = N_Pers * 500  # kWh
 
+            settings['houses_list_VDI'].append(house_name)
+
         elif house_type == 'MFH':
             # (6.2.2) Calculate annual electrical energy demand of houses:
             W_a = N_WE * 3000  # kWh
 
             # (6.2.3) Calculate annual DHW energy demand of houses:
             Q_TWW_a = N_WE * 1000  # kWh
+
+            settings['houses_list_VDI'].append(house_name)
+
+        else:
+            # No house category given. Just use annual demand of 1 kWh
+            W_a = 1
+            Q_TWW_a = 1
+            settings['houses_list_BDEW'].append(house_name)
 
         # If W_a and/or Q_TWW_a were already defined by the user in the yaml
         # file, we use those values instead of the calculated ones:
@@ -433,14 +390,14 @@ if __name__ == '__main__':
         houses_dict[house_name]['W_a'] = W_a
         houses_dict[house_name]['Q_TWW_a'] = Q_TWW_a
 
-    # (6.3) Allocation of building site:
-    # -------------------------------------------------------------------------
-    # The user has to give the number of the TRY climat zone
-    # in the yaml file. It is used in (6.4).
+    return houses_dict
 
-    # (6.4) Determination of the houses' energy demand values for each 'typtag'
-    # -------------------------------------------------------------------------
-    print("Determine the houses' energy demand values for each 'typtag'")
+
+def get_daily_energy_demand_houses(houses_dict, settings):
+    '''Determine the houses' energy demand values for each 'typtag'
+    '''
+    typtage_combinations = settings['typtage_combinations']
+    houses_list = settings['houses_list_VDI']
 
     # Load the file containing the energy factors of the different typical
     # radiation year (TRY) regions, house types and 'typtage'. In VDI 4655,
@@ -449,11 +406,13 @@ if __name__ == '__main__':
                                       sheet_name='Faktoren',
                                       index_col=[0, 1, 2])
 #    print(energy_factors_df)
+
     # Create a new DataFrame with multiindex.
     # It has two levels of columns: houses and energy
     # The DataFrame stores the individual energy demands for each house in
     # each time step
     energy_demands_types = ['Q_Heiz_TT', 'W_TT', 'Q_TWW_TT']
+    settings['energy_demands_types'] = energy_demands_types
     iterables = [houses_dict.keys(), energy_demands_types]
     multiindex = pd.MultiIndex.from_product(iterables, names=['house',
                                                               'energy'])
@@ -462,8 +421,8 @@ if __name__ == '__main__':
 
     # Fill the DataFrame daily_energy_demand_houses
     for house_name in houses_list:
-        TRY = houses_dict[house_name]['TRY']
         house_type = houses_dict[house_name]['house_type']
+        TRY = houses_dict[house_name]['TRY']
         N_Pers = houses_dict[house_name]['N_Pers']
         N_WE = houses_dict[house_name]['N_WE']
 
@@ -511,12 +470,15 @@ if __name__ == '__main__':
                                            'Q_TWW_TT'][typtag] = Q_TWW_TT
 
     # print daily_energy_demand_houses
+    return daily_energy_demand_houses
 
-    """
-    (6.5) Determination of a daily demand curve for each house:
-    ---------------------------------------------------------------------------
-    """
-    print("Generate the houses' energy demand values for each timestep")
+
+def get_load_curve_houses(load_profile_df, houses_dict, settings):
+    '''Generate the houses' energy demand values for each timestep
+    '''
+    energy_demands_types = settings['energy_demands_types']
+    houses_list = settings['houses_list_VDI']
+    energy_factor_types = settings['energy_factor_types']
 
     # Construct the DataFrame with multidimensional index that
     # contains the energy demand of each house for each time stamp
@@ -551,6 +513,7 @@ if __name__ == '__main__':
         time.sleep(1.0)
 
     pool.join()
+    print('100.0% done', end='\r')
 
     # The 'pool' returns a list. Feed its contents to the DataFrame
     for object in return_list.get():
@@ -567,9 +530,213 @@ if __name__ == '__main__':
         # print ('{:5.1f}% done'.format(j/total*100), end='\r')  # progress
 
 #    print(load_curve_houses)
+    return load_curve_houses
 
+
+def get_energy_demand_values(weather_data, houses_list, houses_dict,
+                             energy_factor_types, energy_demands_types,
+                             load_curve_houses, load_profile_df,
+                             daily_energy_demand_houses, date_obj):
+    '''
+    This functions works through the lists houses_list and energy_factor_types
+    for a given time step (=date_obj) and multiplies the current load profile
+    value with the daily energy demand. It returns the result: the energy
+    demand values for all houses and energy types (in kWh)
+    '''
+
+    typtag = weather_data.loc[date_obj]['typtag']
+    for house_name in houses_list:
+        house_type = houses_dict[house_name]['house_type']
+        for i, energy_factor_type in enumerate(energy_factor_types):
+            energy_demand_type = energy_demands_types[i]
+            # Example: Q_Heiz_TT(t) = F_Heiz_TT(t) * Q_Heiz_TT
+            load_curve_houses.loc[date_obj][house_name, energy_demand_type] =\
+                load_profile_df.loc[date_obj][energy_factor_type,
+                                              house_type] *\
+                daily_energy_demand_houses.loc[house_name,
+                                               energy_demand_type][typtag]
+
+    return load_curve_houses.loc[date_obj]
+
+
+def load_BDEW_style_profiles(source_file, weather_data, settings, houses_dict,
+                             energy_type):
+    '''Load energy profiles from files that are structured like BDEW profiles.
+    Is used for BDEW profiles, and allows profiles from other sources to
+    be integrated easily. For example, the U.S. Department of Energy (DOE)
+    profiles for building types can manually be converted to the BDEW format,
+    then loaded with this function.
+    '''
+
+    source_df = pd.read_excel(open(source_file, 'rb'), sheet_name=None,
+                              skiprows=[0], header=[0, 1], index_col=[0],
+                              skipfooter=1,
+                              )
+
+    weather_daily = weather_data.resample('D', label='right',
+                                          closed='right').mean()
+#    print(weather_daily)
+
+    houses_list = settings['houses_list_BDEW']
+    multiindex = pd.MultiIndex.from_product([houses_list, [energy_type]],
+                                            names=['house', 'energy'])
+    ret_profiles = pd.DataFrame(index=weather_data.index,
+                                columns=multiindex)
+
+    for house_name in houses_list:
+        house_type = houses_dict[house_name]['house_type']
+        if house_type not in source_df.keys():
+            # Only use 'H0G', 'G0G', 'G1G', ...
+            continue
+
+        profile_year = pd.Series()  # Yearly profile for the current house
+        for date in weather_daily.index:
+            weekday = weather_data.loc[date]['weekday_BDEW']
+            season = weather_data.loc[date]['season_BDEW']
+            # Important: In order identify the weekday of the resampled days,
+            # we labled them 'right'. From now on we need the label 'left',
+            # so we substract '1 day' from each date:
+            date -= pd.Timedelta('1 day')
+
+            source_profile = source_df[house_type][season, weekday]
+
+            # Combine date and time stamps
+            profile_daily = source_profile.copy()
+            index_new = []
+            for time_idx in source_profile.index:
+                try:
+                    # Turn time stamp into a time difference (delta)
+                    delta = pd.to_timedelta(str(time_idx))
+                    if delta == pd.to_timedelta(0):
+                        # Delta of zero must be a full day
+                        delta = pd.to_timedelta('24 h')
+                except Exception:
+                    # The last entry of each profile ('0:00') is sometimes
+                    # stored as a full date (1900-1-1 00:00) in Excel
+                    delta = pd.to_timedelta('24 h')
+
+                # Create full time stamp of date and time for the new index
+                datetime_idx = date + delta
+                index_new.append(datetime_idx)
+
+            profile_daily.index = index_new
+#            print(profile_daily)
+
+            # Append to yearly profile
+            profile_year = pd.concat([profile_year, profile_daily])
+
+        # Store in DataFrame that will be returned
+        ret_profiles[house_name, energy_type] = profile_year
+
+    # Resample to the desired frequency (time intervall)
+    source_freq = pd.infer_freq(profile_daily.index)
+    source_freq = pd.to_timedelta(to_offset(source_freq))
+
+    if source_freq < settings['interpolation_freq']:
+        # In case of downsampling (to longer time intervalls) take the sum
+        ret_profiles = ret_profiles.resample(settings['interpolation_freq'],
+                                             label='right',
+                                             closed='right').sum()
+    elif source_freq > settings['interpolation_freq']:
+        # In case of upsampling (to shorter time intervalls) use backwards fill
+        ret_profiles.fillna(method='backfill', inplace=True)
+
+    return ret_profiles
+
+
+def load_BDEW_profiles(weather_data, settings, houses_dict):
+
+    source_file = BDEW_file
+    energy_type = 'W_TT'
+    BDEW_profiles = load_BDEW_style_profiles(source_file, weather_data,
+                                             settings, houses_dict,
+                                             energy_type)
+
+    # Rescale to the given yearly energy demand:
+    for column in BDEW_profiles.columns:
+        W_a = houses_dict[column[0]]['W_a']
+        yearly_sum = BDEW_profiles[column].sum()
+        BDEW_profiles[column] = BDEW_profiles[column]/yearly_sum * W_a
+
+    return BDEW_profiles
+
+
+def load_DOE_profiles(weather_data, settings, houses_dict):
+    source_file = DOE_file
+    energy_type = 'Q_TWW_TT'
+    DOE_profiles = load_BDEW_style_profiles(source_file, weather_data,
+                                            settings, houses_dict,
+                                            energy_type)
+
+    # Rescale to the given yearly energy demand:
+    for column in DOE_profiles.columns:
+        Q_TWW_a = houses_dict[column[0]]['Q_TWW_a']
+        yearly_sum = DOE_profiles[column].sum()
+        DOE_profiles[column] = DOE_profiles[column]/yearly_sum * Q_TWW_a
+
+    return DOE_profiles
+
+
+def load_futureSolar_profiles(weather_data, settings, houses_dict):
+    houses_list = settings['houses_list_BDEW']
+#    print(houses_list)
+    # BDEW_file
+    futureSolar_df = pd.read_excel(open(futureSolar_file, 'rb'), index_col=[0],
+                                   sheet_name='Profile', header=[0, 1])
+    futureSolar_df.index = pd.to_timedelta(futureSolar_df.index, unit='h')
+
+    energy_types = ['Q_Heiz_TT', 'Q_Kalt_TT']
+    multiindex = pd.MultiIndex.from_product([houses_list, energy_types],
+                                            names=['house', 'energy'])
+    futureSolar_profiles = pd.DataFrame(index=weather_data.index,
+                                        columns=multiindex)
+
+#    print(futureSolar_df.keys())
+
+    for shift_steps, date_obj in enumerate(weather_data.index):
+        if date_obj.dayofweek == 1:  # 1 equals Tuesday
+#            print(shift_steps, date_obj)
+            first_tuesday = date_obj
+            break
+
+    futureSolar_df.index = first_tuesday + futureSolar_df.index
+
+    futureSolar_df = futureSolar_df.resample(settings['interpolation_freq'],
+                                             label='right',
+                                             closed='right').sum()
+
+    overlap = futureSolar_df[-(shift_steps + 1):]
+    overlap.index = overlap.index - pd.Timedelta('365 days')
+    futureSolar_df = overlap.append(futureSolar_df)
+
+    for house_name in houses_list:
+        house_type = houses_dict[house_name]['house_type']
+        if house_type not in futureSolar_df.keys():
+            # Only use 'G1G' and 'G4G'
+            continue
+
+        for energy_type in energy_types:
+            profile_year = futureSolar_df[house_type, energy_type]
+#            print(profile_year)
+            futureSolar_profiles[house_name, energy_type] = profile_year
+
+    # Rescale to the given yearly energy demand:
+    for column in futureSolar_profiles.columns:
+        if column[1] == 'Q_Heiz_TT':
+            Q_a = houses_dict[column[0]].get('Q_Heiz_a', 1)
+        elif column[1] == 'Q_Kalt_TT':
+            Q_a = houses_dict[column[0]].get('Q_Kalt_a', 1)
+        sum_ = futureSolar_profiles[column].sum()
+        futureSolar_profiles[column] = futureSolar_profiles[column]/sum_ * Q_a
+
+#    print(futureSolar_profiles)
+    return futureSolar_profiles
+
+
+def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
     '''Create copies of houses where needed. Apply a normal distribution to
     the copies, if a standard deviation 'sigma' is given in the config.
+
     Remember: 68.3%, 95.5% and 99.7% of the values lie within one,
     two and three standard deviations of the mean.
     Example: With an interval of 15 min and a deviation of
@@ -577,10 +744,11 @@ if __name__ == '__main__':
     27% of proflies are shifted ±30 to 60 min (±2σ) and another
     4% are shifted ±60 to 90 min (±3σ).
     '''
+    load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
     # Fix the 'randomness' (every run of the script generates the same results)
     np.random.seed(4)
     # Create copies for every house
-    for house_name in houses_list:
+    for house_name in settings['houses_list']:
         copies = houses_dict[house_name].get('copies', 0)
         # Get standard deviation (spread or “width”) of the distribution:
         sigma = houses_dict[house_name].get('sigma', False)
@@ -624,24 +792,47 @@ if __name__ == '__main__':
             print(np.round(randoms))
             print('Mean=', np.mean(randoms), ' std=', np.std(randoms, ddof=1))
 
+    load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
+    return load_curve_houses
 
-    # Debugging: Show the daily sum of each energy demand type:
-#    print(load_curve_houses.resample('D', label='left', closed='right').sum())
 
-    # Sum up the energy demands of all houses, store result in weather_data
-    print('Sum up the energy demands of all houses')
-
-    # By grouping the 'energy' level, we can take the sum of all houses
+def sum_up_all_houses(load_curve_houses, weather_data):
+    '''By grouping the 'energy' level, we can take the sum of all houses.
+    Also renames the columns from VDI 4655 standard to 'E_th', 'E_el',
+    as used in the project futureSuN.
+    '''
+    load_curve_houses = load_curve_houses.stack('class')
     load_curve_houses_sum = load_curve_houses.groupby(level='energy',
                                                       axis=1).sum()
+    load_curve_houses_sum = load_curve_houses_sum.unstack('class')
+    load_curve_houses_sum.rename(columns={'Q_Heiz_TT': 'E_th_RH',
+                                          'Q_Kalt_TT': 'E_th_KL',
+                                          'Q_TWW_TT': 'E_th_TWE',
+                                          'Q_loss': 'E_th_loss',
+                                          'W_TT': 'E_el'},
+                                 inplace=True)
+#    print(load_curve_houses_sum)
 
+    # Flatten the heirarchical index
+    settings['energy_demands_types'] = ['_'.join(col).strip() for col in
+                                        load_curve_houses_sum.columns.values]
+
+    load_curve_houses_sum.columns = settings['energy_demands_types']
     # Concatenate the weather_data and load_curve_houses_sum DataFrames
     weather_data = pd.concat([weather_data, load_curve_houses_sum], axis=1)
+    return weather_data
 
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    #       Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
-    #                        (Not part of the VDI 4655)
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+
+def integrate_heizkurve(weather_data, settings):
+    '''Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
+    (Not part of the VDI 4655)
+
+    Calculation according to:
+    Knabe, Gottfried (1992): Gebäudeautomation. 1. Aufl.
+    Berlin: Verl. für Bauwesen.
+    Section 6.2.1., pages 267-268
+    '''
+    interpolation_freq = settings['interpolation_freq']
 
     if config_dict.get('Heizkurve', None) is not None:
         print('Calculate heatcurve temperatures')
@@ -665,12 +856,6 @@ if __name__ == '__main__':
 
             # Calculate temperatures and mass flow for heating
             if (T_a < T_i):  # only calculate if heating is necessary
-                # Calculation according to:
-                #
-                # Knabe, Gottfried (1992): Gebäudeautomation. 1. Aufl.
-                # Berlin: Verl. für Bauwesen.
-                # Section 6.2.1., pages 267-268
-
                 phi = (T_i - T_a) / (T_i - T_a_N)
                 dT_N = (T_VL_N - T_RL_N)                                 # K
                 dTm_N = (T_VL_N + T_RL_N)/2.0 - T_i                      # K
@@ -678,7 +863,16 @@ if __name__ == '__main__':
                 T_VL_Heiz = phi**(1/(1+m)) * dTm_N + 0.5*phi*dT_N + T_i  # °C
                 T_RL_Heiz = phi**(1/(1+m)) * dTm_N - 0.5*phi*dT_N + T_i  # °C
 
-                Q_Heiz = weather_data.loc[date_obj]['Q_Heiz_TT']         # kWh
+                Q_Heiz = 0
+                try:  # Households may or may not have been defined
+                    Q_Heiz += weather_data.loc[date_obj]['E_th_RH_HH']   # kWh
+                except Exception:
+                    pass
+                try:  # GHD may or may not have been defined
+                    Q_Heiz += weather_data.loc[date_obj]['E_th_RH_GHD']  # kWh
+                except Exception:
+                    pass
+
                 Q_dot_Heiz = Q_Heiz / hours                              # kW
                 M_dot_Heiz = Q_dot_Heiz/(c_p*(T_VL_Heiz-T_RL_Heiz))*3600
                 # unit of M_dot_Heiz: kg/h
@@ -693,7 +887,15 @@ if __name__ == '__main__':
             T_VL_TWW = T_VL_N
             T_RL_TWW = T_RL_N
 
-            Q_TWW = weather_data.loc[date_obj]['Q_TWW_TT']            # kWh
+            Q_TWW = 0
+            try:  # Households may or may not have been defined
+                Q_TWW += weather_data.loc[date_obj]['E_th_TWE_HH']    # kWh
+            except Exception:
+                pass
+            try:  # GHD may or may not have been defined
+                Q_TWW += weather_data.loc[date_obj]['E_th_TWE_GHD']   # kWh
+            except Exception:
+                pass
             Q_dot_TWW = Q_TWW / hours                                 # kW
             M_dot_TWW = Q_dot_TWW/(c_p*(T_VL_TWW - T_RL_TWW))*3600    # kg/h
 
@@ -737,26 +939,183 @@ if __name__ == '__main__':
             M_dot_list.append(M_dot)
             print('{:5.1f}% done'.format(j/total*100), end='\r')  # progress
 
-        weather_data['Q_loss'] = Q_loss_list
+        weather_data['E_th_loss'] = Q_loss_list
         weather_data['T_VL'] = T_VL_list
         weather_data['T_RL'] = T_RL_list
         weather_data['M_dot'] = M_dot_list
 
     else:  # Create dummy columns if no heatcurve calculation was performed
-        weather_data['Q_loss'] = 0
+        weather_data['E_th_loss'] = 0
         weather_data['T_VL'] = 0
         weather_data['T_RL'] = 0
         weather_data['M_dot'] = 0
 
+    # Add the loss to the energy demand types
+    settings['energy_demands_types'].append('E_th_loss')
+
+
+def normalize_energy(weather_data):
+    '''Normalize results to a total of 1 kWh per year
+    '''
+    if config_dict.get('normalize', False) is True:
+        print('Normalize load profile')
+        for column in settings['energy_demands_types']:
+            yearly_sum = weather_data[column].sum()
+            weather_data[column] = weather_data[column]/yearly_sum
+
+
+if __name__ == '__main__':
+    '''
+    The following is the 'main' function, which contains the rest of the script
+    '''
+    multiprocessing.freeze_support()
+
+    # --- Measure start time of this script -----------------------------------
+    start_time = time.time()
+
+    # Global Pandas option for displaying terminal output
+    pd.set_option('display.max_columns', 0)
+
+    # --- Script options ------------------------------------------------------
+#    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung'
+#    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE'
+#    base_folder = r'C:\Trnsys17\Work\futureSuN\SB\Load'
+#    base_folder = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load'
+    base_folder = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Last'
+#    base_folder = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load'
+
+    holiday_file = os.path.join(base_folder, 'Typtage', 'Feiertage.xlsx')
+    energy_factors_file = os.path.join(
+        base_folder, 'Typtage', 'VDI 4655 Typtag-Faktoren.xlsx')
+    typtage_file = os.path.join(base_folder, 'Typtage', 'VDI 4655 Typtage.xlsx')
+    BDEW_file = os.path.join(base_folder, 'Typtage', 'BDEW Profile.xlsx')
+    DOE_file = os.path.join(base_folder, 'Typtage', 'DOE Profile TWE.xlsx')
+    futureSolar_file = os.path.join(base_folder, 'Typtage', 'futureSolar Profile.xlsx')
+    config_file = os.path.join(base_folder, 'VDI_4655_config.yaml')
+
+    # --- Import the config_dict from the YAML config_file --------------------
+    config_dict = yaml.load(open(config_file, 'r'))
+
+    # --- Read settings from the config_dict ----------------------------------
+    settings = config_dict['settings']
+    bool_print_header = settings.get('print_header', True)
+    bool_print_index = settings.get('print_index', True)
+    use_BDEW_seasons = settings.get('use_BDEW_seasons', False)
+
+    print_file = settings['print_file']
+    bool_show_plot = settings.get('show_plot', False)
+
+    DEBUG = settings.get('Debug', False)
+
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    #                          VDI 4655 Implementation
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    weather_data = load_weather_file(settings)
+
+    # -------------------------------------------------------------------------
+    # VDI 4655 - Step 1: Determine the "typtag" key for each timestep
+    # -------------------------------------------------------------------------
+    print('Determine "typtag" keys for each time step')
+    get_typical_days(weather_data, settings)
+
+    # -------------------------------------------------------------------------
+    # VDI 4655 - Step 2:
+    # Match 'typtag' keys and reference load profile factors for each timestep
+    # (for each 'typtag' key, one load profile is defined by VDI 4655)
+    # -------------------------------------------------------------------------
+    print('Read in reference load profile factors and match them to ' +
+          '"typtag" keys for each timestep')
+    load_profile_df = load_profile_factors(settings)
+
+    # -------------------------------------------------------------------------
+    # VDI 4655 - Step 3: Load houses and generate their load profiles
+    #
+    # In the end, we will multiply the energy factors contained in DataFrame
+    # load_profile_df for each time step of the weather_data with the
+    # corresponding daily energy demand of each house we want to simulate. This
+    # will yield the DataFrame load_curve_houses, which contains the actual
+    # energy demand of each house in each time step.
+    # -------------------------------------------------------------------------
+
+    # (6) Application of guideline:
+    # -------------------------------------------------------------------------
+    # The following numbered sections are the implementations of the
+    # corresponding sections in the VDI 4655.
+
+    # (6.1) Specification of building type:
+    # -------------------------------------------------------------------------
+    # Building type (EFH or MFH) is defined by user in YAML file.
+    # - "single-family houses are residential buildings with up to
+    #    three flasts and one common heating system"
+    # - "multi-family houses are residential buildings with no less
+    #    then four flasts and one common heating system"
+
+    # (6.2) Specification of annual energy demand:
+    # -------------------------------------------------------------------------
+    print('Read in houses and calculate their annual energy demand')
+    houses_dict = get_annual_energy_demand(settings)
+
+    # (6.3) Allocation of building site:
+    # -------------------------------------------------------------------------
+    # The user has to give the number of the TRY climat zone
+    # in the yaml file. It is used in (6.4).
+
+    # (6.4) Determination of the houses' energy demand values for each 'typtag'
+    # -------------------------------------------------------------------------
+    print("Determine the houses' energy demand values for each 'typtag'")
+    daily_energy_demand_houses = get_daily_energy_demand_houses(houses_dict,
+                                                                settings)
+
+    # (6.5) Determination of a daily demand curve for each house:
+    # -------------------------------------------------------------------------
+    print("Generate the houses' energy demand values for each timestep")
+    load_curve_houses = get_load_curve_houses(load_profile_df, houses_dict,
+                                              settings)
+
+    # For the GHD building sector, combine profiles from various sources:
+    # (not part of VDI 4655)
+    # -------------------------------------------------------------------------
+    BDEW_profiles = load_BDEW_profiles(weather_data, settings, houses_dict)
+    DOE_profiles = load_DOE_profiles(weather_data, settings, houses_dict)
+    futureSolar_profiles = load_futureSolar_profiles(weather_data, settings,
+                                                     houses_dict)
+    GHD_profiles = pd.concat([BDEW_profiles,
+                               DOE_profiles,
+                               futureSolar_profiles],
+                              axis=1, sort=False)
+
+    load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
+                                  axis=1, sort=False,
+                                  keys=['HH', 'GHD'], names=['class'])
+#    print(load_curve_houses)
+
+    # Randomize the
+    # (Optional, not part of VDI 4655)
+    # -------------------------------------------------------------------------
+    print('Create (randomized) copies of the houses')
+    load_curve_houses = copy_and_randomize_houses(load_curve_houses,
+                                                  houses_dict, settings)
+
+    # Debugging: Show the daily sum of each energy demand type:
+#    print(load_curve_houses.resample('D', label='left', closed='right').sum())
+
+    # Sum up the energy demands of all houses, store result in weather_data
+    print('Sum up the energy demands of all houses')
+    weather_data = sum_up_all_houses(load_curve_houses, weather_data)
+#    print(weather_data)
+
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    #       Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
+    #                        (Not part of the VDI 4655)
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    integrate_heizkurve(weather_data, settings)
+
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     #                Normalize results to a total of 1 kWh per year
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    if config_dict.get('normalize', False) is True:
-        print('Normalize load profile')
-        norm_list = ['Q_Heiz_TT', 'Q_TWW_TT', 'Q_loss', 'W_TT']
-        for column in weather_data[norm_list].columns:
-            yearly_sum = weather_data[column].sum()
-            weather_data[column] = weather_data[column]/yearly_sum
+    normalize_energy(weather_data)
+
+#    print(weather_data)
 
     '''
     ---------------------------------------------------------------------------
@@ -765,10 +1124,17 @@ if __name__ == '__main__':
     '''
 
     # Print a table of the energy sums to the console (monthly and annual)
-    sum_list = ['Q_Heiz_TT', 'Q_TWW_TT', 'Q_loss', 'W_TT']
-#    sum_list = ['Q_Heiz_TT', 'Q_TWW_TT', 'W_TT']
-    sum_list_heat = ['Q_Heiz_TT', 'Q_TWW_TT', 'Q_loss']
-#    sum_list_heat = ['Q_Heiz_TT','Q_TWW_TT']
+    filter_sum = ['E_th_', 'E_el']
+    filter_sum_heat = ['E_th_']
+    sum_list = []
+    sum_list_heat = []
+    for column in weather_data.columns:
+        for filter_ in filter_sum:
+            if filter_ in column:
+                sum_list.append(column)
+        for filter_ in filter_sum_heat:
+            if filter_ in column:
+                sum_list_heat.append(column)
 
     # Set the number of decimal points for the following terminal output
     pd.set_option('precision', 2)
@@ -796,10 +1162,15 @@ if __name__ == '__main__':
     if bool_show_plot is True:
         print('Showing plot of energy demand types...')
         plt.figure()
-        for energy_demand_type in energy_demands_types:
+        for energy_demand_type in settings['energy_demands_types']:
             weather_data[energy_demand_type].plot(label=energy_demand_type)
         plt.legend()
         plt.show(block=False)  # Show the plot, without blocking the script
+
+    # Add a row at zero hours for the initialization in TRNSYS
+    if settings.get('include_zero_row', False) is True:
+        weather_data.loc[pd.datetime(*settings['start'])] = 0
+        weather_data.sort_index(inplace=True)
 
     # Print the results file
     if settings.get('print_columns', None) is not None:
