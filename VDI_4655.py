@@ -33,9 +33,33 @@ import time                      # Measure time
 import multiprocessing           # Parallel (Multi-) Processing
 import functools
 import numpy as np
+from tkinter import Tk, filedialog
 
 # Import other user-made modules (which must exist in the same folder)
 import zeitreihe_IGS_RKR        # Script for interpolation of IGS weather files
+
+
+def file_dialog(initialdir=os.getcwd()):
+    '''This function presents a file dialog for a parametric table file.
+
+    Args:
+        None
+
+    Return:
+        path (str): File path
+    '''
+    title = 'Choose a yaml config file'
+    root = Tk()
+    root.withdraw()
+    file = filedialog.askopenfilename(
+                initialdir=initialdir, title=title,
+                filetypes=(('YAML File', '*.yaml'),)
+                )
+    if file == '':
+        path = None
+    else:
+        path = os.path.abspath(file)
+    return path
 
 
 def load_weather_file(settings):
@@ -1033,21 +1057,24 @@ if __name__ == '__main__':
     mpl.style.use('./futureSuN.mplstyle')  # Personalized matplotlib style file
 
     # --- Script options ------------------------------------------------------
-#    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung'
-#    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE'
-#    base_folder = r'C:\Trnsys17\Work\futureSuN\SB\Load'
-#    base_folder = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load'
-    base_folder = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Last'
-#    base_folder = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load'
+    config_file = None
+#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung\VDI_4655_config.yaml'
+#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE\VDI_4655_config.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\SB\Load\VDI_4655_config.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config.yaml'
+    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Last\VDI_4655_config.yaml'
+#    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
 
-    holiday_file = os.path.join(base_folder, 'Typtage', 'Feiertage.xlsx')
-    energy_factors_file = os.path.join(
-        base_folder, 'Typtage', 'VDI 4655 Typtag-Faktoren.xlsx')
-    typtage_file = os.path.join(base_folder, 'Typtage', 'VDI 4655 Typtage.xlsx')
-    BDEW_file = os.path.join(base_folder, 'Typtage', 'BDEW Profile.xlsx')
-    DOE_file = os.path.join(base_folder, 'Typtage', 'DOE Profile TWE.xlsx')
-    futureSolar_file = os.path.join(base_folder, 'Typtage', 'futureSolar Profile.xlsx')
-    config_file = os.path.join(base_folder, 'VDI_4655_config.yaml')
+    holiday_file = os.path.join('resources_load', 'Feiertage.xlsx')
+    energy_factors_file = os.path.join('resources_load', 'VDI 4655 Typtag-Faktoren.xlsx')
+    typtage_file = os.path.join('resources_load', 'VDI 4655 Typtage.xlsx')
+    BDEW_file = os.path.join('resources_load', 'BDEW Profile.xlsx')
+    DOE_file = os.path.join('resources_load', 'DOE Profile TWE.xlsx')
+    futureSolar_file = os.path.join('resources_load', 'futureSolar Profile.xlsx')
+
+    if config_file is None:
+        config_file = file_dialog()  # show file dialog
+    base_folder = os.path.dirname(config_file)
 
     # --- Import the config_dict from the YAML config_file --------------------
     config_dict = yaml.load(open(config_file, 'r'))
