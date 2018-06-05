@@ -27,6 +27,7 @@ import pandas as pd              # Pandas
 from pandas.tseries.frequencies import to_offset
 import os                        # Operaing System
 import yaml                      # Read YAML configuration files
+import matplotlib as mpl
 import matplotlib.pyplot as plt  # Plotting library
 import time                      # Measure time
 import multiprocessing           # Parallel (Multi-) Processing
@@ -130,11 +131,15 @@ def get_typical_days(weather_data, settings):
 
     season_list = []
 
+    # The VDI 4655 default heat limit is 15°C (definition of summer days).
+    # For modern building types, this can be set to a lower value
+    Tamb_heat_limit = settings.get('Tamb_heat_limit', 15)  # °C
+
     # Read through list of temperatures line by line and apply the definition
     for tamb_avg in tamb_avg_list:
         if tamb_avg < 5:
             season_list.append('W')  # Winter
-        elif tamb_avg > 15:
+        elif tamb_avg > Tamb_heat_limit:
             season_list.append('S')  # Summer
         else:
             season_list.append('U')  # Übergang (Transition)
@@ -530,6 +535,19 @@ def get_load_curve_houses(load_profile_df, houses_dict, settings):
         # print ('{:5.1f}% done'.format(j/total*100), end='\r')  # progress
 
 #    print(load_curve_houses)
+
+    # The typical day calculation inherently does not add up to the
+    # desired total energy demand of the full year. Here we fix that:
+    for column in load_curve_houses.columns:
+        if column[1] == 'Q_Heiz_TT':
+            Q_a = houses_dict[column[0]]['Q_Heiz_a']
+        elif column[1] == 'Q_TWW_TT':
+            Q_a = houses_dict[column[0]]['Q_TWW_a']
+        elif column[1] == 'W_TT':
+            Q_a = houses_dict[column[0]]['W_a']
+        sum_ = load_curve_houses[column].sum()
+        load_curve_houses[column] = load_curve_houses[column]/sum_ * Q_a
+
     return load_curve_houses
 
 
@@ -743,6 +761,17 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
     sigma = 2 time steps, 68% of profiles are shifted up to ±30 min (±1σ).
     27% of proflies are shifted ±30 to 60 min (±2σ) and another
     4% are shifted ±60 to 90 min (±3σ).
+
+    This method decreases the maximum load and thereby creates a
+    "simultaneity factor" (Gleichzeitigkeitsfaktor). It can be calculated by
+    dividing the maximum loads with and without the normal distribution.
+
+    For a plausibilty check see pages 3 and 12 of:
+    Winter, Walter; Haslauer, Thomas; Obernberger, Ingwald (2001):
+    Untersuchungen der Gleichzeitigkeit in kleinen und mittleren
+    Nahwärmenetzen. In: Euroheat & Power (9/10). Online verfügbar unter
+    http://www.bios-bioenergy.at/uploads/media/Paper-Winter-Gleichzeitigkeit-Euroheat-2001-09-02.pdf
+
     '''
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
     # Fix the 'randomness' (every run of the script generates the same results)
@@ -753,6 +782,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
         # Get standard deviation (spread or “width”) of the distribution:
         sigma = houses_dict[house_name].get('sigma', False)
         randoms = np.random.normal(0, sigma, copies)  # Array of random values
+        randoms_int = [int(value) for value in np.round(randoms, 0)]
         for copy in range(0, copies):
             copy_name = house_name + '_c' + str(copy)
             # Select the data of the house we want to copy
@@ -762,7 +792,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
                                axis=1)
 
             if sigma:  # Optional: Shift the rows
-                shift_step = int(round(randoms[copy], 0))
+                shift_step = randoms_int[copy]
                 if shift_step > 0:
                     # Shifting forward in time pushes the last entries out of
                     # the df and leaves the first entries empty. We take that
@@ -789,8 +819,31 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
                                           axis=1, sort=False)
         if sigma and DEBUG:
             print('Interval shifts applied to copies of house '+house_name+':')
-            print(np.round(randoms))
-            print('Mean=', np.mean(randoms), ' std=', np.std(randoms, ddof=1))
+            print(randoms_int)
+            mu = np.mean(randoms_int)
+            sigma = np.std(randoms_int, ddof=1)
+            text_mean_std = 'Mean = {:0.2f}, std = {:0.2f}'.format(mu, sigma)
+            title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
+            print(text_mean_std)
+
+            if settings.get('show_plot', False) is True:
+                # the histogram of the data
+                bins = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]
+                fig = plt.figure()
+                ax = fig.gca()
+                ax.yaxis.grid(True)  # Activate grid on horizontal axis
+                n, bins, patches = plt.hist(randoms_int, bins, align='left',
+                                            rwidth=0.9)
+                plt.title(str(copies)+' Kopien von Gebäude '+house_name +
+                          ' ('+title_mu_std+')')
+                plt.xlabel('Zeitschritte')
+                plt.ylabel('Anzahl')
+                plt.rcParams.update({'font.size': 16})
+                plt.savefig(os.path.join(base_folder, 'Result',
+                                         'histogram_'+house_name+'.png'),
+                            bbox_inches='tight', dpi=200)
+                plt.show(block=False)  # Show plot without blocking the script
+                pass
 
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
     return load_curve_houses
@@ -975,6 +1028,9 @@ if __name__ == '__main__':
 
     # Global Pandas option for displaying terminal output
     pd.set_option('display.max_columns', 0)
+
+    # Define style settings for the plots
+    mpl.style.use('./futureSuN.mplstyle')  # Personalized matplotlib style file
 
     # --- Script options ------------------------------------------------------
 #    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung'
@@ -1161,9 +1217,11 @@ if __name__ == '__main__':
     # Display a plot on screen for the user
     if bool_show_plot is True:
         print('Showing plot of energy demand types...')
-        plt.figure()
+        fig = plt.figure()
+        ax = fig.gca()
         for energy_demand_type in settings['energy_demands_types']:
             weather_data[energy_demand_type].plot(label=energy_demand_type)
+        ax.yaxis.grid(True)  # Activate grid on horizontal axis
         plt.legend()
         plt.show(block=False)  # Show the plot, without blocking the script
 
