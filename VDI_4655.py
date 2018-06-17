@@ -817,6 +817,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
 
     '''
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
+    load_curve_houses_ref = load_curve_houses.copy()  # Reference (no random)
     # Fix the 'randomness' (every run of the script generates the same results)
     np.random.seed(4)
     # Create copies for every house
@@ -835,18 +836,29 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
                                        randoms_int, sigma)
             return_list = multiprocessing_job(f_help, work_list)
             # Merge the existing and new dataframes
-            df_list = return_list.get()
-            load_curve_houses = pd.concat([load_curve_houses] + df_list,
+            df_list_tuples = return_list.get()
+
+            df_list = [x[0] for x in df_list_tuples]
+            df_list_ref = [x[1] for x in df_list_tuples]
+
+            load_curve_houses = pd.concat([load_curve_houses]+df_list,
                                           axis=1, sort=False)
+            load_curve_houses_ref = pd.concat([load_curve_houses_ref]
+                                              + df_list_ref,
+                                              axis=1, sort=False)
         else:
             # Implementation in serial
             for copy in range(0, copies):
-                df_new = mp_copy_and_randomize(load_curve_houses, house_name,
-                                               randoms_int, sigma, copy,
-                                               b_print=True)
+                df_new, df_ref = mp_copy_and_randomize(load_curve_houses,
+                                                       house_name,
+                                                       randoms_int, sigma,
+                                                       copy, b_print=True)
                 # Merge the existing and new dataframes
                 load_curve_houses = pd.concat([load_curve_houses, df_new],
                                               axis=1, sort=False)
+                load_curve_houses_ref = pd.concat([load_curve_houses_ref,
+                                                   df_ref],
+                                                  axis=1, sort=False)
 
         if sigma and DEBUG:
             print('Interval shifts applied to copies of house '+house_name+':')
@@ -882,6 +894,9 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
             if settings.get('show_plot', False) is True:
                 plt.show(block=False)  # Show plot without blocking the script
 
+    # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
+    calc_GLF(load_curve_houses, load_curve_houses_ref, settings)
+
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
     return load_curve_houses
 
@@ -896,6 +911,7 @@ def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
     # Rename the multiindex with the name of the copy
     df_new = pd.concat([df_new], keys=[copy_name], names=['house'],
                        axis=1)
+    df_ref = df_new.copy()
 
     if sigma:  # Optional: Shift the rows
         shift_step = randoms_int[copy]
@@ -922,7 +938,43 @@ def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
 
     if b_print:
         print(' ', end='\r')  # overwrite last status with empty line
-    return df_new
+    return df_new, df_ref
+
+
+def calc_GLF(load_curve_houses, load_curve_houses_ref, settings):
+    '''Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
+    Uses a DataFrame with and one without randomness.
+    '''
+    load_curve_houses_ran = load_curve_houses.copy()
+    load_ran = load_curve_houses_ran.groupby(level='energy', axis=1).sum()
+    load_ref = load_curve_houses_ref.groupby(level='energy', axis=1).sum()
+
+    hours = settings['interpolation_freq'].seconds / 3600.0        # h
+    sf_df = pd.DataFrame(index=['P_max_kW', 'P_max_ref_kW', 'GLF'],
+                         columns=['th_RH', 'th_TWE', 'th', 'el'])
+    sf_df.loc['P_max_kW', 'th_RH'] = load_ran['Q_Heiz_TT'].max() / hours
+    sf_df.loc['P_max_kW', 'th_TWE'] = load_ran['Q_TWW_TT'].max() / hours
+    sf_df.loc['P_max_kW', 'th'] = (load_ran['Q_Heiz_TT']
+                                   + load_ran['Q_TWW_TT']).max() / hours
+    sf_df.loc['P_max_kW', 'el'] = load_ran['W_TT'].max() / hours
+
+    sf_df.loc['P_max_ref_kW', 'th_RH'] = load_ref['Q_Heiz_TT'].max() / hours
+    sf_df.loc['P_max_ref_kW', 'th_TWE'] = load_ref['Q_TWW_TT'].max() / hours
+    sf_df.loc['P_max_ref_kW', 'th'] = (load_ref['Q_Heiz_TT']
+                                       + load_ref['Q_TWW_TT']).max() / hours
+    sf_df.loc['P_max_ref_kW', 'el'] = load_ref['W_TT'].max() / hours
+
+    sf_df.loc['GLF'] = sf_df.loc['P_max_kW']/sf_df.loc['P_max_ref_kW']
+
+    print('Simultaneity factors (Gleichzeitigkeitsfaktoren):')
+    print(sf_df)
+    # Make sure the save path exists and save the DataFrame
+    save_folder = os.path.join(base_folder, 'Result')
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+    sf_df.to_excel(os.path.join(save_folder, 'GLF.xlsx'))
+
+    return None
 
 
 def sum_up_all_houses(load_curve_houses, weather_data):
