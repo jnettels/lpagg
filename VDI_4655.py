@@ -998,7 +998,7 @@ def integrate_heizkurve(weather_data, settings):
                 # unit of q_loss: W/(m*K)
 
                 dTm = (T_VL + T_RL)/2.0 - T_a                       # K
-                Q_dot_loss = length * q_loss * dTm / 1000.0         # kW
+                Q_dot_loss = 2 * length * q_loss * dTm / 1000.0     # kW
                 Q_loss = Q_dot_loss * hours                         # kWh
 
                 # Calculate the increased mass flow based on the new heat flow
