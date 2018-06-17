@@ -470,6 +470,7 @@ def print_IGS_weather_file(weather_data, print_folder, print_file,
                            index=bool_print_index,
                            header=bool_print_header)
     print_file.close()
+    weather_data.to_excel(os.path.splitext(print_path)[0]+'.xlsx')
 
     return True
 
