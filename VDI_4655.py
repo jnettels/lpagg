@@ -64,7 +64,7 @@ def file_dialog(initialdir=os.getcwd()):
 
 def load_weather_file(settings):
     weather_file = settings['weather_file']
-    weather_file_path = os.path.join(base_folder, 'Wetter', weather_file)
+    weather_file_path = os.path.join('resources_weather', weather_file)
     weather_data_type = settings['weather_data_type']
     datetime_start = pd.datetime(*settings['start'])  # * reads list as args
     datetime_end = pd.datetime(*settings['end'])
@@ -524,7 +524,7 @@ def get_load_curve_houses(load_profile_df, houses_dict, settings):
 
     # 'Partial' creates a function that only takes one argument. In our case
     # this is 'date_obj'. It will be given to the target function
-    # 'set_energy_demand_values' as the last argument.
+    # 'get_energy_demand_values' as the last argument.
     helper_function = functools.partial(get_energy_demand_values,
                                         weather_data, houses_list, houses_dict,
                                         energy_factor_types,
@@ -532,26 +532,12 @@ def get_load_curve_houses(load_profile_df, houses_dict, settings):
                                         load_curve_houses, load_profile_df,
                                         daily_energy_demand_houses)
 
-    number_of_cores = multiprocessing.cpu_count() - 2
-    print('Parallel processing on '+str(number_of_cores)+' cores')
-    pool = multiprocessing.Pool(number_of_cores)
     work_list = weather_data.index
-    return_list = pool.map_async(helper_function, work_list)
-    pool.close()
-
-    while return_list.ready() is False:
-        remaining = return_list._number_left
-        total = len(work_list)/float(return_list._chunksize)
-        j = total - remaining
-        print('{:5.1f}% done'.format(j/total*100), end='\r')  # print progress
-        time.sleep(1.0)
-
-    pool.join()
-    print('100.0% done', end='\r')
+    return_list = multiprocessing_job(helper_function, work_list)
 
     # The 'pool' returns a list. Feed its contents to the DataFrame
-    for object in return_list.get():
-        load_curve_houses.loc[object.name] = object
+    for returned_df in return_list.get():
+        load_curve_houses.loc[returned_df.name] = returned_df
 
     # For each time step, each house and each type of energy factor, we
     # multiply the energy factor with the daily energy demand. The result
@@ -578,6 +564,28 @@ def get_load_curve_houses(load_profile_df, houses_dict, settings):
         load_curve_houses[column] = load_curve_houses[column]/sum_ * Q_a
 
     return load_curve_houses
+
+
+def multiprocessing_job(helper_function, work_list):
+    '''Generalization of multiprocessing with integrated progress printing.
+    '''
+    number_of_cores = min(multiprocessing.cpu_count()-1, len(work_list))
+    print('Parallel processing on '+str(number_of_cores)+' cores')
+    pool = multiprocessing.Pool(number_of_cores)
+    return_list = pool.map_async(helper_function, work_list)
+    pool.close()
+
+    total = return_list._number_left
+    while return_list.ready() is False:
+        remaining = return_list._number_left
+        fraction = (total - remaining)/total
+        print('{:5.1f}% done'.format(fraction*100), end='\r')  # print progress
+        time.sleep(1.0)
+
+    pool.join()
+    print('100.0% done', end='\r')
+
+    return return_list
 
 
 def get_energy_demand_values(weather_data, houses_list, houses_dict,
@@ -629,6 +637,8 @@ def load_BDEW_style_profiles(source_file, weather_data, settings, houses_dict,
                                             names=['house', 'energy'])
     ret_profiles = pd.DataFrame(index=weather_data.index,
                                 columns=multiindex)
+    if len(houses_list) == 0:  # Skip
+        return ret_profiles
 
     for house_name in houses_list:
         house_type = houses_dict[house_name]['house_type']
@@ -709,6 +719,7 @@ def load_BDEW_profiles(weather_data, settings, houses_dict):
 
 
 def load_DOE_profiles(weather_data, settings, houses_dict):
+
     source_file = DOE_file
     energy_type = 'Q_TWW_TT'
     DOE_profiles = load_BDEW_style_profiles(source_file, weather_data,
@@ -725,6 +736,7 @@ def load_DOE_profiles(weather_data, settings, houses_dict):
 
 
 def load_futureSolar_profiles(weather_data, settings, houses_dict):
+
     houses_list = settings['houses_list_BDEW']
 #    print(houses_list)
     # BDEW_file
@@ -737,13 +749,15 @@ def load_futureSolar_profiles(weather_data, settings, houses_dict):
                                             names=['house', 'energy'])
     futureSolar_profiles = pd.DataFrame(index=weather_data.index,
                                         columns=multiindex)
+    if len(houses_list) == 0:  # Skip
+        return futureSolar_profiles
 
 #    print(futureSolar_df.keys())
 
     for shift_steps, date_obj in enumerate(weather_data.index):
         if date_obj.dayofweek == 1:  # 1 equals Tuesday
-#            print(shift_steps, date_obj)
             first_tuesday = date_obj
+#            print(shift_steps, date_obj)
             break
 
     futureSolar_df.index = first_tuesday + futureSolar_df.index
@@ -812,40 +826,28 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
         sigma = houses_dict[house_name].get('sigma', False)
         randoms = np.random.normal(0, sigma, copies)  # Array of random values
         randoms_int = [int(value) for value in np.round(randoms, 0)]
-        for copy in range(0, copies):
-            copy_name = house_name + '_c' + str(copy)
-            # Select the data of the house we want to copy
-            df_new = load_curve_houses[house_name]
-            # Rename the multiindex with the name of the copy
-            df_new = pd.concat([df_new], keys=[copy_name], names=['house'],
-                               axis=1)
 
-            if sigma:  # Optional: Shift the rows
-                shift_step = randoms_int[copy]
-                if shift_step > 0:
-                    # Shifting forward in time pushes the last entries out of
-                    # the df and leaves the first entries empty. We take that
-                    # overlap and insert it at the beginning
-                    overlap = df_new[-shift_step:]
-                    df_shifted = df_new.shift(shift_step)
-                    df_shifted.dropna(inplace=True)
-                    overlap.index = df_new[:shift_step].index
-                    df_new = overlap.append(df_shifted)
-                elif shift_step < 0:
-                    # Retrieve overlap from the beginning of the df, shift
-                    # backwards in time, paste overlap at end of the df
-                    overlap = df_new[:abs(shift_step)]
-                    df_shifted = df_new.shift(shift_step)
-                    df_shifted.dropna(inplace=True)
-                    overlap.index = df_new[shift_step:].index
-                    df_new = df_shifted.append(overlap)
-                elif shift_step == 0:
-                    # No action required
-                    pass
-
+        work_list = list(range(0, copies))
+        if len(work_list) > 100:
+            # Use multiprocessing to increase the speed
+            f_help = functools.partial(mp_copy_and_randomize,
+                                       load_curve_houses, house_name,
+                                       randoms_int, sigma)
+            return_list = multiprocessing_job(f_help, work_list)
             # Merge the existing and new dataframes
-            load_curve_houses = pd.concat([load_curve_houses, df_new],
+            df_list = return_list.get()
+            load_curve_houses = pd.concat([load_curve_houses] + df_list,
                                           axis=1, sort=False)
+        else:
+            # Implementation in serial
+            for copy in range(0, copies):
+                df_new = mp_copy_and_randomize(load_curve_houses, house_name,
+                                               randoms_int, sigma, copy,
+                                               b_print=True)
+                # Merge the existing and new dataframes
+                load_curve_houses = pd.concat([load_curve_houses, df_new],
+                                              axis=1, sort=False)
+
         if sigma and DEBUG:
             print('Interval shifts applied to copies of house '+house_name+':')
             print(randoms_int)
@@ -855,27 +857,72 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
             title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
             print(text_mean_std)
 
+            # Make sure the save path exists
+            save_folder = os.path.join(base_folder, 'Result')
+            if not os.path.exists(save_folder):
+                os.makedirs(save_folder)
+
+            # Create a histogram of the data
+            limit = max(-1*min(randoms_int), max(randoms_int))
+            bins = range(-limit, limit+2)
+            plt.rcParams.update({'font.size': 16})
+            fig = plt.figure()
+            ax = fig.gca()
+            ax.yaxis.grid(True)  # Activate grid on horizontal axis
+            n, bins, patches = plt.hist(randoms_int, bins, align='left',
+                                        rwidth=0.9)
+            plt.title(str(copies)+' Kopien von Gebäude '+house_name +
+                      ' ('+title_mu_std+')')
+            plt.xlabel('Zeitschritte')
+            plt.ylabel('Anzahl')
+            plt.savefig(os.path.join(save_folder,
+                                     'histogram_'+house_name+'.png'),
+                        bbox_inches='tight', dpi=200)
+
             if settings.get('show_plot', False) is True:
-                # the histogram of the data
-                bins = [-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5]
-                fig = plt.figure()
-                ax = fig.gca()
-                ax.yaxis.grid(True)  # Activate grid on horizontal axis
-                n, bins, patches = plt.hist(randoms_int, bins, align='left',
-                                            rwidth=0.9)
-                plt.title(str(copies)+' Kopien von Gebäude '+house_name +
-                          ' ('+title_mu_std+')')
-                plt.xlabel('Zeitschritte')
-                plt.ylabel('Anzahl')
-                plt.rcParams.update({'font.size': 16})
-                plt.savefig(os.path.join(base_folder, 'Result',
-                                         'histogram_'+house_name+'.png'),
-                            bbox_inches='tight', dpi=200)
                 plt.show(block=False)  # Show plot without blocking the script
-                pass
 
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
     return load_curve_houses
+
+
+def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
+                          copy, b_print=False):
+    copy_name = house_name + '_c' + str(copy)
+    if b_print:
+        print('Copy (and randomize) house', copy_name, end='\r')  # status
+    # Select the data of the house we want to copy
+    df_new = load_curve_houses[house_name]
+    # Rename the multiindex with the name of the copy
+    df_new = pd.concat([df_new], keys=[copy_name], names=['house'],
+                       axis=1)
+
+    if sigma:  # Optional: Shift the rows
+        shift_step = randoms_int[copy]
+        if shift_step > 0:
+            # Shifting forward in time pushes the last entries out of
+            # the df and leaves the first entries empty. We take that
+            # overlap and insert it at the beginning
+            overlap = df_new[-shift_step:]
+            df_shifted = df_new.shift(shift_step)
+            df_shifted.dropna(inplace=True)
+            overlap.index = df_new[:shift_step].index
+            df_new = overlap.append(df_shifted)
+        elif shift_step < 0:
+            # Retrieve overlap from the beginning of the df, shift
+            # backwards in time, paste overlap at end of the df
+            overlap = df_new[:abs(shift_step)]
+            df_shifted = df_new.shift(shift_step)
+            df_shifted.dropna(inplace=True)
+            overlap.index = df_new[shift_step:].index
+            df_new = df_shifted.append(overlap)
+        elif shift_step == 0:
+            # No action required
+            pass
+
+    if b_print:
+        print(' ', end='\r')  # overwrite last status with empty line
+    return df_new
 
 
 def sum_up_all_houses(load_curve_houses, weather_data):
@@ -1067,8 +1114,9 @@ if __name__ == '__main__':
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE\VDI_4655_config.yaml'
 #    config_file = r'C:\Trnsys17\Work\futureSuN\SB\Load\VDI_4655_config.yaml'
 #    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config.yaml'
-    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Last\VDI_4655_config.yaml'
+    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Last\VDI_4655_config_Quartier_Neubau.yaml'
 #    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
+#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
 
     holiday_file = os.path.join('resources_load', 'Feiertage.xlsx')
     energy_factors_file = os.path.join('resources_load', 'VDI 4655 Typtag-Faktoren.xlsx')
@@ -1168,9 +1216,9 @@ if __name__ == '__main__':
     futureSolar_profiles = load_futureSolar_profiles(weather_data, settings,
                                                      houses_dict)
     GHD_profiles = pd.concat([BDEW_profiles,
-                               DOE_profiles,
-                               futureSolar_profiles],
-                              axis=1, sort=False)
+                              DOE_profiles,
+                              futureSolar_profiles],
+                             axis=1, sort=False)
 
     load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
                                   axis=1, sort=False,
@@ -1265,7 +1313,10 @@ if __name__ == '__main__':
     # Print the results file
     if settings.get('print_columns', None) is not None:
         # If defined, use only columns selected by the user
-        weather_data = weather_data[settings['print_columns']]
+        try:
+            weather_data = weather_data[settings['print_columns']]
+        except Exception as ex:
+            print(ex)
 
     # Output folder is hardcoded here:
     print_folder = os.path.join(base_folder, 'Result')
@@ -1281,4 +1332,5 @@ if __name__ == '__main__':
     script_time = pd.to_timedelta(time.time() - start_time, unit='s')
     print('Finished script in time: %s' % (script_time))
 
-    plt.show()  # Script will be blocked until the user closes the plot window
+    if settings.get('show_plot', False) is True:
+        plt.show()  # Script is blocked until the user closes the plot window
