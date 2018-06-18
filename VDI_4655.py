@@ -34,6 +34,7 @@ import multiprocessing           # Parallel (Multi-) Processing
 import functools
 import numpy as np
 from tkinter import Tk, filedialog
+from scipy import optimize
 
 # Import other user-made modules (which must exist in the same folder)
 import zeitreihe_IGS_RKR        # Script for interpolation of IGS weather files
@@ -1004,7 +1005,7 @@ def sum_up_all_houses(load_curve_houses, weather_data):
     return weather_data
 
 
-def integrate_heizkurve(weather_data, settings):
+def calc_heizkurve(weather_data, settings):
     '''Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
     (Not part of the VDI 4655)
 
@@ -1132,7 +1133,60 @@ def integrate_heizkurve(weather_data, settings):
         weather_data['M_dot'] = 0
 
     # Add the loss to the energy demand types
-    settings['energy_demands_types'].append('E_th_loss')
+    if 'E_th_loss' not in settings['energy_demands_types']:
+        settings['energy_demands_types'].append('E_th_loss')
+
+
+def fit_heizkurve(weather_data, config_dict):
+    '''In some cases a certain total heat loss of the district heating pipes
+    is desired, and the correct heat loss coefficient has to be determined.
+    In this case (an optimization problem), we need to find the root of
+    the function fit_pipe_heat_loss().
+
+    If 'loss_total_kWh' is not defined in the config file, this whole process
+    is skipped.
+
+    Args:
+        weather_data (DataFrame): Includes all weather and energy time series
+
+        config_dict (Dict):  Configuration dict with initial loss_coefficient
+
+    Returns:
+        config_dict (Dict):  Configuration dict with updated loss_coefficient
+    '''
+
+    def fit_pipe_heat_loss(loss_coefficient):
+        '''Helper function that is created as an input for SciPy's optimize
+        function. Returns the difference between target and current heat loss.
+
+        Args:
+            loss_coefficient (Array): Careful! 'fsolve' will provide an array
+
+        Returns:
+            error (float): Deviation between set and current heat loss
+        '''
+        E_th_loss_set = config_dict['Verteilnetz']['loss_total_kWh']
+        config_dict['Verteilnetz']['loss_coefficient'] = loss_coefficient[0]
+
+        calc_heizkurve(weather_data, settings)
+        E_th_loss = weather_data['E_th_loss'].sum()
+        error = E_th_loss_set - E_th_loss
+        print('Fitting E_th_loss_set:', E_th_loss_set, '... E_th_loss:',
+              E_th_loss, 'loss_coefficient:', loss_coefficient[0])
+        return error
+
+    loss_kWh = config_dict.get('Verteilnetz', dict()).get('loss_total_kWh',
+                                                          None)
+    if loss_kWh is None:
+        #  Skip the root finding procedure
+        return config_dict  # return original config_dict
+    else:
+        func = fit_pipe_heat_loss
+        x0 = config_dict['Verteilnetz']['loss_coefficient']
+        root = optimize.fsolve(func, x0)  # Careful, returns an array!
+        print("Solution: loss_coefficient = ", root, '[W/(m*K)]')
+        config_dict['Verteilnetz']['loss_coefficient'] = root[0]
+        return config_dict  # config with updated loss_coefficient
 
 
 def normalize_energy(weather_data):
@@ -1296,7 +1350,8 @@ if __name__ == '__main__':
     #       Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
     #                        (Not part of the VDI 4655)
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    integrate_heizkurve(weather_data, settings)
+    config_dict = fit_heizkurve(weather_data, config_dict)  # Optional
+    calc_heizkurve(weather_data, settings)
 
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     #                Normalize results to a total of 1 kWh per year
