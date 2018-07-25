@@ -29,9 +29,9 @@ pd.set_option('display.max_columns', 0)
 
 ''' Script options
 '''
-datetime_start = pd.datetime(2014, 1, 1, 00, 00, 00)
+datetime_start = pd.datetime(2017, 1, 1, 00, 00, 00)
 #datetime_end = pd.datetime(2017, 2, 1, 00, 00, 00)
-datetime_end = pd.datetime(2015, 1, 1, 00, 00, 00)
+datetime_end = pd.datetime(2018, 1, 1, 00, 00, 00)
 interpolation_freq = pd.Timedelta('15 minutes')
 #interpolation_freq = pd.Timedelta('1 hours')
 
@@ -50,7 +50,8 @@ base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\HK\Weather\\TRY2010_03'
 base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Wetterdaten\DWD TRY 2011\Daten\TRY-Daten'
 base_folder = r'V:\MA\2_Projekte\SIZ10002_Hydraulik\5_Archiv\Backups Mani\Dissertation\3_Trnsys Modell\3_Wetterdaten\TRY Ortsgenau DWD\TRY_42255002859500'
 '''
-base_folder = r'C:\Users\nettelstroth\Downloads\Wetter'
+#base_folder = r'C:\Users\nettelstroth\Downloads\Wetter'
+base_folder = r'.\resources_weather'
 
 '''
 Ein Datentyp für die Wetterdaten muss definiert werden, damit die Werte
@@ -60,10 +61,12 @@ Daten im Format für TRNSYS (=IGS) und Daten vom DWD.
 in der Gruppe 'ztype' gespeichert werden.
 '''
 #weather_data_type = 'TRNSYS'
-#weather_data_type = 'IGS'
-weather_data_type = 'DWD'
+weather_data_type = 'IGS'
+#weather_data_type = 'DWD'
 
 weather_file_list = [
+#    'IGS_Referenzklimaregion_03.dat',
+    'IGS_Referenzklimaregion_04.dat',
 #    'IGS_Referenzklimaregion_05.dat',
 #    'IGS_Referenzklimaregion_06.dat',
 #    'TRY2015_38265002816500_Jahr.dat',
@@ -72,7 +75,7 @@ weather_file_list = [
 #    'TRY2045_38265002816500_Jahr.dat',
 #    'TRY2045_38265002816500_Somm.dat',
 #    'TRY2045_38265002816500_Wint.dat',
-    'TRY2010_03_Jahr.dat',
+#    'TRY2010_03_Jahr.dat',
                     ]
 
 # Joing base_folder and weather files:
