@@ -219,7 +219,7 @@ def get_typical_days(weather_data, settings):
             weekdays_list_BDEW.append('Sonntag')
             flag_holidays_found = True
         elif date_obj.dayofweek == 5:  # 5 equals Saturday
-            weekdays_list.append('S')
+            weekdays_list.append('W')
             weekdays_list_BDEW.append('Samstag')
         else:
             weekdays_list.append('W')
