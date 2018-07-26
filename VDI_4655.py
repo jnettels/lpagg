@@ -468,24 +468,29 @@ def get_daily_energy_demand_houses(houses_dict, settings):
             print('       Skipping house "'+house_name+'"!')
             continue  # 'Continue' skips the rest of the current for-loop
 
+        # Get yearly energy demands and adjust them, if required
+        Q_Heiz_a = houses_dict[house_name]['Q_Heiz_a']
+        Q_Heiz_a = Q_Heiz_a * config_dict.get('adjustment_factors',
+                                              dict()).get('f_Q_Heiz', 1)
+        houses_dict[house_name]['Q_Heiz_a'] = Q_Heiz_a  # Store change
+
+        W_a = houses_dict[house_name]['W_a']
+        W_a = W_a * config_dict.get('adjustment_factors',
+                                    dict()).get('f_W', 1)
+        houses_dict[house_name]['W_a'] = W_a  # Store change
+
+        Q_TWW_a = houses_dict[house_name]['Q_TWW_a']
+        Q_TWW_a = Q_TWW_a * config_dict.get('adjustment_factors',
+                                            dict()).get('f_Q_TWW', 1)
+        houses_dict[house_name]['Q_TWW_a'] = Q_TWW_a  # Store change
+
         # (6.4) Do calculations according to VDI 4655 for each 'typtag'
         for typtag in typtage_combinations:
             F_Heiz_TT = energy_factors_df.loc[TRY, house_type,
                                               'F_Heiz_TT'][typtag]
-            Q_Heiz_a = houses_dict[house_name]['Q_Heiz_a']
-            Q_Heiz_a = Q_Heiz_a * config_dict.get('adjustment_factors',
-                                                  dict()).get('f_Q_Heiz', 1)
-
             F_el_TT = energy_factors_df.loc[TRY, house_type, 'F_el_TT'][typtag]
-            W_a = houses_dict[house_name]['W_a']
-            W_a = W_a * config_dict.get('adjustment_factors',
-                                        dict()).get('f_W', 1)
-
             F_TWW_TT = energy_factors_df.loc[TRY, house_type,
                                              'F_TWW_TT'][typtag]
-            Q_TWW_a = houses_dict[house_name]['Q_TWW_a']
-            Q_TWW_a = Q_TWW_a * config_dict.get('adjustment_factors',
-                                                dict()).get('f_Q_TWW', 1)
 
             Q_Heiz_TT = Q_Heiz_a * F_Heiz_TT
 
@@ -1218,7 +1223,7 @@ if __name__ == '__main__':
     config_file = None
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung\VDI_4655_config.yaml'
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE\VDI_4655_config.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\SB\Load\VDI_4655_config.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\AP1\SB\Load\VDI_4655_config_Steinfurt_02.yaml'
 #    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config.yaml'
 #    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Last\VDI_4655_config_Quartier_Neubau.yaml'
 #    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
