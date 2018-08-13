@@ -1238,6 +1238,10 @@ if __name__ == '__main__':
 
     if config_file is None:
         config_file = file_dialog()  # show file dialog
+        if config_file is None:
+            print('Empty selection. Exit program...')
+            input('\nPress the enter key to exit.')
+            raise SystemExit
     base_folder = os.path.dirname(config_file)
 
     # --- Import the config_dict from the YAML config_file --------------------
