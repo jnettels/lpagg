@@ -238,19 +238,19 @@ def get_type99_header(weather_file_path, interpolate_freq):
     '''
 
     type99_header = '''<userdefined>
- <longitude>   -0.000  ! east of greenwich: negative
- <latitude>     0.000  !
- <gmt>             1   ! time shift from GMT, east: positive (hours)
- <interval>        1   ! Data file time interval between consecutive lines
- <firsttime>       1   ! Time corresponding to first data line (hours)
- <var> IBEAM_H <col> 2 <interp> 0 <add> 0 <mult> 1 <samp> -1 !...to read radiation in [W/m²]
- <var> IDIFF_H <col> 3 <interp> 0 <add> 0 <mult> 1 <samp> -1 !...to read radiation in [W/m²]
- <var> TAMB    <col> 4 <interp> 2 <add> 0 <mult> 1 <samp> -1 !...to read ambient temperature in [°C]
- <var> WSPEED  <col> 5 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read wind speed in [m/s]
- <var> RHUM    <col> 6 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read relative humidity in [%]
- <var> WDIR    <col> 7 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read wind direction in [degree] (north=0°/360°; east=90°; south=180°: west=270°)
- <var> CCOVER  <col> 8 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read cloud cover in [octas] (Bedeckungsgrad in Achtel)
- <var> PAMB    <col> 9 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read ambient air pressure in [hPa]
+<longitude>   -0.000  ! east of greenwich: negative
+<latitude>     0.000  !
+<gmt>             1   ! time shift from GMT, east: positive (hours)
+<interval>        1   ! Data file time interval between consecutive lines
+<firsttime>       1   ! Time corresponding to first data line (hours)
+<var> IBEAM_H <col> 2 <interp> 0 <add> 0 <mult> 1 <samp> -1 !...to read radiation in [W/m²]
+<var> IDIFF_H <col> 3 <interp> 0 <add> 0 <mult> 1 <samp> -1 !...to read radiation in [W/m²]
+<var> TAMB    <col> 4 <interp> 2 <add> 0 <mult> 1 <samp> -1 !...to read ambient temperature in [°C]
+<var> WSPEED  <col> 5 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read wind speed in [m/s]
+<var> RHUM    <col> 6 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read relative humidity in [%]
+<var> WDIR    <col> 7 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read wind direction in [degree] (north=0°/360°; east=90°; south=180°: west=270°)
+<var> CCOVER  <col> 8 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read cloud cover in [octas] (Bedeckungsgrad in Achtel)
+<var> PAMB    <col> 9 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read ambient air pressure in [hPa]
 <data>
    '''
 
