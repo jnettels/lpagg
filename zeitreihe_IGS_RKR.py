@@ -22,25 +22,30 @@ import matplotlib.pyplot as plt   # Plotting library
 import calendar                   # Calendar
 import re                         # Regular expressions
 import requests
+import logging
 
 # Global Pandas option for displaying terminal output
 pd.set_option('display.max_columns', 0)
 
+# Create logger for this module
+logging.basicConfig(format='%(asctime)-15s %(message)s')
+logger = logging.getLogger(__name__)
+logger.setLevel(level='DEBUG')
 
 ''' Script options
 '''
 datetime_start = pd.datetime(2017, 1, 1, 00, 00, 00)
 #datetime_end = pd.datetime(2017, 2, 1, 00, 00, 00)
 datetime_end = pd.datetime(2018, 1, 1, 00, 00, 00)
-interpolation_freq = pd.Timedelta('15 minutes')
-#interpolation_freq = pd.Timedelta('1 hours')
+#interpolation_freq = pd.Timedelta('15 minutes')
+interpolation_freq = pd.Timedelta('1 hours')
 
-bool_print_header = True
-#bool_print_header = False
+#bool_print_header = True
+bool_print_header = False
 bool_print_type99_head = True
 #bool_print_type99_head = False
-bool_print_index = True
-#bool_print_index = False
+#bool_print_index = True
+bool_print_index = False
 remove_leapyear = False
 
 '''
@@ -50,7 +55,6 @@ base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\HK\Weather\\TRY2010_03'
 base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Wetterdaten\DWD TRY 2011\Daten\TRY-Daten'
 base_folder = r'V:\MA\2_Projekte\SIZ10002_Hydraulik\5_Archiv\Backups Mani\Dissertation\3_Trnsys Modell\3_Wetterdaten\TRY Ortsgenau DWD\TRY_42255002859500'
 '''
-#base_folder = r'C:\Users\nettelstroth\Downloads\Wetter'
 base_folder = r'.\resources_weather'
 
 '''
@@ -61,12 +65,12 @@ Daten im Format für TRNSYS (=IGS) und Daten vom DWD.
 in der Gruppe 'ztype' gespeichert werden.
 '''
 #weather_data_type = 'TRNSYS'
-weather_data_type = 'IGS'
-#weather_data_type = 'DWD'
+#weather_data_type = 'IGS'
+weather_data_type = 'DWD'
 
 weather_file_list = [
 #    'IGS_Referenzklimaregion_03.dat',
-    'IGS_Referenzklimaregion_04.dat',
+#    'IGS_Referenzklimaregion_04.dat',
 #    'IGS_Referenzklimaregion_05.dat',
 #    'IGS_Referenzklimaregion_06.dat',
 #    'TRY2015_38265002816500_Jahr.dat',
@@ -76,6 +80,7 @@ weather_file_list = [
 #    'TRY2045_38265002816500_Somm.dat',
 #    'TRY2045_38265002816500_Wint.dat',
 #    'TRY2010_03_Jahr.dat',
+    'TRY2015_540932090598_Jahr.dat',
                     ]
 
 # Joing base_folder and weather files:
@@ -105,14 +110,14 @@ if bool_regex:
                 matchlist.append(regex_match.groupdict())
                 weather_file_list.append(path)
             else:
-                print('Folder did not match the regex, skipping...', root)
+                logger.warn('Folder did not match the regex, skipping:', root)
                 continue
 
     if weather_file_list == []:
-        print('Error! The regular expression did not match '
-              'any folder within the top folder: ')
-        print('      regex: '+folder_regex)
-        print(' top folder: '+base_folder+'\n')
+        logger.error('Error! The regular expression did not match '
+                     'any folder within the top folder: ')
+        logger.error('      regex: '+folder_regex)
+        logger.error(' top folder: '+base_folder+'\n')
         exit()
 
     # Then sort the both matchlist and weather_file_list by weather_file_list
@@ -141,9 +146,9 @@ def read_IGS_weather_file(weather_file_path):
     # Plausibility check:
     if weather_data.isnull().values.any():
         print(weather_data)
-        print('Error: There are "NaN" values in your weather data. '
-              'Is the type "IGS" correct? Exiting...')
-        print('File is: '+weather_file_path)
+        logger.error('Error: There are "NaN" values in your weather data. '
+                     'Is the type "IGS" correct? Exiting...')
+        logger.error('File is: '+weather_file_path)
         exit()
     return weather_data
 
@@ -163,9 +168,9 @@ def read_DWD_weather_file(weather_file_path):
 
     # Plausibility check:
     if header_row is None:
-        print('Error: Header row not found in weather file. '
-              'Is the data type "DWD" correct? Exiting...')
-        print('File is: ' + weather_file_path)
+        logger.error('Error: Header row not found in weather file. '
+                     'Is the data type "DWD" correct? Exiting...')
+        logger.error('File is: ' + weather_file_path)
         exit()
 
     # Read the file and store it in a DataFrame
@@ -226,7 +231,7 @@ def get_TRNSYS_coordinates(weather_file_path):
             coords = response.json()  # Create dict from json object
             TRNcoords = {'longitude': float(coords['x'])*-1,  # negative
                          'latitude': float(coords['y'])}
-            print('Coordinates for TRNSYS: '+str(TRNcoords))
+            logger.info('Coordinates for TRNSYS: '+str(TRNcoords))
             return TRNcoords
 
         else:
@@ -294,7 +299,7 @@ def interpolate_weather_file(weather_file_path,
     elif weather_data_type == 'DWD':
         weather_data = read_DWD_weather_file(weather_file_path)
     else:
-        print('Error: Weather data type "'+weather_data_type+'" unknown!')
+        logger.error('Weather data type "'+weather_data_type+'" unknown!')
         exit()
 
     # Assumption: The IGS weather files always start at January 01.
@@ -307,7 +312,7 @@ def interpolate_weather_file(weather_file_path,
     # Infer the time frequency of the original data
     original_freq = pd.infer_freq(weather_data.index, warn=True)
     original_freq = pd.to_timedelta(1, unit=original_freq)
-    # print 'Inferred freqency = '+str(original_freq)
+#    logger.debug('Inferred freqency = '+str(original_freq))
 
     if debug_plotting is True:  # Plot the original data (Ambient temperature)
         fig = plt.figure()
@@ -360,7 +365,7 @@ def interpolate_weather_file(weather_file_path,
 
     # Remove leapyear from DataFrame (optional)
     if calendar.isleap(current_year) is True:
-        print('Warning: '+str(current_year)+' is a leap year. Be careful!')
+        logger.warn(str(current_year)+' is a leap year. Be careful!')
     if remove_leapyear is True:
         weather_data = weather_data[~((weather_data.index.month == 2) &
                                       (weather_data.index.day == 29))]
@@ -396,7 +401,7 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file):
         very different results than method VDI 4710-2
     '''
     hours = interpolation_freq.seconds / 3600.0  # h
-    # print weather_data['TAMB']
+#    print(weather_data['TAMB'])
 
     # Resample ambient temperatures in DataFrame to days and take mean
     tamb_avg_list = weather_data['TAMB'].resample('D', label='left',
@@ -437,18 +442,22 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file):
     IDIFF_H_sum = hours/1000*weather_data['IDIFF_H'].sum()        # kWh/m²
     G_sum = weather_data_daily['G20/15'].sum()                         # K*d
     d_heat_sum = weather_data_daily['Heating days'].sum()          # d
-    print('Year statistics for: '+weather_file)
-    print('   T_amb average = {:6.1f} °C'.format(tamb_avg))
-    print('   I_beam,h      = {:6.1f} kWh/m^2'.format(IBEAM_H_sum))
-    print('   I_diff,h      = {:6.1f} kWh/m^2'.format(IDIFF_H_sum))
-    print('   G20/{:2.0f}        = {:6.1f} K*d'.format(t_heat, G_sum))
-    print('   Heating days  = {:6.1f} d'.format(d_heat_sum))
+    logger.info('Year statistics for: '+weather_file)
+    if logger.isEnabledFor(logging.INFO):
+        print('   T_amb average = {:6.1f} °C'.format(tamb_avg))
+        print('   I_beam,h      = {:6.1f} kWh/m^2'.format(IBEAM_H_sum))
+        print('   I_diff,h      = {:6.1f} kWh/m^2'.format(IDIFF_H_sum))
+        print('   G20/{:2.0f}        = {:6.1f} K*d'.format(t_heat, G_sum))
+        print('   Heating days  = {:6.1f} d'.format(d_heat_sum))
+        print()
 
     # Print table of montly sum / mean values
     wd_sum = weather_data_daily[['G20/15', 'Heating days']].resample('M').sum()
     wd_mean = weather_data_daily['TAMB'].resample('M').mean()
     weather_data_monthly = pd.concat([wd_sum, wd_mean], axis=1)
-    print(weather_data_monthly)
+    if logger.isEnabledFor(logging.INFO):
+        print(weather_data_monthly)
+        print()
 
     return True
 
@@ -463,7 +472,7 @@ def print_IGS_weather_file(weather_data, print_folder, print_file,
         os.makedirs(print_folder)
 
     print_path = os.path.join(print_folder, print_file)
-    print('Printing to '+print_path)
+    logger.info('Printing to '+print_path)
 
     print_file = open(print_path, 'w')
     if type99_header is not None:

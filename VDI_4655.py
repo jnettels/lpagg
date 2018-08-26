@@ -35,6 +35,7 @@ import functools
 import numpy as np
 from tkinter import Tk, filedialog
 from scipy import optimize
+import logging
 
 # Import other user-made modules (which must exist in the same folder)
 import zeitreihe_IGS_RKR        # Script for interpolation of IGS weather files
@@ -78,11 +79,11 @@ def load_weather_file(settings):
 
     # --- Savety check --------------------------------------------------------
     if interpolation_freq < pd.Timedelta('15 minutes'):
-        print('Warning! Chosen interpolation intervall ' +
-              str(interpolation_freq) +
-              ' changed to 15 min. MFH load profiles are available in 15 ' +
-              'min steps and interpolation to smaller time intervals is ' +
-              'not (yet) implemented.')
+        logger.warn('Warning! Chosen interpolation intervall ' +
+                    str(interpolation_freq) + ' changed to 15 min. ' +
+                    'MFH load profiles are available in 15 min steps ' +
+                    'and interpolation to smaller time intervals is ' +
+                    'not (yet) implemented.')
         interpolation_freq = pd.Timedelta('15 minutes')
     settings['interpolation_freq'] = interpolation_freq
     """
@@ -90,7 +91,7 @@ def load_weather_file(settings):
     Read and interpolate "IGS Referenzklimaregion" files
     ---------------------------------------------------------------------------
     """
-    print('Read and interpolate the data in weather file '+weather_file)
+    logger.info('Read and interpolate the data in weather file '+weather_file)
 
     # Call external method in zeitreihe_IGS_RKR.py:
     weather_data = zeitreihe_IGS_RKR.interpolate_weather_file(
@@ -102,7 +103,7 @@ def load_weather_file(settings):
                                     remove_leapyear)
 
     # Analyse weather data
-    if DEBUG:
+    if logger.isEnabledFor(logging.INFO):
         zeitreihe_IGS_RKR.analyse_weather_file(weather_data,
                                                interpolation_freq,
                                                weather_file)
@@ -190,13 +191,12 @@ def get_typical_days(weather_data, settings):
 
     steps_per_day = 24 / (interpolation_freq.seconds / 3600.0)
     settings['steps_per_day'] = steps_per_day
-    if DEBUG:
-        print('Number of days in winter:     ' +
-              str(season_list.count('W')/steps_per_day))
-        print('Number of days in summer:     ' +
-              str(season_list.count('S')/steps_per_day))
-        print('Number of days in transition: ' +
-              str(season_list.count('U')/steps_per_day))
+    logger.debug('Number of days in winter:     ' +
+                 str(season_list.count('W')/steps_per_day))
+    logger.debug('Number of days in summer:     ' +
+                 str(season_list.count('S')/steps_per_day))
+    logger.debug('Number of days in transition: ' +
+                 str(season_list.count('U')/steps_per_day))
 
     # --- Workdays, Sundays and public holidays -------------------------------
     holidays = pd.read_excel(open(holiday_file, 'rb'),
@@ -234,7 +234,7 @@ def get_typical_days(weather_data, settings):
 
     # Print a warning, if necessary
     if flag_holidays_found is False:
-        print('Warning! No holidays were found for the chosen time!')
+        logger.warn('Warning! No holidays were found for the chosen time!')
 
     # --- Cloud cover amount --------------------------------------------------
     ccover_avg_list = weather_data['CCOVER'].resample('D', label='right',
@@ -277,8 +277,8 @@ def load_profile_factors(settings):
     house_types = ['EFH', 'MFH']
     settings['typtage_combinations'] = typtage_combinations
 
-    if DEBUG:
-        print('Number of typical days:')
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.debug('Number of typical days:')
         steps_per_day = settings['steps_per_day']
         N_typtage = weather_data['typtag'].value_counts()/steps_per_day
         for item in typtage_combinations:
@@ -394,13 +394,13 @@ def get_annual_energy_demand(settings):
         if N_Pers is None:
             N_Pers = 3
             houses_dict[house_name]['N_Pers'] = N_Pers
-            print('Warning: N_Pers not defined for ' + house_name
-                  + 'using default ' + str(N_Pers))
+            logger.warn('N_Pers not defined for ' + house_name
+                        + '. Using default ' + str(N_Pers))
         if N_WE is None:
             N_WE = 2
             houses_dict[house_name]['N_WE'] = N_WE
-            print('Warning:   N_WE not defined for ' + house_name
-                  + 'using default ' + str(N_WE))
+            logger.warn('N_WE not defined for ' + house_name
+                        + '. Using default ' + str(N_WE))
 
         # Calculate annual energy demand estimates
         if house_type == 'EFH':
@@ -491,15 +491,18 @@ def get_daily_energy_demand_houses(houses_dict, settings):
     # Fill the DataFrame daily_energy_demand_houses
     for house_name in houses_list:
         house_type = houses_dict[house_name]['house_type']
-        TRY = houses_dict[house_name]['TRY']
         N_Pers = houses_dict[house_name]['N_Pers']
         N_WE = houses_dict[house_name]['N_WE']
+        try:
+            TRY = houses_dict[house_name]['TRY']
+        except KeyError:
+            raise KeyError('Key "TRY" (Region) missing from house '+house_name)
 
         # Savety check:
         if TRY not in energy_factors_df.index.get_level_values(0):
-            print('Error! TRY '+str(TRY)+' not contained in file ' +
-                  energy_factors_file)
-            print('       Skipping house "'+house_name+'"!')
+            logger.error('Error! TRY '+str(TRY)+' not contained in file ' +
+                         energy_factors_file)
+            logger.error('       Skipping house "'+house_name+'"!')
             continue  # 'Continue' skips the rest of the current for-loop
 
         # Get yearly energy demands and adjust them, if required
@@ -537,13 +540,13 @@ def get_daily_energy_demand_houses(houses_dict, settings):
             Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_Pers_WE * F_TWW_TT)
 
             if W_TT < 0:
-                print('Warning:     W_TT for '+house_name+' and '+typtag
-                      + ' was negative, see VDI 4655 page 16')
+                logger.warn('Warning:     W_TT for '+house_name+' and '+typtag
+                            + ' was negative, see VDI 4655 page 16')
                 W_TT = W_a * (1.0/365.0 + N_Pers_WE * 0)
 
             if Q_TWW_TT < 0:
-                print('Warning: Q_TWW_TT for '+house_name+' and '+typtag
-                      + ' was negative, see VDI 4655 page 16')
+                logger.warn('Warning: Q_TWW_TT for '+house_name+' and '+typtag
+                            + ' was negative, see VDI 4655 page 16')
                 Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_Pers_WE * 0)
 
             # Write values into DataFrame
@@ -621,7 +624,7 @@ def multiprocessing_job(helper_function, work_list):
     '''Generalization of multiprocessing with integrated progress printing.
     '''
     number_of_cores = min(multiprocessing.cpu_count()-1, len(work_list))
-    print('Parallel processing on '+str(number_of_cores)+' cores')
+    logger.info('Parallel processing on '+str(number_of_cores)+' cores')
     pool = multiprocessing.Pool(number_of_cores)
     return_list = pool.map_async(helper_function, work_list)
     pool.close()
@@ -911,8 +914,9 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
                                                    df_ref],
                                                   axis=1, sort=False)
 
-        if sigma and DEBUG:
-            print('Interval shifts applied to copies of house '+house_name+':')
+        if sigma and logger.isEnabledFor(logging.DEBUG):
+            logger.debug('Interval shifts applied to copies of house '
+                         + house_name + ':')
             print(randoms_int)
             mu = np.mean(randoms_int)
             sigma = np.std(randoms_int, ddof=1)
@@ -955,7 +959,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
 def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
                           copy, b_print=False):
     copy_name = house_name + '_c' + str(copy)
-    if b_print:
+    if b_print and logger.isEnabledFor(logging.DEBUG):
         print('Copy (and randomize) house', copy_name, end='\r')  # status
     # Select the data of the house we want to copy
     df_new = load_curve_houses[house_name]
@@ -1017,8 +1021,9 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, settings):
 
     sf_df.loc['GLF'] = sf_df.loc['P_max_kW']/sf_df.loc['P_max_ref_kW']
 
-    print('Simultaneity factors (Gleichzeitigkeitsfaktoren):')
-    print(sf_df)
+    if logger.isEnabledFor(logging.INFO):
+        logger.info('Simultaneity factors (Gleichzeitigkeitsfaktoren):')
+        print(sf_df)
     # Make sure the save path exists and save the DataFrame
     save_folder = os.path.join(base_folder, 'Result')
     if not os.path.exists(save_folder):
@@ -1067,7 +1072,7 @@ def calc_heizkurve(weather_data, settings):
     interpolation_freq = settings['interpolation_freq']
 
     if config_dict.get('Heizkurve', None) is not None:
-        print('Calculate heatcurve temperatures')
+        logger.info('Calculate heatcurve temperatures')
 
         T_VL_N = config_dict['Heizkurve']['T_VL_N']       # °C
         T_RL_N = config_dict['Heizkurve']['T_RL_N']       # °C
@@ -1243,7 +1248,7 @@ def normalize_energy(weather_data):
     '''Normalize results to a total of 1 kWh per year
     '''
     if config_dict.get('normalize', False) is True:
-        print('Normalize load profile')
+        logger.info('Normalize load profile')
         for column in settings['energy_demands_types']:
             yearly_sum = weather_data[column].sum()
             weather_data[column] = weather_data[column]/yearly_sum
@@ -1263,6 +1268,10 @@ if __name__ == '__main__':
 
     # Define style settings for the plots
     mpl.style.use('./futureSuN.mplstyle')  # Personalized matplotlib style file
+
+    # Define the logging function
+    logging.basicConfig(format='%(asctime)-15s %(message)s')
+    logger = logging.getLogger(__name__)
 
     # --- Script options ------------------------------------------------------
     config_file = None
@@ -1286,14 +1295,13 @@ if __name__ == '__main__':
     if config_file is None:
         config_file = file_dialog()  # show file dialog
         if config_file is None:
-            print('Empty selection. Exit program...')
+            logger.error('Empty selection. Exit program...')
             input('\nPress the enter key to exit.')
             raise SystemExit
     base_folder = os.path.dirname(config_file)
 
     # --- Import the config_dict from the YAML config_file --------------------
     config_dict = yaml.load(open(config_file, 'r'))
-    print('Using configuration file ' + config_file)
 
     # --- Read settings from the config_dict ----------------------------------
     settings = config_dict['settings']
@@ -1304,7 +1312,14 @@ if __name__ == '__main__':
     print_file = settings['print_file']
     bool_show_plot = settings.get('show_plot', False)
 
-    DEBUG = settings.get('Debug', False)
+    # Set logging level
+    log_level = settings.get('log_level', 'WARNING')  # Use setting or default
+    if settings.get('Debug', False):
+        log_level = 'DEBUG'  # override with old 'DEBUG' key
+    logger.setLevel(level=log_level.upper())
+    logging.getLogger('zeitreihe_IGS_RKR').setLevel(level=log_level.upper())
+
+    logger.info('Using configuration file ' + config_file)
 
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     #                          VDI 4655 Implementation
@@ -1314,7 +1329,7 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
     # VDI 4655 - Step 1: Determine the "typtag" key for each timestep
     # -------------------------------------------------------------------------
-    print('Determine "typtag" keys for each time step')
+    logger.info('Determine "typtag" keys for each time step')
     get_typical_days(weather_data, settings)
 
     # -------------------------------------------------------------------------
@@ -1322,8 +1337,8 @@ if __name__ == '__main__':
     # Match 'typtag' keys and reference load profile factors for each timestep
     # (for each 'typtag' key, one load profile is defined by VDI 4655)
     # -------------------------------------------------------------------------
-    print('Read in reference load profile factors and match them to ' +
-          '"typtag" keys for each timestep')
+    logger.info('Read in reference load profile factors and match them to ' +
+                '"typtag" keys for each timestep')
     load_profile_df = load_profile_factors(settings)
 
     # -------------------------------------------------------------------------
@@ -1351,7 +1366,7 @@ if __name__ == '__main__':
 
     # (6.2) Specification of annual energy demand:
     # -------------------------------------------------------------------------
-    print('Read in houses and calculate their annual energy demand')
+    logger.info('Read in houses and calculate their annual energy demand')
     houses_dict = get_annual_energy_demand(settings)
 
     # (6.3) Allocation of building site:
@@ -1361,13 +1376,13 @@ if __name__ == '__main__':
 
     # (6.4) Determination of the houses' energy demand values for each 'typtag'
     # -------------------------------------------------------------------------
-    print("Determine the houses' energy demand values for each 'typtag'")
+    logger.info("Determine the houses' energy demand values for each typtag")
     daily_energy_demand_houses = get_daily_energy_demand_houses(houses_dict,
                                                                 settings)
 
     # (6.5) Determination of a daily demand curve for each house:
     # -------------------------------------------------------------------------
-    print("Generate the houses' energy demand values for each timestep")
+    logger.info("Generate the houses' energy demand values for each timestep")
     load_curve_houses = get_load_curve_houses(load_profile_df, houses_dict,
                                               settings)
 
@@ -1391,7 +1406,7 @@ if __name__ == '__main__':
     # Randomize the
     # (Optional, not part of VDI 4655)
     # -------------------------------------------------------------------------
-    print('Create (randomized) copies of the houses')
+    logger.info('Create (randomized) copies of the houses')
     load_curve_houses = copy_and_randomize_houses(load_curve_houses,
                                                   houses_dict, settings)
 
@@ -1399,7 +1414,7 @@ if __name__ == '__main__':
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
 
     # Sum up the energy demands of all houses, store result in weather_data
-    print('Sum up the energy demands of all houses')
+    logger.info('Sum up the energy demands of all houses')
     weather_data = sum_up_all_houses(load_curve_houses, weather_data)
 #    print(weather_data)
 
@@ -1441,26 +1456,27 @@ if __name__ == '__main__':
 
     weather_daily_sum = weather_data[sum_list].resample('D', label='left',
                                                         closed='right').sum()
-    print('Calculations completed')
-    print('Monthly energy sums in kWh:')
+    logger.info('Calculations completed')
+    logger.info('Monthly energy sums in kWh:')
     weather_montly_sum = weather_daily_sum.resample('M', label='right',
                                                     closed='right').sum()
-    print(weather_montly_sum)
-    print()
-    print('Annual energy sums in kWh:')
+    if logger.isEnabledFor(logging.INFO):
+        print(weather_montly_sum)
+        print()
+    logger.info('Annual energy sums in kWh:')
     weather_annual_sum = weather_montly_sum.resample('A', label='right',
                                                      closed='right').sum()
-    print(weather_annual_sum)
-    # print weather_annual_sum.sum(axis=1,'Q_Heiz_TT', 'Q_TWW_TT', 'Q_loss')
-    print('Total heat energy demand is {:.2f} kWh.'.format(
-        weather_annual_sum[sum_list_heat].sum(axis=1).sum()))
-    print()
+    if logger.isEnabledFor(logging.INFO):
+        print(weather_annual_sum)
+        print('Total heat energy demand is {:.2f} kWh.'.format(
+            weather_annual_sum[sum_list_heat].sum(axis=1).sum()))
+        print()
 
     pd.reset_option('precision')  # ...and reset the setting from above
 
     # Display a plot on screen for the user
     if bool_show_plot is True:
-        print('Showing plot of energy demand types...')
+        logger.info('Showing plot of energy demand types...')
         fig = plt.figure()
         ax = fig.gca()
         for energy_demand_type in settings['energy_demands_types']:
@@ -1484,7 +1500,7 @@ if __name__ == '__main__':
         try:
             weather_data = weather_data[settings['print_columns']]
         except Exception as ex:
-            print(ex)
+            logger.exception(ex)
 
     # Output folder is hardcoded here:
     print_folder = os.path.join(base_folder, 'Result')
@@ -1498,7 +1514,7 @@ if __name__ == '__main__':
 
     # Print a final message with the required time
     script_time = pd.to_timedelta(time.time() - start_time, unit='s')
-    print('Finished script in time: %s' % (script_time))
+    logger.info('Finished script in time: %s' % (script_time))
 
     if settings.get('show_plot', False) is True:
         plt.show()  # Script is blocked until the user closes the plot window
