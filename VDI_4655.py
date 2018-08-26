@@ -368,7 +368,13 @@ def load_profile_factors(settings):
 
 
 def get_annual_energy_demand(settings):
-    '''Read in houses and calculate their annual energy demand
+    '''Read in houses and calculate their annual energy demand.
+
+    VDI 4655 provides estimates for annual electrical and DHW energy demand
+    (``W_a`` and ``Q_TWW_a``). ``Q_Heiz_TT`` cannot be estimated, but must
+    be defined in the config file.
+    If ``W_a`` or ``Q_TWW_a` are defined in the config file, their estimation
+    is not used.
     '''
     # Get the dictionary of houses from the config_dict
     houses_dict = config_dict['houses']
@@ -383,6 +389,20 @@ def get_annual_energy_demand(settings):
         house_type = houses_dict[house_name]['house_type']
         N_Pers = houses_dict[house_name].get('N_Pers', None)
         N_WE = houses_dict[house_name].get('N_WE', None)
+
+        # Assign defaults if values are not defined
+        if N_Pers is None:
+            N_Pers = 3
+            houses_dict[house_name]['N_Pers'] = N_Pers
+            print('Warning: N_Pers not defined for ' + house_name
+                  + 'using default ' + str(N_Pers))
+        if N_WE is None:
+            N_WE = 2
+            houses_dict[house_name]['N_WE'] = N_WE
+            print('Warning:   N_WE not defined for ' + house_name
+                  + 'using default ' + str(N_WE))
+
+        # Calculate annual energy demand estimates
         if house_type == 'EFH':
             # (6.2.2) Calculate annual electrical energy demand of houses:
             if N_Pers < 3:
