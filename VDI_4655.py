@@ -157,7 +157,8 @@ def get_typical_days(weather_data, settings):
     season_list = []
 
     # The VDI 4655 default heat limit is 15°C (definition of summer days).
-    # For modern building types, this can be set to a lower value
+    # For low- and zero-energy houses, the average daily temperatures have
+    # to be adapted to the actual conditions. (see VDI 4655, page 15)
     Tamb_heat_limit = settings.get('Tamb_heat_limit', 15)  # °C
 
     # Read through list of temperatures line by line and apply the definition
@@ -425,6 +426,19 @@ def get_annual_energy_demand(settings):
 
 def get_daily_energy_demand_houses(houses_dict, settings):
     '''Determine the houses' energy demand values for each 'typtag'
+
+
+    .. note::
+        "The factors ``F_el_TT`` and ``F_TWW_TT`` are negative in some cases as
+        they represent a variation from a one-year average. The values for the
+        daily demand for electrical energy, ``W_TT``, and DHW energy,
+        ``Q_TWW_TT``, usually remain positive. It is only in individual
+        cases that the calculation for the typical-day category ``SWX``
+        can yield a negative value of the DHW demand. In that case,
+        assume ``F_TWW_SWX`` = 0." (VDI 4655, page 16)
+
+        This occurs when ``N_Pers`` or ``N_WE`` are too large.
+
     '''
     typtage_combinations = settings['typtage_combinations']
     houses_list = settings['houses_list_VDI']
@@ -495,11 +509,22 @@ def get_daily_energy_demand_houses(houses_dict, settings):
             Q_Heiz_TT = Q_Heiz_a * F_Heiz_TT
 
             if house_type == 'EFH':
-                W_TT = W_a * (1.0/365.0 + N_Pers * F_el_TT)
-                Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_Pers * F_TWW_TT)
+                N_Pers_WE = N_Pers
             elif house_type == 'MFH':
-                W_TT = W_a * (1.0/365.0 + N_WE * F_el_TT)
-                Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_WE * F_TWW_TT)
+                N_Pers_WE = N_WE
+
+            W_TT = W_a * (1.0/365.0 + N_Pers_WE * F_el_TT)
+            Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_Pers_WE * F_TWW_TT)
+
+            if W_TT < 0:
+                print('Warning:     W_TT for '+house_name+' and '+typtag
+                      + ' was negative, see VDI 4655 page 16')
+                W_TT = W_a * (1.0/365.0 + N_Pers_WE * 0)
+
+            if Q_TWW_TT < 0:
+                print('Warning: Q_TWW_TT for '+house_name+' and '+typtag
+                      + ' was negative, see VDI 4655 page 16')
+                Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_Pers_WE * 0)
 
             # Write values into DataFrame
             daily_energy_demand_houses.loc[house_name,
@@ -1224,10 +1249,12 @@ if __name__ == '__main__':
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung\VDI_4655_config.yaml'
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE\VDI_4655_config.yaml'
 #    config_file = r'C:\Trnsys17\Work\futureSuN\AP1\SB\Load\VDI_4655_config_Steinfurt_02.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_P2HQuartier.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_Hannover-Kronsberg.yaml'
 #    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Last\VDI_4655_config_Quartier_Neubau.yaml'
 #    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
+#    config_file = r'C:\Trnsys17\Work\SIZ055_Meldorf\Load\Meldorf_load_config.yaml'
 
     holiday_file = os.path.join('resources_load', 'Feiertage.xlsx')
     energy_factors_file = os.path.join('resources_load', 'VDI 4655 Typtag-Faktoren.xlsx')
@@ -1246,6 +1273,7 @@ if __name__ == '__main__':
 
     # --- Import the config_dict from the YAML config_file --------------------
     config_dict = yaml.load(open(config_file, 'r'))
+    print('Using configuration file ' + config_file)
 
     # --- Read settings from the config_dict ----------------------------------
     settings = config_dict['settings']
