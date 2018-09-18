@@ -615,7 +615,8 @@ def get_load_curve_houses(load_profile_df, houses_dict, settings):
         elif column[1] == 'W_TT':
             Q_a = houses_dict[column[0]]['W_a']
         sum_ = load_curve_houses[column].sum()
-        load_curve_houses[column] = load_curve_houses[column]/sum_ * Q_a
+        if sum_ != 0:  # Would produce NaN otherwise
+            load_curve_houses[column] = load_curve_houses[column]/sum_ * Q_a
 
     return load_curve_houses
 
