@@ -1033,6 +1033,47 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, settings):
     return None
 
 
+def add_external_profiles(load_curve, settings):
+    '''This allows to add additional external profiles to the calculated
+    load curves.
+    Currently, they need to have the same time step as all other data, no
+    interpolation is performed.
+    '''
+    building_dict = config_dict.get('external_profiles', dict())
+    for building in building_dict:
+        filepath = building_dict[building]['file']
+        class_ = building_dict[building]['class']
+        rename_dict = building_dict[building]['rename_dict']
+
+        # Read data from file
+        filetype = os.path.splitext(os.path.basename(filepath))[1]
+        if filetype in ['.xlsx', '.xls']:
+            # Excel can be read automatically with Pandas
+            df = pd.read_excel(filepath)
+        elif filetype in ['.csv', '.dat']:
+            # csv files can have different formats
+            df = pd.read_csv(open(filepath, 'r'),
+                             sep=None, engine='python',  # Guess separator
+                             parse_dates=[0],  # Parse first column as date
+                             infer_datetime_format=True)
+
+        # Rename to VDI 4655 standards
+        df.rename(columns=rename_dict, inplace=True)
+
+        # Convert into a multi-index DataFrame
+        multiindex = pd.MultiIndex.from_product(
+            [[class_], [building], rename_dict.values()],
+            names=['class', 'house', 'energy'])
+        ext_profiles = pd.DataFrame(index=df.index, columns=multiindex)
+        for col in rename_dict.values():
+            ext_profiles[class_, building, col] = df[col]
+
+        # Combine external profiles with existing profiles
+        load_curve = pd.concat([load_curve, ext_profiles], axis=1)
+
+    return load_curve
+
+
 def sum_up_all_houses(load_curve_houses, weather_data):
     '''By grouping the 'energy' level, we can take the sum of all houses.
     Also renames the columns from VDI 4655 standard to 'E_th', 'E_el',
@@ -1403,7 +1444,7 @@ if __name__ == '__main__':
                                   keys=['HH', 'GHD'], names=['class'])
 #    print(load_curve_houses)
 
-    # Randomize the
+    # Randomize the load profiles of identical houses
     # (Optional, not part of VDI 4655)
     # -------------------------------------------------------------------------
     logger.info('Create (randomized) copies of the houses')
@@ -1412,6 +1453,13 @@ if __name__ == '__main__':
 
     # Debugging: Show the daily sum of each energy demand type:
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
+
+    # Add external (complete) profiles
+    # (Optional, not part of VDI 4655)
+    # -------------------------------------------------------------------------
+    load_curve_houses = add_external_profiles(load_curve_houses, settings)
+
+#    load_curve_houses.to_excel('test.xlsx')
 
     # Sum up the energy demands of all houses, store result in weather_data
     logger.info('Sum up the energy demands of all houses')
