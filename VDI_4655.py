@@ -66,7 +66,8 @@ def file_dialog(initialdir=os.getcwd()):
 
 def load_weather_file(settings):
     weather_file = settings['weather_file']
-    weather_file_path = os.path.join('resources_weather', weather_file)
+    weather_file_path = os.path.join(os.path.dirname(__file__),
+                                     'resources_weather', weather_file)
     weather_data_type = settings['weather_data_type']
     datetime_start = pd.datetime(*settings['start'])  # * reads list as args
     datetime_end = pd.datetime(*settings['end'])
@@ -1308,12 +1309,15 @@ if __name__ == '__main__':
     # Global Pandas option for displaying terminal output
     pd.set_option('display.max_columns', 0)
 
-    # Define style settings for the plots
-    mpl.style.use('./futureSuN.mplstyle')  # Personalized matplotlib style file
-
     # Define the logging function
     logging.basicConfig(format='%(asctime)-15s %(message)s')
     logger = logging.getLogger(__name__)
+
+    # Define style settings for the plots
+    try:  # Try to load personalized matplotlib style file
+        mpl.style.use('./futureSuN.mplstyle')
+    except OSError as ex:
+        logger.warning(ex)
 
     # --- Script options ------------------------------------------------------
     config_file = None
@@ -1327,12 +1331,16 @@ if __name__ == '__main__':
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
 #    config_file = r'C:\Trnsys17\Work\SIZ055_Meldorf\Load\Meldorf_load_config.yaml'
 
-    holiday_file = os.path.join('resources_load', 'Feiertage.xlsx')
-    energy_factors_file = os.path.join('resources_load', 'VDI 4655 Typtag-Faktoren.xlsx')
-    typtage_file = os.path.join('resources_load', 'VDI 4655 Typtage.xlsx')
-    BDEW_file = os.path.join('resources_load', 'BDEW Profile.xlsx')
-    DOE_file = os.path.join('resources_load', 'DOE Profile TWE.xlsx')
-    futureSolar_file = os.path.join('resources_load', 'futureSolar Profile.xlsx')
+    filedir = os.path.dirname(__file__)
+    holiday_file = os.path.join(filedir, 'resources_load', 'Feiertage.xlsx')
+    energy_factors_file = os.path.join(filedir, 'resources_load',
+                                       'VDI 4655 Typtag-Faktoren.xlsx')
+    typtage_file = os.path.join(filedir, 'resources_load',
+                                'VDI 4655 Typtage.xlsx')
+    BDEW_file = os.path.join(filedir, 'resources_load', 'BDEW Profile.xlsx')
+    DOE_file = os.path.join(filedir, 'resources_load', 'DOE Profile TWE.xlsx')
+    futureSolar_file = os.path.join(filedir, 'resources_load',
+                                    'futureSolar Profile.xlsx')
 
     if config_file is None:
         config_file = file_dialog()  # show file dialog
@@ -1567,3 +1575,5 @@ if __name__ == '__main__':
 
     if settings.get('show_plot', False) is True:
         plt.show()  # Script is blocked until the user closes the plot window
+
+    input('\nPress the enter key to exit.')
