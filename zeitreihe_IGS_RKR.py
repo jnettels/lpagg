@@ -24,114 +24,12 @@ import re                         # Regular expressions
 import requests
 import logging
 
-# Global Pandas option for displaying terminal output
-pd.set_option('display.max_columns', 0)
-
-# Create logger for this module
-logging.basicConfig(format='%(asctime)-15s %(message)s')
+# Define the logging function
 logger = logging.getLogger(__name__)
-logger.setLevel(level='DEBUG')
-
-''' Script options
-'''
-datetime_start = pd.datetime(2017, 1, 1, 00, 00, 00)
-#datetime_end = pd.datetime(2017, 2, 1, 00, 00, 00)
-datetime_end = pd.datetime(2018, 1, 1, 00, 00, 00)
-#interpolation_freq = pd.Timedelta('15 minutes')
-interpolation_freq = pd.Timedelta('1 hours')
-
-#bool_print_header = True
-bool_print_header = False
-bool_print_type99_head = True
-#bool_print_type99_head = False
-#bool_print_index = True
-bool_print_index = False
-remove_leapyear = False
-
-'''
-base_folder = u'V:\\MA\\2_Projekte\\SIZ10015_futureSuN\\4_Bearbeitung\\AP4_Transformation\\AP404_Konzepte für zukünftige Systemlösungen\\Lastprofile\\VDI 4655\\Berechnung\\Wetter'
-base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\SB\Weather\\TRY_38265002816500'
-base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\HK\Weather\\TRY2010_03'
-base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Wetterdaten\DWD TRY 2011\Daten\TRY-Daten'
-base_folder = r'V:\MA\2_Projekte\SIZ10002_Hydraulik\5_Archiv\Backups Mani\Dissertation\3_Trnsys Modell\3_Wetterdaten\TRY Ortsgenau DWD\TRY_42255002859500'
-'''
-base_folder = r'.\resources_weather'
-
-'''
-Ein Datentyp für die Wetterdaten muss definiert werden, damit die Werte
-im korrekten Formate eingelesen werden können. Unterschieden werden
-Daten im Format für TRNSYS (=IGS) und Daten vom DWD.
-Über die regex unten kann der Typ auch im Pfad gesucht werden und muss dann
-in der Gruppe 'ztype' gespeichert werden.
-'''
-#weather_data_type = 'TRNSYS'
-#weather_data_type = 'IGS'
-weather_data_type = 'DWD'
-
-weather_file_list = [
-#    'IGS_Referenzklimaregion_03.dat',
-#    'IGS_Referenzklimaregion_04.dat',
-#    'IGS_Referenzklimaregion_05.dat',
-#    'IGS_Referenzklimaregion_06.dat',
-#    'TRY2015_38265002816500_Jahr.dat',
-#    'TRY2015_38265002816500_Somm.dat',
-#    'TRY2015_38265002816500_Wint.dat',
-#    'TRY2045_38265002816500_Jahr.dat',
-#    'TRY2045_38265002816500_Somm.dat',
-#    'TRY2045_38265002816500_Wint.dat',
-#    'TRY2010_03_Jahr.dat',
-    'TRY2015_540932090598_Jahr.dat',
-                    ]
-
-# Joing base_folder and weather files:
-weather_file_list = [os.path.join(base_folder, f) for f in weather_file_list]
-
-bool_regex = False
-if bool_regex:
-    # folder_regex = 'TRY_2016_(?P<region>.+)\\TRY(?P<year>.+)_\d{14}_Jahr\.dat'
-    # folder_regex = '.+(?P<aname>TRY_2016)_(?P<bregion>\d{2})\\\\TRY2015_\d{14}_Jahr\.dat'
-    # folder_regex = '.+TRY_2016_(?P<bregion>\d{2})\\\\(?P<aname>TRY2015)_(?P<ccoor>\d{14})_(?P<dtyp>Jahr)\.dat'
-    # folder_regex = '.+(?P<aname>TRY_2016)_(?P<bregion>01)\\\\TRY2015_\d{14}_Jahr\.dat'
-    # folder_regex = '.+TRY_2016_01\\\\TRY2015_\d{14}_Jahr\.dat'
-    folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(01|39095002965500)(_Jahr|)\.dat'
-    # folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(03|40005002975500)(_Jahr|)\.dat'
-    #folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|x2015|xReferenzklimaregion)_(07|39625002724500)(_Jahr|)\.dat'
-
-    weather_file_list = []
-    matchlist = []
-    for root, dirs, files in os.walk(base_folder):
-        regex_compiled = re.compile(r''+folder_regex)
-        for file in files:
-            path = os.path.join(root, file)
-            regex_match = re.match(regex_compiled, path)
-
-            if regex_match:
-                # print path
-                matchlist.append(regex_match.groupdict())
-                weather_file_list.append(path)
-            else:
-                logger.warn('Folder did not match the regex, skipping:', root)
-                continue
-
-    if weather_file_list == []:
-        logger.error('Error! The regular expression did not match '
-                     'any folder within the top folder: ')
-        logger.error('      regex: '+folder_regex)
-        logger.error(' top folder: '+base_folder+'\n')
-        exit()
-
-    # Then sort the both matchlist and weather_file_list by weather_file_list
-    weather_file_list, matchlist = (list(x) for x in
-                                    zip(*sorted(zip(weather_file_list,
-                                                    matchlist),
-                                                key=lambda pair: pair[0])))
-
-#    print(matchlist)
-#    print(weather_file_list)
 
 
-def read_IGS_weather_file(weather_file_path):
-    '''Read and interpolate "IGS Referenzklimaregion" files
+def read_IGS_weather_file(weather_file_path, start_date=None):
+    '''Read "IGS Referenzklimaregion" and TRNSYS Type99 input files
     '''
 
     # Read the file and store it in a DataFrame
@@ -150,6 +48,11 @@ def read_IGS_weather_file(weather_file_path):
                      'Is the type "IGS" correct? Exiting...')
         logger.error('File is: '+weather_file_path)
         exit()
+
+    # Convert hours of year to DateTime and make that the index of DataFrame
+    if start_date is not None:
+        weather_data.index = start_date + pd.to_timedelta(weather_data['HOUR'],
+                                                          unit='h')
     return weather_data
 
 
@@ -491,6 +394,110 @@ if __name__ == "__main__":
     '''Execute the methods defined above.
     Only do this, if the script is executed directly (in contrast to imported)
     '''
+
+    # Global Pandas option for displaying terminal output
+    pd.set_option('display.max_columns', 0)
+
+    # Create logger for this module
+    logging.basicConfig(format='%(asctime)-15s %(message)s')
+    logger.setLevel(level='DEBUG')
+
+    ''' Script options
+    '''
+    datetime_start = pd.datetime(2017, 1, 1, 00, 00, 00)
+    #datetime_end = pd.datetime(2017, 2, 1, 00, 00, 00)
+    datetime_end = pd.datetime(2018, 1, 1, 00, 00, 00)
+    #interpolation_freq = pd.Timedelta('15 minutes')
+    interpolation_freq = pd.Timedelta('1 hours')
+
+    #bool_print_header = True
+    bool_print_header = False
+    bool_print_type99_head = True
+    #bool_print_type99_head = False
+    #bool_print_index = True
+    bool_print_index = False
+    remove_leapyear = False
+
+    '''
+    base_folder = u'V:\\MA\\2_Projekte\\SIZ10015_futureSuN\\4_Bearbeitung\\AP4_Transformation\\AP404_Konzepte für zukünftige Systemlösungen\\Lastprofile\\VDI 4655\\Berechnung\\Wetter'
+    base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\SB\Weather\\TRY_38265002816500'
+    base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\HK\Weather\\TRY2010_03'
+    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Wetterdaten\DWD TRY 2011\Daten\TRY-Daten'
+    base_folder = r'V:\MA\2_Projekte\SIZ10002_Hydraulik\5_Archiv\Backups Mani\Dissertation\3_Trnsys Modell\3_Wetterdaten\TRY Ortsgenau DWD\TRY_42255002859500'
+    '''
+    base_folder = r'.\resources_weather'
+
+    '''
+    Ein Datentyp für die Wetterdaten muss definiert werden, damit die Werte
+    im korrekten Formate eingelesen werden können. Unterschieden werden
+    Daten im Format für TRNSYS (=IGS) und Daten vom DWD.
+    Über die regex unten kann der Typ auch im Pfad gesucht werden und muss dann
+    in der Gruppe 'ztype' gespeichert werden.
+    '''
+    #weather_data_type = 'TRNSYS'
+    #weather_data_type = 'IGS'
+    weather_data_type = 'DWD'
+
+    weather_file_list = [
+    #    'IGS_Referenzklimaregion_03.dat',
+    #    'IGS_Referenzklimaregion_04.dat',
+    #    'IGS_Referenzklimaregion_05.dat',
+    #    'IGS_Referenzklimaregion_06.dat',
+    #    'TRY2015_38265002816500_Jahr.dat',
+    #    'TRY2015_38265002816500_Somm.dat',
+    #    'TRY2015_38265002816500_Wint.dat',
+    #    'TRY2045_38265002816500_Jahr.dat',
+    #    'TRY2045_38265002816500_Somm.dat',
+    #    'TRY2045_38265002816500_Wint.dat',
+    #    'TRY2010_03_Jahr.dat',
+        'TRY2015_540932090598_Jahr.dat',
+                        ]
+
+    # Joing base_folder and weather files:
+    weather_file_list = [os.path.join(base_folder, f) for f in weather_file_list]
+
+    bool_regex = False
+    if bool_regex:
+        # folder_regex = 'TRY_2016_(?P<region>.+)\\TRY(?P<year>.+)_\d{14}_Jahr\.dat'
+        # folder_regex = '.+(?P<aname>TRY_2016)_(?P<bregion>\d{2})\\\\TRY2015_\d{14}_Jahr\.dat'
+        # folder_regex = '.+TRY_2016_(?P<bregion>\d{2})\\\\(?P<aname>TRY2015)_(?P<ccoor>\d{14})_(?P<dtyp>Jahr)\.dat'
+        # folder_regex = '.+(?P<aname>TRY_2016)_(?P<bregion>01)\\\\TRY2015_\d{14}_Jahr\.dat'
+        # folder_regex = '.+TRY_2016_01\\\\TRY2015_\d{14}_Jahr\.dat'
+        folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(01|39095002965500)(_Jahr|)\.dat'
+        # folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(03|40005002975500)(_Jahr|)\.dat'
+        #folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|x2015|xReferenzklimaregion)_(07|39625002724500)(_Jahr|)\.dat'
+
+        weather_file_list = []
+        matchlist = []
+        for root, dirs, files in os.walk(base_folder):
+            regex_compiled = re.compile(r''+folder_regex)
+            for file in files:
+                path = os.path.join(root, file)
+                regex_match = re.match(regex_compiled, path)
+
+                if regex_match:
+                    # print path
+                    matchlist.append(regex_match.groupdict())
+                    weather_file_list.append(path)
+                else:
+                    logger.warn('Folder did not match the regex, skipping:', root)
+                    continue
+
+        if weather_file_list == []:
+            logger.error('Error! The regular expression did not match '
+                         'any folder within the top folder: ')
+            logger.error('      regex: '+folder_regex)
+            logger.error(' top folder: '+base_folder+'\n')
+            exit()
+
+        # Then sort the both matchlist and weather_file_list by weather_file_list
+        weather_file_list, matchlist = (list(x) for x in
+                                        zip(*sorted(zip(weather_file_list,
+                                                        matchlist),
+                                                    key=lambda pair: pair[0])))
+
+    #    print(matchlist)
+    #    print(weather_file_list)
 
     for i, weather_file_path in enumerate(weather_file_list):
         if bool_regex:
