@@ -80,11 +80,11 @@ def load_weather_file(settings):
 
     # --- Savety check --------------------------------------------------------
     if interpolation_freq < pd.Timedelta('15 minutes'):
-        logger.warn('Warning! Chosen interpolation intervall ' +
-                    str(interpolation_freq) + ' changed to 15 min. ' +
-                    'MFH load profiles are available in 15 min steps ' +
-                    'and interpolation to smaller time intervals is ' +
-                    'not (yet) implemented.')
+        logger.warning('Warning! Chosen interpolation intervall ' +
+                       str(interpolation_freq) + ' changed to 15 min. ' +
+                       'MFH load profiles are available in 15 min steps ' +
+                       'and interpolation to smaller time intervals is ' +
+                       'not (yet) implemented.')
         interpolation_freq = pd.Timedelta('15 minutes')
     settings['interpolation_freq'] = interpolation_freq
     """
@@ -235,7 +235,7 @@ def get_typical_days(weather_data, settings):
 
     # Print a warning, if necessary
     if flag_holidays_found is False:
-        logger.warn('Warning! No holidays were found for the chosen time!')
+        logger.warning('Warning! No holidays were found for the chosen time!')
 
     # --- Cloud cover amount --------------------------------------------------
     ccover_avg_list = weather_data['CCOVER'].resample('D', label='right',
@@ -395,13 +395,13 @@ def get_annual_energy_demand(settings):
         if N_Pers is None:
             N_Pers = 3
             houses_dict[house_name]['N_Pers'] = N_Pers
-            logger.warn('N_Pers not defined for ' + house_name
-                        + '. Using default ' + str(N_Pers))
+            logger.warning('N_Pers not defined for ' + house_name
+                           + '. Using default ' + str(N_Pers))
         if N_WE is None:
             N_WE = 2
             houses_dict[house_name]['N_WE'] = N_WE
-            logger.warn('N_WE not defined for ' + house_name
-                        + '. Using default ' + str(N_WE))
+            logger.warning('N_WE not defined for ' + house_name
+                           + '. Using default ' + str(N_WE))
 
         # Calculate annual energy demand estimates
         if house_type == 'EFH':
@@ -541,13 +541,13 @@ def get_daily_energy_demand_houses(houses_dict, settings):
             Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_Pers_WE * F_TWW_TT)
 
             if W_TT < 0:
-                logger.warn('Warning:     W_TT for '+house_name+' and '+typtag
-                            + ' was negative, see VDI 4655 page 16')
+                logger.warning('Warning:     W_TT for '+house_name+' and ' +
+                               typtag + ' was negative, see VDI 4655 page 16')
                 W_TT = W_a * (1.0/365.0 + N_Pers_WE * 0)
 
             if Q_TWW_TT < 0:
-                logger.warn('Warning: Q_TWW_TT for '+house_name+' and '+typtag
-                            + ' was negative, see VDI 4655 page 16')
+                logger.warning('Warning: Q_TWW_TT for '+house_name+' and ' +
+                               typtag + ' was negative, see VDI 4655 page 16')
                 Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_Pers_WE * 0)
 
             # Write values into DataFrame
