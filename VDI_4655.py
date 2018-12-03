@@ -442,6 +442,16 @@ def get_annual_energy_demand(settings):
         houses_dict[house_name]['W_a'] = W_a
         houses_dict[house_name]['Q_TWW_a'] = Q_TWW_a
 
+        # Apply the adjustment factors
+        houses_dict[house_name]['Q_Heiz_a'] *= \
+            config_dict.get('adjustment_factors', dict()).get('f_Q_Heiz', 1)
+
+        houses_dict[house_name]['W_a'] *= \
+            config_dict.get('adjustment_factors', dict()).get('f_W', 1)
+
+        houses_dict[house_name]['Q_TWW_a'] *= \
+            config_dict.get('adjustment_factors', dict()).get('f_Q_TWW', 1)
+
     return houses_dict
 
 
@@ -506,21 +516,10 @@ def get_daily_energy_demand_houses(houses_dict, settings):
             logger.error('       Skipping house "'+house_name+'"!')
             continue  # 'Continue' skips the rest of the current for-loop
 
-        # Get yearly energy demands and adjust them, if required
+        # Get yearly energy demands
         Q_Heiz_a = houses_dict[house_name]['Q_Heiz_a']
-        Q_Heiz_a = Q_Heiz_a * config_dict.get('adjustment_factors',
-                                              dict()).get('f_Q_Heiz', 1)
-        houses_dict[house_name]['Q_Heiz_a'] = Q_Heiz_a  # Store change
-
         W_a = houses_dict[house_name]['W_a']
-        W_a = W_a * config_dict.get('adjustment_factors',
-                                    dict()).get('f_W', 1)
-        houses_dict[house_name]['W_a'] = W_a  # Store change
-
         Q_TWW_a = houses_dict[house_name]['Q_TWW_a']
-        Q_TWW_a = Q_TWW_a * config_dict.get('adjustment_factors',
-                                            dict()).get('f_Q_TWW', 1)
-        houses_dict[house_name]['Q_TWW_a'] = Q_TWW_a  # Store change
 
         # (6.4) Do calculations according to VDI 4655 for each 'typtag'
         for typtag in typtage_combinations:
