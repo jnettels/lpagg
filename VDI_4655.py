@@ -360,7 +360,7 @@ def load_profile_factors(settings):
         print('{:5.1f}% done'.format(j/total*100), end='\r')  # print progress
 
     # Debugging: The daily sum of each energy factor type must be '1':
-#    if DEBUG:
+#    if logger.isEnabledFor(logging.DEBUG):
 #        print("The daily sum of each energy factor type must equal '1':")
 #        print(load_profile_df.resample('D', label='left',
 #                                       closed='right').sum())
@@ -558,7 +558,7 @@ def get_daily_energy_demand_houses(houses_dict, settings):
             daily_energy_demand_houses.loc[house_name,
                                            'Q_TWW_TT'][typtag] = Q_TWW_TT
 
-    # print daily_energy_demand_houses
+#    print(daily_energy_demand_houses)
     return daily_energy_demand_houses
 
 
@@ -594,6 +594,8 @@ def get_load_curve_houses(load_profile_df, houses_dict, settings):
     for returned_df in return_list.get():
         load_curve_houses.loc[returned_df.name] = returned_df
 
+    load_curve_houses = load_curve_houses.astype('float')
+
     # For each time step, each house and each type of energy factor, we
     # multiply the energy factor with the daily energy demand. The result
     # is the energy demand of that time interval.
@@ -603,8 +605,6 @@ def get_load_curve_houses(load_profile_df, houses_dict, settings):
         # helper_function(date_obj)
 
         # print ('{:5.1f}% done'.format(j/total*100), end='\r')  # progress
-
-#    print(load_curve_houses)
 
     # The typical day calculation inherently does not add up to the
     # desired total energy demand of the full year. Here we fix that:
@@ -848,6 +848,35 @@ def load_futureSolar_profiles(weather_data, settings, houses_dict):
 
 #    print(futureSolar_profiles)
     return futureSolar_profiles
+
+
+def flatten_daily_TWE(load_curve_houses, settings):
+    '''Flatten domestic hot water profile to a daily mean value.
+
+    The domestic hot water demand profile represents what is actually
+    used within the house. But the total demand of a house with hot
+    water circulation is nearly constant for each day (from the
+    perspective of a district heating system).
+    '''
+
+    if settings.get('flatten_daily_TWE', False):
+
+        logger.info('Create (randomized) copies of the houses')
+
+        # Resample TWW energy in DataFrame to days and take mean
+        Q_TWW_avg_list = load_curve_houses.loc[
+                :, (slice(None), slice(None), 'Q_TWW_TT')]
+        Q_TWW_avg_list = Q_TWW_avg_list.resample('D', label='right',
+                                                 closed='right').mean()
+        # Write the daily mean values to all original time steps
+        Q_TWW_avg_list = Q_TWW_avg_list.reindex(load_curve_houses.index)
+        Q_TWW_avg_list.fillna(method='backfill', inplace=True)
+        # Overwrite original DataFrame
+        load_curve_houses.loc[
+                :, (slice(None), slice(None), 'Q_TWW_TT')] = Q_TWW_avg_list
+#        print(load_curve_houses)
+
+    return load_curve_houses
 
 
 def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
@@ -1326,7 +1355,7 @@ if __name__ == '__main__':
 #    config_file = r'C:\Trnsys17\Work\futureSuN\AP1\SB\Load\VDI_4655_config_Steinfurt_02.yaml'
 #    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_P2HQuartier.yaml'
 #    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_Hannover-Kronsberg.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Last\VDI_4655_config_Quartier_Neubau.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Load\VDI_4655_config_Quartier_Neubau.yaml'
 #    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
 #    config_file = r'C:\Trnsys17\Work\SIZ055_Meldorf\Load\Meldorf_load_config.yaml'
@@ -1452,6 +1481,11 @@ if __name__ == '__main__':
                                   axis=1, sort=False,
                                   keys=['HH', 'GHD'], names=['class'])
 #    print(load_curve_houses)
+
+    # Flatten domestic hot water profile to a daily mean value
+    # (Optional, not part of VDI 4655)
+    # -------------------------------------------------------------------------
+    load_curve_houses = flatten_daily_TWE(load_curve_houses, settings)
 
     # Randomize the load profiles of identical houses
     # (Optional, not part of VDI 4655)

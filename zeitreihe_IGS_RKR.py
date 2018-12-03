@@ -422,7 +422,7 @@ if __name__ == "__main__":
     base_folder = u'V:\\MA\\2_Projekte\\SIZ10015_futureSuN\\4_Bearbeitung\\AP4_Transformation\\AP404_Konzepte für zukünftige Systemlösungen\\Lastprofile\\VDI 4655\\Berechnung\\Wetter'
     base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\SB\Weather\\TRY_38265002816500'
     base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\HK\Weather\\TRY2010_03'
-    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Wetterdaten\DWD TRY 2011\Daten\TRY-Daten'
+    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP402_Randbedingungen\Wetterdaten\DWD TRY 2011\Daten\TRY-Daten'
     base_folder = r'V:\MA\2_Projekte\SIZ10002_Hydraulik\5_Archiv\Backups Mani\Dissertation\3_Trnsys Modell\3_Wetterdaten\TRY Ortsgenau DWD\TRY_42255002859500'
     '''
     base_folder = r'.\resources_weather'
