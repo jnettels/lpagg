@@ -105,9 +105,9 @@ def load_weather_file(settings):
 
     # Analyse weather data
     if logger.isEnabledFor(logging.INFO):
-        zeitreihe_IGS_RKR.analyse_weather_file(weather_data,
-                                               interpolation_freq,
-                                               weather_file)
+        zeitreihe_IGS_RKR.analyse_weather_file(
+                weather_data, interpolation_freq, weather_file,
+                print_folder=settings['print_folder'])
     weather_data.index.name = 'Time'
     return weather_data
 
@@ -1390,6 +1390,9 @@ if __name__ == '__main__':
 
     print_file = settings['print_file']
     bool_show_plot = settings.get('show_plot', False)
+    # Output folder is hardcoded here:
+    print_folder = os.path.join(base_folder, 'Result')
+    settings['print_folder'] = print_folder
 
     # Set logging level
     log_level = settings.get('log_level', 'WARNING')  # Use setting or default
@@ -1592,9 +1595,6 @@ if __name__ == '__main__':
             weather_data = weather_data[settings['print_columns']]
         except Exception as ex:
             logger.exception(ex)
-
-    # Output folder is hardcoded here:
-    print_folder = os.path.join(base_folder, 'Result')
 
     # Call external method in zeitreihe_IGS_RKR.py:
     zeitreihe_IGS_RKR.print_IGS_weather_file(weather_data,

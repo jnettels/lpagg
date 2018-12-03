@@ -281,7 +281,8 @@ def interpolate_weather_file(weather_file_path,
     return weather_data
 
 
-def analyse_weather_file(weather_data, interpolation_freq, weather_file):
+def analyse_weather_file(weather_data, interpolation_freq, weather_file,
+                         print_folder=None):
     '''Analyse weather data for key values.
 
      Degree days (Gradtage) according to:
@@ -345,22 +346,42 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file):
     IDIFF_H_sum = hours/1000*weather_data['IDIFF_H'].sum()        # kWh/m²
     G_sum = weather_data_daily['G20/15'].sum()                         # K*d
     d_heat_sum = weather_data_daily['Heating days'].sum()          # d
-    logger.info('Year statistics for: '+weather_file)
-    if logger.isEnabledFor(logging.INFO):
-        print('   T_amb average = {:6.1f} °C'.format(tamb_avg))
-        print('   I_beam,h      = {:6.1f} kWh/m^2'.format(IBEAM_H_sum))
-        print('   I_diff,h      = {:6.1f} kWh/m^2'.format(IDIFF_H_sum))
-        print('   G20/{:2.0f}        = {:6.1f} K*d'.format(t_heat, G_sum))
-        print('   Heating days  = {:6.1f} d'.format(d_heat_sum))
-        print()
+    w_stats = 'Year statistics for: '+weather_file+'\n'
+    w_stats += '   T_amb average = {:6.1f} °C\n'.format(tamb_avg)
+    w_stats += '   I_beam,h      = {:6.1f} kWh/m²\n'.format(IBEAM_H_sum)
+    w_stats += '   I_diff,h      = {:6.1f} kWh/m²\n'.format(IDIFF_H_sum)
+    w_stats += '   G20/{:2.0f}        = {:6.1f} K*d\n'.format(t_heat, G_sum)
+    w_stats += '   Heating days  = {:6.1f} d\n'.format(d_heat_sum)
+
+    logger.info(w_stats)
 
     # Print table of montly sum / mean values
     wd_sum = weather_data_daily[['G20/15', 'Heating days']].resample('M').sum()
     wd_mean = weather_data_daily['TAMB'].resample('M').mean()
-    weather_data_monthly = pd.concat([wd_sum, wd_mean], axis=1)
+    w_stats_monthly = pd.concat([wd_sum, wd_mean], axis=1)
+    w_stats_monthly = w_stats_monthly.append(
+            pd.DataFrame(data={'G20/15': [G_sum], 'Heating days': [d_heat_sum],
+                               'TAMB': [tamb_avg]},
+                         index=['Sum']
+                         ),
+#            ignore_index=True,
+            )
     if logger.isEnabledFor(logging.INFO):
-        print(weather_data_monthly)
+        print(w_stats_monthly)
         print()
+
+    if print_folder is not None:
+        if not os.path.exists(print_folder):
+            os.makedirs(print_folder)
+
+        with open(os.path.join(print_folder, './weather_stats.dat'), 'w') as f:
+            f.write(w_stats)
+
+        try:
+            w_stats_monthly.to_excel(
+                    os.path.join(print_folder, './weather_stats.xlsx'))
+        except Exception as ex:
+            logger.exception(ex)
 
     return True
 
