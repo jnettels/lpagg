@@ -344,12 +344,14 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file,
     tamb_avg = weather_data['TAMB'].mean()                        # °C
     IBEAM_H_sum = hours/1000*weather_data['IBEAM_H'].sum()        # kWh/m²
     IDIFF_H_sum = hours/1000*weather_data['IDIFF_H'].sum()        # kWh/m²
-    G_sum = weather_data_daily['G20/15'].sum()                         # K*d
-    d_heat_sum = weather_data_daily['Heating days'].sum()          # d
+    IGLOB_H_sum = IBEAM_H_sum + IDIFF_H_sum                       # kWh/m²
+    G_sum = weather_data_daily['G20/15'].sum()                    # K*d
+    d_heat_sum = weather_data_daily['Heating days'].sum()         # d
     w_stats = 'Year statistics for: '+weather_file+'\n'
     w_stats += '   T_amb average = {:6.1f} °C\n'.format(tamb_avg)
     w_stats += '   I_beam,h      = {:6.1f} kWh/m²\n'.format(IBEAM_H_sum)
     w_stats += '   I_diff,h      = {:6.1f} kWh/m²\n'.format(IDIFF_H_sum)
+    w_stats += '   I_glob,h      = {:6.1f} kWh/m²\n'.format(IGLOB_H_sum)
     w_stats += '   G20/{:2.0f}        = {:6.1f} K*d\n'.format(t_heat, G_sum)
     w_stats += '   Heating days  = {:6.1f} d\n'.format(d_heat_sum)
 
@@ -358,14 +360,29 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file,
     # Print table of montly sum / mean values
     wd_sum = weather_data_daily[['G20/15', 'Heating days']].resample('M').sum()
     wd_mean = weather_data_daily['TAMB'].resample('M').mean()
-    w_stats_monthly = pd.concat([wd_sum, wd_mean], axis=1)
+    wd_sum2 = weather_data[['IBEAM_H', 'IDIFF_H']].resample('M').sum()\
+        * hours/1000
+    wd_sum2['IGLOB_H'] = wd_sum2['IBEAM_H'] + wd_sum2['IDIFF_H']
+    w_stats_monthly = pd.concat([wd_sum, wd_mean, wd_sum2], axis=1)
+    w_stats_monthly.dropna(inplace=True)
     w_stats_monthly = w_stats_monthly.append(
             pd.DataFrame(data={'G20/15': [G_sum], 'Heating days': [d_heat_sum],
-                               'TAMB': [tamb_avg]},
-                         index=['Sum']
-                         ),
-#            ignore_index=True,
+                               'TAMB': [tamb_avg],
+                               'IBEAM_H': [IBEAM_H_sum],
+                               'IDIFF_H': [IDIFF_H_sum],
+                               'IGLOB_H': [IGLOB_H_sum]
+                               },
+                         index=['Sum']),
             )
+    w_stats_monthly.rename(columns={'G20/15': 'G20/15 [K*d]',
+                                    'Heating days': 'Heating days [d]',
+                                    'TAMB': 'TAMB [°C]',
+                                    'IBEAM_H': 'I_beam,h [kWh/m²]',
+                                    'IDIFF_H': 'I_diff,h [kWh/m²]',
+                                    'IGLOB_H': 'I_glob,h [kWh/m²]',
+                                    },
+                           inplace=True)
+
     if logger.isEnabledFor(logging.INFO):
         print(w_stats_monthly)
         print()
