@@ -8,6 +8,13 @@ TRY2010 (data in 15 climate regions) and TRY2015 (released in 2017)
 
 Important definition by Markus Peter for TRNSYS time stamps:
 
+    "Die Daten liegen als Stundenmittelwerte vor und sind am Ende des
+    jeweiligen Zeitintervalls gespeichert.
+
+    Beispiel: Die Werte um 11:00 Uhr entsprechen den Mittelwerten der
+    einzelnen meteorologischen Größen im Zeitintervall
+    von 10:00 Uhr bis 11:00 Uhr.""
+
     "Column value is a mean value related to the time interval delta t
     ending at the time corresponding to actual weather_data line."
 
@@ -227,8 +234,9 @@ def interpolate_weather_file(weather_file_path,
         # Definition:
         # "Column value is a mean value related to the time interval delta t
         # ending at the time corresponding to actual weather_data line."
-        #
-        # Thus the first index must be the start time plus interpolation_freq
+
+        # Thus during interpolation, a value must move to the middle of the
+        # previous timestep
 
         # If the new frequency is larger (i.e. we are downsampling the data),
         # we need to use 'resample' to take the mean of the time intervals we
@@ -239,12 +247,21 @@ def interpolate_weather_file(weather_file_path,
                                                  closed='right').mean()
         # Now we can do the interpolation (upsampling). If we downsampled
         # before, this now only affects the start and end of the data
-        interpolate_start = datetime_start + pd.Timedelta(interpolation_freq)
-        interpolate_index = pd.DatetimeIndex(start=interpolate_start,
-                                             end=datetime_end,
-                                             freq=interpolation_freq)
-        weather_data = weather_data.reindex(interpolate_index).interpolate(
-                method='time')
+
+        # Create a shifted index to interpolate to
+        interpolate_index = pd.DatetimeIndex(
+                start=datetime_start + pd.Timedelta(original_freq)/2  # shift
+                + pd.Timedelta(interpolation_freq),  # prevent "0 h" time stamp
+                end=datetime_end + pd.Timedelta(original_freq)/2,  # shift
+                freq=interpolation_freq)
+
+        weather_data = weather_data.reindex(interpolate_index)
+        if interpolation_freq < original_freq:
+            # Shift the correct number of steps to set a value to the middle
+            # of the time step
+            weather_data = weather_data.shift(
+                    freq=-pd.Timedelta(original_freq)/2)
+        weather_data = weather_data.interpolate(method='time')
 
         # The interpolation will generate NaN on the lines before the first
         # original line (hours = 1). Fill those NaN 'backwards' with the last
