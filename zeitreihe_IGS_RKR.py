@@ -175,7 +175,7 @@ def get_type99_header(weather_file_path, interpolate_freq):
     replace_dict['gmt'] = 1  # currently fixed
 
     for key, value in replace_dict.items():
-        re_find = r'<'+key+'>\s*(.*)\s!'
+        re_find = r'<'+key+r'>\s*(.*)\s!'
         re_replace = r'<'+key+'>  '+str(value)+'  !'
         type99_header = re.sub(re_find, re_replace, type99_header)
 
@@ -460,16 +460,16 @@ if __name__ == "__main__":
     ''' Script options
     '''
     datetime_start = pd.datetime(2017, 1, 1, 00, 00, 00)
-    #datetime_end = pd.datetime(2017, 2, 1, 00, 00, 00)
+#    datetime_end = pd.datetime(2017, 2, 1, 00, 00, 00)
     datetime_end = pd.datetime(2018, 1, 1, 00, 00, 00)
-    #interpolation_freq = pd.Timedelta('15 minutes')
+#    interpolation_freq = pd.Timedelta('15 minutes')
     interpolation_freq = pd.Timedelta('1 hours')
 
-    #bool_print_header = True
+#    bool_print_header = True
     bool_print_header = False
     bool_print_type99_head = True
-    #bool_print_type99_head = False
-    #bool_print_index = True
+#    bool_print_type99_head = False
+#    bool_print_index = True
     bool_print_index = False
     remove_leapyear = False
 
@@ -518,6 +518,7 @@ if __name__ == "__main__":
         # folder_regex = '.+TRY_2016_(?P<bregion>\d{2})\\\\(?P<aname>TRY2015)_(?P<ccoor>\d{14})_(?P<dtyp>Jahr)\.dat'
         # folder_regex = '.+(?P<aname>TRY_2016)_(?P<bregion>01)\\\\TRY2015_\d{14}_Jahr\.dat'
         # folder_regex = '.+TRY_2016_01\\\\TRY2015_\d{14}_Jahr\.dat'
+        # folder_regex = '.+TRY_2016_(?P<bregion>..)\\\\(?P<a>TRY2045)_(?P<c>\d{14})_(?P<dYtype>Jahr)\.dat'
         folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(01|39095002965500)(_Jahr|)\.dat'
         # folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(03|40005002975500)(_Jahr|)\.dat'
         #folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|x2015|xReferenzklimaregion)_(07|39625002724500)(_Jahr|)\.dat'
@@ -535,7 +536,8 @@ if __name__ == "__main__":
                     matchlist.append(regex_match.groupdict())
                     weather_file_list.append(path)
                 else:
-                    logger.warn('Folder did not match the regex, skipping:', root)
+                    logger.warning('Folder did not match the regex, '
+                                   'skipping:' + root)
                     continue
 
         if weather_file_list == []:
@@ -545,14 +547,13 @@ if __name__ == "__main__":
             logger.error(' top folder: '+base_folder+'\n')
             exit()
 
-        # Then sort the both matchlist and weather_file_list by weather_file_list
+        # Then sort both matchlist and weather_file_list by weather_file_list
         weather_file_list, matchlist = (list(x) for x in
                                         zip(*sorted(zip(weather_file_list,
                                                         matchlist),
                                                     key=lambda pair: pair[0])))
-
-    #    print(matchlist)
-    #    print(weather_file_list)
+#        print(matchlist)
+#        print(weather_file_list)
 
     for i, weather_file_path in enumerate(weather_file_list):
         if bool_regex:
