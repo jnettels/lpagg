@@ -38,7 +38,7 @@ from scipy import optimize
 import logging
 
 # Import other user-made modules (which must exist in the same folder)
-import zeitreihe_IGS_RKR        # Script for interpolation of IGS weather files
+import weather_converter        # Script for interpolation of IGS weather files
 
 
 def file_dialog(initialdir=os.getcwd()):
@@ -94,8 +94,8 @@ def load_weather_file(settings):
     """
     logger.info('Read and interpolate the data in weather file '+weather_file)
 
-    # Call external method in zeitreihe_IGS_RKR.py:
-    weather_data = zeitreihe_IGS_RKR.interpolate_weather_file(
+    # Call external method in weather_converter.py:
+    weather_data = weather_converter.interpolate_weather_file(
                                     weather_file_path,
                                     weather_data_type,
                                     datetime_start,
@@ -105,7 +105,7 @@ def load_weather_file(settings):
 
     # Analyse weather data
     if logger.isEnabledFor(logging.INFO):
-        zeitreihe_IGS_RKR.analyse_weather_file(
+        weather_converter.analyse_weather_file(
                 weather_data, interpolation_freq, weather_file,
                 print_folder=settings['print_folder'])
     weather_data.index.name = 'Time'
@@ -1398,7 +1398,7 @@ if __name__ == '__main__':
     if settings.get('Debug', False):
         log_level = 'DEBUG'  # override with old 'DEBUG' key
     logger.setLevel(level=log_level.upper())
-    logging.getLogger('zeitreihe_IGS_RKR').setLevel(level=log_level.upper())
+    logging.getLogger('weather_converter').setLevel(level=log_level.upper())
 
     logger.info('Using configuration file ' + config_file)
 
@@ -1595,8 +1595,8 @@ if __name__ == '__main__':
         except Exception as ex:
             logger.exception(ex)
 
-    # Call external method in zeitreihe_IGS_RKR.py:
-    zeitreihe_IGS_RKR.print_IGS_weather_file(weather_data,
+    # Call external method in weather_converter.py:
+    weather_converter.print_IGS_weather_file(weather_data,
                                              print_folder,
                                              print_file,
                                              bool_print_index,
