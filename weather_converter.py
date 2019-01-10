@@ -445,6 +445,89 @@ def print_IGS_weather_file(weather_data, print_folder, print_file,
     return True
 
 
+def file_dialog_wfile(initialdir=os.getcwd()):
+    '''This function presents a file dialog for one or more TRNSYS deck files.
+
+    Args:
+        None
+
+    Return:
+        paths (List): List of file paths
+    '''
+    from tkinter import Tk, filedialog
+
+    title = 'Please choose a weather data file'
+    logger.info(title)
+    root = Tk()
+    root.withdraw()
+    files = filedialog.askopenfilenames(
+                initialdir=initialdir, title=title,
+                # filetypes=(('Weather File', '*.dat'),)
+                )
+    files = list(files)
+    if files == []:
+        paths = None
+    else:
+        paths = [os.path.abspath(wfile) for wfile in files]
+    return paths
+
+
+def run_OptionParser():
+    '''Define and run the option parser. Set the user input and return the list
+    of weather data files.
+
+    Args:
+        None
+
+    Returns:
+        wfile_list (list): A list of weather file paths
+
+    '''
+    import argparse
+
+    description = 'weather_converter.py: Convert weather data for the '\
+        'TRNSYS weather data reader Type99.'
+    parser = argparse.ArgumentParser(description=description,
+                                     formatter_class=argparse.
+                                     ArgumentDefaultsHelpFormatter)
+
+    parser.add_argument('-w', '--wfile', dest='wfile', help='One or more paths'
+                        ' to weather data files that will be converted to '
+                        'TRNSYS Type99 weather reader', type=str, nargs='+',
+                        default=[])
+
+    parser.add_argument('-l', '--log_level', action='store', dest='log_level',
+                        help='LOG_LEVEL can be one of: debug, info, ' +
+                        'warning, error or critical',
+                        default=logging.getLevelName(
+                                logger.getEffectiveLevel()))
+
+    # Read the user input:
+    args, unknown = parser.parse_known_args()
+    args.wfile += unknown  # any "unknown" arguments are also treated as decks
+
+    # Set level of logging function
+    logger.setLevel(level=args.log_level.upper())
+
+    if len(args.wfile) == 0:
+        wfile_list = file_dialog_wfile()
+        if wfile_list is None:
+            logger.info('Empty selection. Show help and exit program...')
+            parser.print_help()
+            input('\nPress the enter key to exit.')
+            raise SystemExit
+    else:
+        # Get list of deck files (and convert relative into absolute paths)
+        wfile_list = [os.path.abspath(wfile) for wfile in args.wfile]
+
+    logger.debug('List of weather data files:')
+    if logger.isEnabledFor(logging.DEBUG):
+        for wfile in wfile_list:
+            print(wfile)
+
+    return wfile_list  # Return a list of file paths
+
+
 if __name__ == "__main__":
     '''Execute the methods defined above.
     Only do this, if the script is executed directly (in contrast to imported)
@@ -505,12 +588,16 @@ if __name__ == "__main__":
     #    'TRY2045_38265002816500_Somm.dat',
     #    'TRY2045_38265002816500_Wint.dat',
     #    'TRY2010_03_Jahr.dat',
-        'TRY2015_540932090598_Jahr.dat',
+#        'TRY2015_540932090598_Jahr.dat',
                         ]
-
-    # Joing base_folder and weather files:
+    # Join base_folder and weather files:
     weather_file_list = [os.path.join(base_folder, f) for f in weather_file_list]
 
+    if len(weather_file_list) == 0:
+        weather_file_list = run_OptionParser()
+        base_folder = os.path.dirname(weather_file_list[0])
+
+    # Alternative: Create weather_file_list from regular expression
     bool_regex = False
     if bool_regex:
         # folder_regex = 'TRY_2016_(?P<region>.+)\\TRY(?P<year>.+)_\d{14}_Jahr\.dat'
@@ -597,3 +684,5 @@ if __name__ == "__main__":
 
     # The script will be blocked until the user closes the plot window
     plt.show()
+
+    input('\nPress the enter key to exit.')
