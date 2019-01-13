@@ -78,14 +78,6 @@ def load_weather_file(settings):
 #    interpolation_freq = pd.Timedelta('1 hours')
     remove_leapyear = settings.get('remove_leapyear', False)
 
-    # --- Savety check --------------------------------------------------------
-    if interpolation_freq < pd.Timedelta('15 minutes'):
-        logger.warning('Warning! Chosen interpolation intervall ' +
-                       str(interpolation_freq) + ' changed to 15 min. ' +
-                       'MFH load profiles are available in 15 min steps ' +
-                       'and interpolation to smaller time intervals is ' +
-                       'not (yet) implemented.')
-        interpolation_freq = pd.Timedelta('15 minutes')
     settings['interpolation_freq'] = interpolation_freq
     """
     ---------------------------------------------------------------------------
@@ -242,6 +234,10 @@ def get_typical_days(weather_data, settings):
                                                       closed='right').mean()
     ccover_avg_list = ccover_avg_list.reindex(weather_data.index)
     ccover_avg_list.fillna(method='backfill', inplace=True)
+    # The interpolation to 15min may cause a slight difference of daily means
+    # compared to 60min, in rare cases shifting from >5.0 to <5.0.
+    # Rounding to the first decimal place may prevent this issue.
+    ccover_avg_list = ccover_avg_list.round(decimals=1)
 
     # Read through list of cloud cover line by line and apply the definition
     cloudy_list = []
@@ -315,15 +311,24 @@ def load_profile_factors(settings):
     # Now the column 'Zeit' can be added to the multiindex
     typtage_df.set_index('Zeit', drop=True, append=True, inplace=True)
 
+    # EFH come in resolution of 1 min, MFH in 15 min. We need to get MFH down
+    # to 1 min.
+    # Unstack, so that only the time index remains. This creates NaNs for the
+    # missing time stamps in MFH columns
+    typtage_df = typtage_df.unstack(['Haus', 'typtag'])
+    # Fill those NaN values with 'forward fill' method
+    typtage_df.fillna(method='ffill', inplace=True)
+    # Divide by factor 15 to keep the total energy demand constant
+    typtage_df.loc[:, (slice(None), 'MFH',)] *= 1/15
+
     # In the next step, the values are summed up into the same time intervals
     # as the weather data, and the label is moved to the 'right'
     # (each time stamp now describes the data in the interval before)
-    typtage_level_values = typtage_df.index.get_level_values
-    typtage_df = typtage_df.groupby([typtage_level_values(i) for i in [0, 1]] +
-                                    [pd.Grouper(freq=interpolation_freq,
-                                                level=2, label='right',
-                                                closed='left')]
-                                    ).sum()
+    typtage_df = typtage_df.resample(rule=interpolation_freq, level='Zeit',
+                                     label='right', closed='left').sum()
+    typtage_df = typtage_df.stack(['Haus', 'typtag'])
+    typtage_df = typtage_df.reorder_levels(['Haus', 'typtag', 'Zeit'])
+    typtage_df = typtage_df.sort_index()
 
     # Create a new DataFrame with the load profile for the chosen time period,
     # using the correct house type, 'typtag' and time step
@@ -1358,6 +1363,7 @@ if __name__ == '__main__':
 #    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
 #    config_file = r'C:\Trnsys17\Work\SIZ055_Meldorf\Load\Meldorf_load_config.yaml'
+#    config_file = r'C:\Trnsys17\Work\SIZ10022_Quarree100\Load\VDI_4655_config_Quarree100.yaml'
 
     filedir = os.path.dirname(__file__)
     holiday_file = os.path.join(filedir, 'resources_load', 'Feiertage.xlsx')
@@ -1504,7 +1510,17 @@ if __name__ == '__main__':
     # -------------------------------------------------------------------------
     load_curve_houses = add_external_profiles(load_curve_houses, settings)
 
-#    load_curve_houses.to_excel('test.xlsx')
+    if logger.isEnabledFor(logging.DEBUG):
+        print(load_curve_houses)
+        try:
+            load_curve_houses.to_csv(
+                    os.path.join(print_folder, os.path.splitext(print_file)[0]
+                                 + '_houses.dat'))
+#            load_curve_houses.to_excel(
+#                    os.path.join(print_folder, os.path.splitext(print_file)[0]
+#                                 + '_houses.xlsx'))
+        except Exception as ex:
+            logger.debug(ex)
 
     # Sum up the energy demands of all houses, store result in weather_data
     logger.info('Sum up the energy demands of all houses')
