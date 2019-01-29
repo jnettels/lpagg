@@ -408,12 +408,12 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file,
         if not os.path.exists(print_folder):
             os.makedirs(print_folder)
 
-        with open(os.path.join(print_folder, './weather_stats.dat'), 'w') as f:
+        file = os.path.join(print_folder, os.path.splitext(weather_file)[0])
+        with open(file + '_stats.dat', 'w') as f:
             f.write(w_stats)
 
         try:
-            w_stats_monthly.to_excel(
-                    os.path.join(print_folder, './weather_stats.xlsx'))
+            w_stats_monthly.to_excel(os.path.join(file+'_stats.xlsx'))
         except Exception as ex:
             logger.exception(ex)
 
@@ -643,6 +643,8 @@ if __name__ == "__main__":
 #        print(weather_file_list)
 
     for i, weather_file_path in enumerate(weather_file_list):
+        print_folder = os.path.join(base_folder, 'Result')
+
         if bool_regex:
             weather_data_type = matchlist[i].get('ztype', weather_data_type)
 
@@ -656,7 +658,8 @@ if __name__ == "__main__":
 
         # Analyse weather data
         weather_file = os.path.basename(weather_file_path)
-        analyse_weather_file(weather_data, interpolation_freq, weather_file)
+        analyse_weather_file(weather_data, interpolation_freq, weather_file,
+                             print_folder)
 
         # Print the weather data file
         if bool_regex is False:
@@ -677,7 +680,6 @@ if __name__ == "__main__":
             type99_header = get_type99_header(weather_file_path,
                                               interpolation_freq)
 
-        print_folder = os.path.join(base_folder, 'Result')
         print_IGS_weather_file(weather_data, print_folder, print_file,
                                bool_print_index, bool_print_header,
                                type99_header=type99_header)
