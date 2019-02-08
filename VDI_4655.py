@@ -447,6 +447,13 @@ def get_annual_energy_demand(settings):
         houses_dict[house_name]['W_a'] = W_a
         houses_dict[house_name]['Q_TWW_a'] = Q_TWW_a
 
+        # Assign defaults if values are not defined
+        if houses_dict[house_name].get('Q_Heiz_a', None) is None:
+            Q_Heiz_a = 1  # kWh
+            houses_dict[house_name]['Q_Heiz_a'] = Q_Heiz_a
+            logger.warning('Q_Heiz_a not defined for ' + house_name
+                           + '. Using default ' + str(Q_Heiz_a) + ' kWh')
+
         # Apply the adjustment factors
         houses_dict[house_name]['Q_Heiz_a'] *= \
             config_dict.get('adjustment_factors', dict()).get('f_Q_Heiz', 1)
