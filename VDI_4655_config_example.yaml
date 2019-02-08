@@ -53,7 +53,7 @@ settings:
     
 
     ### Activate the debugging flag to display more info in the terminal
-    Debug: False
+    # log_level: debug
 
 ### In this section you can define the relevant input for the 'Heizkurve'.
 ### If 'Heizkurve' is commented out, these calculations are not performed
