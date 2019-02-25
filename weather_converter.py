@@ -249,7 +249,7 @@ def interpolate_weather_file(weather_file_path,
         # before, this now only affects the start and end of the data
 
         # Create a shifted index to interpolate to
-        interpolate_index = pd.DatetimeIndex(
+        interpolate_index = pd.date_range(
                 start=datetime_start + pd.Timedelta(original_freq)/2  # shift
                 + pd.Timedelta(interpolation_freq),  # prevent "0 h" time stamp
                 end=datetime_end + pd.Timedelta(original_freq)/2,  # shift
