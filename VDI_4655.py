@@ -916,11 +916,30 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
     load_curve_houses_ref = load_curve_houses.copy()  # Reference (no random)
     # Fix the 'randomness' (every run of the script generates the same results)
     np.random.seed(4)
-    # Create copies for every house
+
+    # Create a temporary dict with all the info needed for randomizer
+    randomizer_dict = dict()
     for house_name in settings['houses_list']:
         copies = houses_dict[house_name].get('copies', 0)
         # Get standard deviation (spread or “width”) of the distribution:
         sigma = houses_dict[house_name].get('sigma', False)
+
+        randomizer_dict[house_name] = dict({'copies': copies,
+                                            'sigma': sigma})
+
+    external_profiles = config_dict.get('external_profiles', dict())
+    for house_name in external_profiles:
+        copies = external_profiles[house_name].get('copies', 0)
+        # Get standard deviation (spread or “width”) of the distribution:
+        sigma = external_profiles[house_name].get('sigma', False)
+
+        randomizer_dict[house_name] = dict({'copies': copies,
+                                            'sigma': sigma})
+
+    # Create copies for every house
+    for house_name in randomizer_dict:
+        copies = randomizer_dict[house_name]['copies']
+        sigma = randomizer_dict[house_name]['sigma']
         randoms = np.random.normal(0, sigma, copies)  # Array of random values
         randoms_int = [int(value) for value in np.round(randoms, 0)]
 
@@ -1086,12 +1105,14 @@ def add_external_profiles(load_curve, settings):
         filepath = building_dict[building]['file']
         class_ = building_dict[building]['class']
         rename_dict = building_dict[building]['rename_dict']
+        read_excel_kwargs = building_dict[building]['read_excel_kwargs']
+#        logger.debug(filepath)
 
         # Read data from file
         filetype = os.path.splitext(os.path.basename(filepath))[1]
         if filetype in ['.xlsx', '.xls']:
             # Excel can be read automatically with Pandas
-            df = pd.read_excel(filepath)
+            df = pd.read_excel(filepath, **read_excel_kwargs)
         elif filetype in ['.csv', '.dat']:
             # csv files can have different formats
             df = pd.read_csv(open(filepath, 'r'),
@@ -1099,8 +1120,23 @@ def add_external_profiles(load_curve, settings):
                              parse_dates=[0],  # Parse first column as date
                              infer_datetime_format=True)
 
+        # Apply multiplication factor
+        multiply_dict = building_dict[building].get('multiply_dict', dict())
+        for key, value in multiply_dict.items():
+            df[key] *= value
+
         # Rename to VDI 4655 standards
         df.rename(columns=rename_dict, inplace=True)
+
+        freq = pd.infer_freq(df.index, warn=True)
+        f_freq = settings['interpolation_freq']/freq
+        if f_freq < 1:
+            df = df.resample(rule=settings['interpolation_freq']).bfill()
+            # Divide by factor f_freq to keep the total energy demand constant
+            df *= f_freq
+        elif f_freq > 1:
+            df = df.resample(rule=settings['interpolation_freq'],
+                             label='right', closed='right').sum()
 
         # Convert into a multi-index DataFrame
         multiindex = pd.MultiIndex.from_product(
@@ -1112,6 +1148,10 @@ def add_external_profiles(load_curve, settings):
 
         # Combine external profiles with existing profiles
         load_curve = pd.concat([load_curve, ext_profiles], axis=1)
+
+        # Fill missing values (after resampling to a smaller timestep, the
+        # beginning will have missing values that can be filled with backfill)
+        load_curve.fillna(method='backfill', inplace=True)
 
     return load_curve
 
@@ -1370,7 +1410,7 @@ if __name__ == '__main__':
 #    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
 #    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
 #    config_file = r'C:\Trnsys17\Work\SIZ055_Meldorf\Load\Meldorf_load_config.yaml'
-#    config_file = r'C:\Trnsys17\Work\SIZ10022_Quarree100\Load\VDI_4655_config_Quarree100.yaml'
+#    config_file = r'C:\Trnsys17\Work\SIZ10022_Quarree100\Load\VDI_4655_config_Quarree100_02.yaml'
 
     filedir = os.path.dirname(__file__)
     holiday_file = os.path.join(filedir, 'resources_load', 'Feiertage.xlsx')
@@ -1501,6 +1541,12 @@ if __name__ == '__main__':
     # (Optional, not part of VDI 4655)
     # -------------------------------------------------------------------------
     load_curve_houses = flatten_daily_TWE(load_curve_houses, settings)
+#    print(load_curve_houses.head())
+
+    # Add external (complete) profiles
+    # (Optional, not part of VDI 4655)
+    # -------------------------------------------------------------------------
+    load_curve_houses = add_external_profiles(load_curve_houses, settings)
 
     # Randomize the load profiles of identical houses
     # (Optional, not part of VDI 4655)
@@ -1508,14 +1554,10 @@ if __name__ == '__main__':
     logger.info('Create (randomized) copies of the houses')
     load_curve_houses = copy_and_randomize_houses(load_curve_houses,
                                                   houses_dict, settings)
+#    print(load_curve_houses.head())
 
     # Debugging: Show the daily sum of each energy demand type:
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
-
-    # Add external (complete) profiles
-    # (Optional, not part of VDI 4655)
-    # -------------------------------------------------------------------------
-    load_curve_houses = add_external_profiles(load_curve_houses, settings)
 
     if logger.isEnabledFor(logging.DEBUG):
         print(load_curve_houses)
