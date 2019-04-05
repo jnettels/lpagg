@@ -400,13 +400,23 @@ def get_annual_energy_demand(settings):
         if N_Pers is None:
             N_Pers = 3
             houses_dict[house_name]['N_Pers'] = N_Pers
-            logger.warning('N_Pers not defined for ' + house_name
+            logger.warning('N_Pers not defined for ' + str(house_name)
                            + '. Using default ' + str(N_Pers))
         if N_WE is None:
             N_WE = 2
             houses_dict[house_name]['N_WE'] = N_WE
-            logger.warning('N_WE not defined for ' + house_name
+            logger.warning('N_WE not defined for ' + str(house_name)
                            + '. Using default ' + str(N_WE))
+
+        # Implement the restrictions defined on page 3:
+        if house_type == 'EFH' and N_Pers > 12:
+            logger.warning('VDI 4655 is only defined for N_Pers <= 12. '
+                           + str(house_name) + ' uses N_Pers = ' + str(N_Pers)
+                           + '. Proceeding with your input...')
+        if house_type == 'MFH' and N_WE > 40:
+            logger.warning('VDI 4655 is only defined for N_WE <= 40. '
+                           + str(house_name) + ' uses N_WE = ' + str(N_WE)
+                           + '. Proceeding with your input...')
 
         # Calculate annual energy demand estimates
         if house_type == 'EFH':
@@ -711,6 +721,8 @@ def load_BDEW_style_profiles(source_file, weather_data, settings, houses_dict,
         house_type = houses_dict[house_name]['house_type']
         if house_type not in source_df.keys():
             # Only use 'H0G', 'G0G', 'G1G', ...
+            logger.warning('house_type "'+str(house_type)+'" not found in '
+                           'profile sources: '+str(source_df.keys()))
             continue
 
         profile_year = pd.Series()  # Yearly profile for the current house
