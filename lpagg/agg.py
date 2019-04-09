@@ -1407,7 +1407,7 @@ if __name__ == '__main__':
 
     # Define style settings for the plots
     try:  # Try to load personalized matplotlib style file
-        mpl.style.use('./futureSuN.mplstyle')
+        mpl.style.use('../futureSuN.mplstyle')
     except OSError as ex:
         logger.warning(ex)
 
