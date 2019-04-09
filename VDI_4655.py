@@ -904,13 +904,13 @@ def flatten_daily_TWE(load_curve_houses, settings):
 
 def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
     '''Create copies of houses where needed. Apply a normal distribution to
-    the copies, if a standard deviation 'sigma' is given in the config.
+    the copies, if a standard deviation ``sigma`` is given in the config.
 
     Remember: 68.3%, 95.5% and 99.7% of the values lie within one,
     two and three standard deviations of the mean.
     Example: With an interval of 15 min and a deviation of
     sigma = 2 time steps, 68% of profiles are shifted up to ±30 min (±1σ).
-    27% of proflies are shifted ±30 to 60 min (±2σ) and another
+    27% of profiles are shifted ±30 to 60 min (±2σ) and another
     4% are shifted ±60 to 90 min (±3σ).
 
     This method decreases the maximum load and thereby creates a
@@ -1031,7 +1031,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
 
 def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
                           copy, b_print=False):
-    copy_name = house_name + '_c' + str(copy)
+    copy_name = str(house_name) + '_c' + str(copy)
     if b_print and logger.isEnabledFor(logging.DEBUG):
         print('Copy (and randomize) house', copy_name, end='\r')  # status
     # Select the data of the house we want to copy
@@ -1049,7 +1049,7 @@ def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
             # overlap and insert it at the beginning
             overlap = df_new[-shift_step:]
             df_shifted = df_new.shift(shift_step)
-            df_shifted.dropna(inplace=True)
+            df_shifted.dropna(inplace=True, how='all')
             overlap.index = df_new[:shift_step].index
             df_new = overlap.append(df_shifted)
         elif shift_step < 0:
@@ -1057,7 +1057,7 @@ def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
             # backwards in time, paste overlap at end of the df
             overlap = df_new[:abs(shift_step)]
             df_shifted = df_new.shift(shift_step)
-            df_shifted.dropna(inplace=True)
+            df_shifted.dropna(inplace=True, how='all')
             overlap.index = df_new[shift_step:].index
             df_new = df_shifted.append(overlap)
         elif shift_step == 0:
