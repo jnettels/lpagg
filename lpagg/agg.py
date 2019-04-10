@@ -36,6 +36,7 @@ import numpy as np
 from tkinter import Tk, filedialog
 from scipy import optimize
 import logging
+import pickle
 
 # Import other user-made modules (which must exist in the same folder)
 import weather_converter        # Script for interpolation of IGS weather files
@@ -274,6 +275,9 @@ def load_profile_factors(settings):
     house_types = ['EFH', 'MFH']
     settings['typtage_combinations'] = typtage_combinations
 
+    energy_factor_types = ['F_Heiz_n_TT', 'F_el_n_TT', 'F_TWW_n_TT']
+    settings['energy_factor_types'] = energy_factor_types
+
     if logger.isEnabledFor(logging.DEBUG):
         logger.debug('Number of typical days:')
         steps_per_day = settings['steps_per_day']
@@ -284,6 +288,25 @@ def load_profile_factors(settings):
         print(pd.DataFrame(N_typtage).T.to_string(index=False,
               columns=typtage_combinations,  # fixed sorting of columns
               float_format='{:.0f}'.format))
+
+    if settings.get('pickle_load_profile', False):
+        # If the previous run had the same interpolation_freq, we do not need
+        # to re-do the calculation of load_profile_df. Instead we load it
+        # from a pickle file that was saved last time
+        load_profile_pickle = 'load_profile_df.pkl'
+        try:
+            # Load an existing optimizer instance
+            with open(load_profile_pickle, 'rb') as f:
+                load_profile_df = pickle.load(f)
+        except Exception:
+            pass
+        else:
+            loaded_freq = pd.infer_freq(load_profile_df.index, warn=True)
+            delta = pd.Timedelta(pd.tseries.frequencies.to_offset(loaded_freq))
+            if delta == interpolation_freq:
+                logger.info('Pickle: Loaded existing load_profile_df '
+                            + load_profile_pickle)
+                return load_profile_df
 
     # Load all 'typtag' load profile files into one DataFrame:
     # Please note:
@@ -332,8 +355,6 @@ def load_profile_factors(settings):
 
     # Create a new DataFrame with the load profile for the chosen time period,
     # using the correct house type, 'typtag' and time step
-    energy_factor_types = ['F_Heiz_n_TT', 'F_el_n_TT', 'F_TWW_n_TT']
-    settings['energy_factor_types'] = energy_factor_types
 
     # Contruct the two-dimensional multiindex of the new DataFrame
     # (One column for each energy_factor_type of each house)
@@ -369,6 +390,10 @@ def load_profile_factors(settings):
 #        print("The daily sum of each energy factor type must equal '1':")
 #        print(load_profile_df.resample('D', label='left',
 #                                       closed='right').sum())
+
+    if settings.get('pickle_load_profile', False):
+        with open(load_profile_pickle, 'wb') as f:
+            pickle.dump(load_profile_df, f)
 
     return load_profile_df
 
