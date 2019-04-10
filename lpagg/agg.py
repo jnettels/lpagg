@@ -365,25 +365,25 @@ def load_profile_factors(settings):
                                    columns=multiindex)
 
     # Fill the load profile's time steps with the matching energy factors
-    total = float(len(weather_data.index))
-    for j, date_obj in enumerate(weather_data.index):
+    # Iterate over time slices of full days
+    start = weather_data.index[0]
+    while start < weather_data.index[-1]:
+        end = start + pd.Timedelta('1 days') - interpolation_freq
+        print('Progress: '+str(start), end='\r')  # print progress
         # Compare time stamps in typtage_df of the matching house and typtag
-        typtag = weather_data.loc[date_obj]['typtag']
+        typtag = weather_data.loc[start]['typtag']
 
-        # The time index of all typtage_df levels should be the same, so we use
-        # anyone of them to iterate over (here house_types[0] = 'EFH').
-        for time_obj in typtage_df.loc[house_types[0], typtag].index:
-            if (time_obj.time() == date_obj.time()):
-                # Write each value from the current time stamp into its
-                # corresponding field in the load_profile_df DataFrame:
-                for energy in energy_factor_types:
-                    for house_type in house_types:
-                        load_profile_df.loc[date_obj][energy, house_type] = \
-                          typtage_df.loc[house_type, typtag, time_obj][energy]
+        typtage_df.loc[house_types[0], typtag].index
+        start_tt = pd.datetime.combine(pd.datetime(2017, 1, 1), start.time())
+        end_tt = start_tt + pd.Timedelta('1 days') - interpolation_freq
 
-                break  # break for-loop (we don't need to keep searching)
+        for energy in energy_factor_types:
+            for house_type in house_types:
+                load_profile_df.loc[start:end, (energy, house_type)] = \
+                    typtage_df.loc[house_type, typtag,
+                                   start_tt:end_tt][energy].values
 
-        print('{:5.1f}% done'.format(j/total*100), end='\r')  # print progress
+        start = end + interpolation_freq
 
     # Debugging: The daily sum of each energy factor type must be '1':
 #    if logger.isEnabledFor(logging.DEBUG):
