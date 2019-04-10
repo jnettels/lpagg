@@ -41,8 +41,11 @@ import logging
 import weather_converter        # Script for interpolation of IGS weather files
 
 
-def file_dialog(initialdir=os.getcwd()):
-    '''This function presents a file dialog for a parametric table file.
+def file_dialog(initialdir=os.getcwd(),
+                title='Choose a file',
+                filetypes=(('YAML File', '*.yaml'),)
+                ):
+    '''This function presents a file dialog.
 
     Args:
         None
@@ -50,13 +53,10 @@ def file_dialog(initialdir=os.getcwd()):
     Return:
         path (str): File path
     '''
-    title = 'Choose a yaml config file'
     root = Tk()
     root.withdraw()
-    file = filedialog.askopenfilename(
-                initialdir=initialdir, title=title,
-                filetypes=(('YAML File', '*.yaml'),)
-                )
+    file = filedialog.askopenfilename(initialdir=initialdir, title=title,
+                                      filetypes=filetypes)
     if file == '':
         path = None
     else:
@@ -1436,7 +1436,10 @@ if __name__ == '__main__':
                                     'futureSolar Profile.xlsx')
 
     if config_file is None:
-        config_file = file_dialog()  # show file dialog
+        config_file = file_dialog(
+                title='Choose a yaml config file',
+                filetypes=(('YAML File', '*.yaml'),),
+                )  # show file dialog
         if config_file is None:
             logger.error('Empty selection. Exit program...')
             input('\nPress the enter key to exit.')
