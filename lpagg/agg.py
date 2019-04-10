@@ -623,24 +623,32 @@ def get_load_curve_houses(load_profile_df, houses_dict, settings):
     load_curve_houses = pd.DataFrame(index=weather_data.index,
                                      columns=multiindex)
 
-    # 'Partial' creates a function that only takes one argument. In our case
-    # this is 'date_obj'. It will be given to the target function
-    # 'get_energy_demand_values' as the last argument.
-    helper_function = functools.partial(get_energy_demand_values,
-                                        weather_data, houses_list, houses_dict,
-                                        energy_factor_types,
-                                        energy_demands_types,
-                                        load_curve_houses, load_profile_df,
-                                        daily_energy_demand_houses)
+    if settings.get('run_in_parallel', False):
+        # 'Partial' creates a function that only takes one argument. In our
+        # case this is 'date_obj'. It will be given to the target function
+        # 'get_energy_demand_values' as the last argument.
+        helper_function = functools.partial(get_energy_demand_values,
+                                            weather_data, houses_list,
+                                            houses_dict, energy_factor_types,
+                                            energy_demands_types,
+                                            load_curve_houses, load_profile_df,
+                                            daily_energy_demand_houses)
 
-    work_list = weather_data.index
-    return_list = multiprocessing_job(helper_function, work_list)
+        work_list = weather_data.index
+        return_list = multiprocessing_job(helper_function, work_list)
 
-    # The 'pool' returns a list. Feed its contents to the DataFrame
-    for returned_df in return_list.get():
-        load_curve_houses.loc[returned_df.name] = returned_df
+        # The 'pool' returns a list. Feed its contents to the DataFrame
+        for returned_df in return_list.get():
+            load_curve_houses.loc[returned_df.name] = returned_df
 
-    load_curve_houses = load_curve_houses.astype('float')
+        load_curve_houses = load_curve_houses.astype('float')
+
+    else:  # Run in serial (default behaviour)
+        load_curve_houses = get_energy_demand_values_day(
+                weather_data, houses_list, houses_dict,
+                energy_factor_types, energy_demands_types,
+                load_curve_houses, load_profile_df,
+                daily_energy_demand_houses)
 
     # For each time step, each house and each type of energy factor, we
     # multiply the energy factor with the daily energy demand. The result
@@ -714,6 +722,38 @@ def get_energy_demand_values(weather_data, houses_list, houses_dict,
                                                energy_demand_type][typtag]
 
     return load_curve_houses.loc[date_obj]
+
+
+def get_energy_demand_values_day(weather_data, houses_list, houses_dict,
+                                 energy_factor_types, energy_demands_types,
+                                 load_curve_houses, load_profile_df,
+                                 daily_energy_demand_houses):
+    '''
+    This functions works through the lists houses_list and energy_factor_types
+    day by day and multiplies the current load profile
+    value with the daily energy demand. It returns the result: the energy
+    demand values for all houses and energy types (in kWh)
+    '''
+    start = weather_data.index[0]
+    while start < weather_data.index[-1]:
+        end = start + pd.Timedelta('1 days')
+        print('Progress: '+str(start), end='\r')  # print progress
+        typtag = weather_data.loc[start]['typtag']
+        for house_name in houses_list:
+            house_type = houses_dict[house_name]['house_type']
+            for i, energy_factor_type in enumerate(energy_factor_types):
+                energy_demand_type = energy_demands_types[i]
+                # Example: Q_Heiz_TT(t) = F_Heiz_TT(t) * Q_Heiz_TT
+                load_curve_houses.loc[start:end, (house_name,
+                                                  energy_demand_type)] =\
+                    load_profile_df.loc[start:end, (energy_factor_type,
+                                                    house_type)] *\
+                    daily_energy_demand_houses.loc[(house_name,
+                                                   energy_demand_type), typtag]
+#                print(load_curve_houses.loc[start:end])
+        start = end
+
+    return load_curve_houses
 
 
 def load_BDEW_style_profiles(source_file, weather_data, settings, houses_dict,
