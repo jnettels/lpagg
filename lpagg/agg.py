@@ -1692,6 +1692,7 @@ if __name__ == '__main__':
     logger.info("Generate the houses' energy demand values for each timestep")
     load_curve_houses = get_load_curve_houses(load_profile_df, houses_dict,
                                               settings)
+    del load_profile_df
 
     # For the GHD building sector, combine profiles from various sources:
     # (not part of VDI 4655)
@@ -1708,6 +1709,12 @@ if __name__ == '__main__':
     load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
                                   axis=1, sort=False,
                                   keys=['HH', 'GHD'], names=['class'])
+
+    del BDEW_profiles
+    del DOE_profiles
+    del futureSolar_profiles
+    del GHD_profiles
+
 #    print(load_curve_houses)
 
     # Flatten domestic hot water profile to a daily mean value
@@ -1724,20 +1731,22 @@ if __name__ == '__main__':
     # Randomize the load profiles of identical houses
     # (Optional, not part of VDI 4655)
     # -------------------------------------------------------------------------
-    logger.info('Create (randomized) copies of the houses')
     load_curve_houses = copy_and_randomize_houses(load_curve_houses,
                                                   houses_dict, settings)
-#    print(load_curve_houses.head())
 
     # Debugging: Show the daily sum of each energy demand type:
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
 
     if logger.isEnabledFor(logging.DEBUG):
-        print(load_curve_houses)
+        load_curve_houses.sort_index(axis=1, inplace=True)
+
+        logger.info('Printing *_houses.dat file')
+        print(load_curve_houses.head())
         try:
             load_curve_houses.to_csv(
                     os.path.join(print_folder, os.path.splitext(print_file)[0]
                                  + '_houses.dat'))
+            # HINT: Be careful, can create huge file sizes
 #            load_curve_houses.to_excel(
 #                    os.path.join(print_folder, os.path.splitext(print_file)[0]
 #                                 + '_houses.xlsx'))
