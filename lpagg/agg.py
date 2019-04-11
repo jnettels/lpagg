@@ -68,7 +68,10 @@ def file_dialog(initialdir=os.getcwd(),
     return path
 
 
-def load_weather_file(settings):
+def load_weather_file(cfg):
+    """Read and interpolate weather data files.
+    """
+    settings = cfg['settings']
     weather_file = settings['weather_file']
     weather_file_path = os.path.join(os.path.dirname(__file__),
                                      'resources_weather', weather_file)
@@ -83,11 +86,6 @@ def load_weather_file(settings):
     remove_leapyear = settings.get('remove_leapyear', False)
 
     settings['interpolation_freq'] = interpolation_freq
-    """
-    ---------------------------------------------------------------------------
-    Read and interpolate "IGS Referenzklimaregion" files
-    ---------------------------------------------------------------------------
-    """
     logger.info('Read and interpolate the data in weather file '+weather_file)
 
     # Call external method in weather_converter.py:
@@ -103,13 +101,14 @@ def load_weather_file(settings):
     if logger.isEnabledFor(logging.INFO):
         weather_converter.analyse_weather_file(
                 weather_data, interpolation_freq, weather_file,
-                print_folder=settings['print_folder'])
+                print_folder=cfg['print_folder'])
     weather_data.index.name = 'Time'
     return weather_data
 
 
 def get_season_list_BDEW(weather_data):
-    '''
+    '''Get a list of seasons as defined by for the BDEW profiles
+
     Winter:       01.11. to 20.03.
     Summer:       15.05. to 14.09.
     Transition:   21.03. to 14.05. and 15.09. to 31.10.
@@ -133,11 +132,17 @@ def get_season_list_BDEW(weather_data):
 
 
 def get_typical_days(weather_data, cfg):
+    '''VDI 4655 - Step 1: Determine the "typtag" key for each timestep
+
+    For the full "typtag", we need to identify:
+
+        - Season
+        - Workdays, Sundays and public holidays
+        - Cloud cover amount
+
+    '''
 
     settings = cfg['settings']
-    # -------------------------------------------------------------------------
-    # VDI 4655 - Step 1: Determine the "typtag" key for each timestep
-    # -------------------------------------------------------------------------
     # Flag to determine if any holidays have been found:
     interpolation_freq = pd.Timedelta(settings['intervall'])
     flag_holidays_found = False
@@ -616,10 +621,11 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
     return daily_energy_demand_houses
 
 
-def get_load_curve_houses(load_profile_df, houses_dict, weather_data, settings,
+def get_load_curve_houses(load_profile_df, houses_dict, weather_data, cfg,
                           daily_energy_demand_houses):
     '''Generate the houses' energy demand values for each timestep
     '''
+    settings = cfg['settings']
     energy_demands_types = settings['energy_demands_types']
     houses_list = settings['houses_list_VDI']
     energy_factor_types = settings['energy_factor_types']
@@ -1338,11 +1344,12 @@ def add_external_profiles(load_curve_houses, cfg):
     return load_curve_houses
 
 
-def sum_up_all_houses(load_curve_houses, weather_data, settings):
+def sum_up_all_houses(load_curve_houses, weather_data, cfg):
     '''By grouping the 'energy' level, we can take the sum of all houses.
     Also renames the columns from VDI 4655 standard to 'E_th', 'E_el',
     as used in the project futureSuN.
     '''
+    settings = cfg['settings']
     # TODO: The following line should be removed someday. See Pandas issue:
     # https://github.com/pandas-dev/pandas/issues/24671
     load_curve_houses.fillna(0, axis=1, inplace=True)
@@ -1635,7 +1642,7 @@ def plot_and_print(weather_data, cfg):
     # Call external method in weather_converter.py:
     weather_converter.print_IGS_weather_file(
             weather_data,
-            settings['print_folder'],
+            cfg['print_folder'],
             settings['print_file'],
             settings.get('print_index', True),
             settings.get('print_header', True))
@@ -1659,83 +1666,87 @@ def setup():
         logger.debug(ex)
 
 
-def main():
+def aggregator_run(cfg):
     '''
-    The following is the 'main' function, which contains the rest of the script
+    Aggregate load profiles
     '''
-    setup()
-
-    # --- Measure start time of this script -----------------------------------
-    start_time = time.time()
-
-    # --- Script options ------------------------------------------------------
-    config_file = None
-#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung\VDI_4655_config.yaml'
-#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE\VDI_4655_config.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP1\SB\Load\VDI_4655_config_Steinfurt_02.yaml'
-    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_P2HQuartier.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_Hannover-Kronsberg.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Load\VDI_4655_config_Quartier_Neubau.yaml'
-#    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
-#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
-#    config_file = r'C:\Trnsys17\Work\SIZ055_Meldorf\Load\Meldorf_load_config.yaml'
-#    config_file = r'C:\Trnsys17\Work\SIZ10022_Quarree100\Load\VDI_4655_Q100_Kataster.yaml'
-
-    if config_file is None:
-        config_file = file_dialog(
-                title='Choose a yaml config file',
-                filetypes=(('YAML File', '*.yaml'),),
-                )  # show file dialog
-        if config_file is None:
-            logger.error('Empty selection. Exit program...')
-            input('\nPress the enter key to exit.')
-            raise SystemExit
-
-    # --- Import the cfg from the YAML config_file --------------------
-    cfg = yaml.load(open(config_file, 'r'))
-
-    cfg['base_folder'] = os.path.dirname(config_file)
-
-    # Define the file paths
-    filedir = os.path.dirname(__file__)
-    cfg.setdefault('data', dict())
-    cfg['data'].setdefault('holiday', os.path.join(filedir, 'resources_load',
-                                                   'Feiertage.xlsx'))
-    cfg['data'].setdefault('energy_factors',
-                           os.path.join(filedir, 'resources_load',
-                                        'VDI 4655 Typtag-Faktoren.xlsx'))
-    cfg['data'].setdefault('typtage', os.path.join(filedir, 'resources_load',
-                                                   'VDI 4655 Typtage.xlsx'))
-    cfg['data'].setdefault('BDEW', os.path.join(filedir, 'resources_load',
-                                                'BDEW Profile.xlsx'))
-    cfg['data'].setdefault('DOE', os.path.join(filedir, 'resources_load',
-                                               'DOE Profile TWE.xlsx'))
-    cfg['data'].setdefault('futureSolar',
-                           os.path.join(filedir, 'resources_load',
-                                        'futureSolar Profile.xlsx'))
-
-    # --- Read settings from the cfg ----------------------------------
     settings = cfg['settings']
+    weather_data = load_weather_file(cfg)
 
-    print_file = settings['print_file']
-    # Output folder is hardcoded here:
-    print_folder = os.path.join(cfg['base_folder'], 'Result')
-    settings['print_folder'] = print_folder
+    # For households, use the VDI 4655
+    load_curve_houses, houses_dict = VDI4655_run(weather_data, cfg)
 
-    # Set logging level
-    log_level = settings.get('log_level', 'WARNING')  # Use setting or default
-    if settings.get('Debug', False):
-        log_level = 'DEBUG'  # override with old 'DEBUG' key
-    logger.setLevel(level=log_level.upper())
-    logging.getLogger('weather_converter').setLevel(level=log_level.upper())
+    # For the GHD building sector, combine profiles from various sources:
+    # (not part of VDI 4655)
+    GHD_profiles = get_GHD_profiles(weather_data, cfg, houses_dict)
 
-    logger.info('Using configuration file ' + config_file)
+    load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
+                                  axis=1, sort=False,
+                                  keys=['HH', 'GHD'], names=['class'])
+
+#    print(load_curve_houses)
+
+    # Flatten domestic hot water profile to a daily mean value
+    # (Optional, not part of VDI 4655)
+    # -------------------------------------------------------------------------
+    load_curve_houses = flatten_daily_TWE(load_curve_houses, settings)
+#    print(load_curve_houses.head())
+
+    # Add external (complete) profiles
+    # (Optional, not part of VDI 4655)
+    # -------------------------------------------------------------------------
+    load_curve_houses = add_external_profiles(load_curve_houses, cfg)
+
+    # Randomize the load profiles of identical houses
+    # (Optional, not part of VDI 4655)
+    # -------------------------------------------------------------------------
+    load_curve_houses = copy_and_randomize_houses(load_curve_houses,
+                                                  houses_dict, cfg)
+
+    # Debugging: Show the daily sum of each energy demand type:
+#    print(load_curve_houses.resample('D', label='left', closed='right').sum())
+
+    if logger.isEnabledFor(logging.DEBUG):
+        load_curve_houses.sort_index(axis=1, inplace=True)
+
+        logger.info('Printing *_houses.dat file')
+        print(load_curve_houses.head())
+        try:
+            load_curve_houses.to_csv(
+                    os.path.join(cfg['print_folder'],
+                                 os.path.splitext(settings['print_file'])[0]
+                                 + '_houses.dat'))
+            # HINT: Be careful, can create huge file sizes
+#            load_curve_houses.to_excel(
+#                    os.path.join(cfg['print_folder'],
+#                                 os.path.splitext(settings['print_file'])[0]
+#                                 + '_houses.xlsx'))
+        except Exception as ex:
+            logger.debug(ex)
+
+    # Sum up the energy demands of all houses, store result in weather_data
+    logger.info('Sum up the energy demands of all houses')
+    weather_data = sum_up_all_houses(load_curve_houses, weather_data, cfg)
+#    print(weather_data)
 
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    #                          VDI 4655 Implementation
+    #       Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
+    #                        (Not part of the VDI 4655)
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    weather_data = load_weather_file(settings)
+    cfg = fit_heizkurve(weather_data, cfg)  # Optional
+    calc_heizkurve(weather_data, cfg)
 
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    #                Normalize results to a total of 1 kWh per year
+    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    normalize_energy(weather_data, cfg)
+
+    return weather_data
+
+
+def VDI4655_run(weather_data, cfg):
+    '''VDI 4655 Implementation
+    '''
     # -------------------------------------------------------------------------
     # VDI 4655 - Step 1: Determine the "typtag" key for each timestep
     # -------------------------------------------------------------------------
@@ -1794,13 +1805,16 @@ def main():
     # -------------------------------------------------------------------------
     logger.info("Generate the houses' energy demand values for each timestep")
     load_curve_houses = get_load_curve_houses(load_profile_df, houses_dict,
-                                              weather_data, settings,
+                                              weather_data, cfg,
                                               daily_energy_demand_houses)
-    del load_profile_df
 
-    # For the GHD building sector, combine profiles from various sources:
-    # (not part of VDI 4655)
-    # -------------------------------------------------------------------------
+    return load_curve_houses, houses_dict
+
+
+def get_GHD_profiles(weather_data, cfg, houses_dict):
+    '''For the GHD building sector, combine profiles from various sources:
+    (not part of VDI 4655)
+    '''
     BDEW_profiles = load_BDEW_profiles(weather_data, cfg, houses_dict)
     DOE_profiles = load_DOE_profiles(weather_data, cfg, houses_dict)
     futureSolar_profiles = load_futureSolar_profiles(weather_data, cfg,
@@ -1810,75 +1824,88 @@ def main():
                               futureSolar_profiles],
                              axis=1, sort=False)
 
-    load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
-                                  axis=1, sort=False,
-                                  keys=['HH', 'GHD'], names=['class'])
+    return GHD_profiles
 
-    del BDEW_profiles
-    del DOE_profiles
-    del futureSolar_profiles
-    del GHD_profiles
 
-#    print(load_curve_houses)
+def import_cfg_file(config_file):
+    # --- Import the cfg from the YAML config_file --------------------
+    cfg = yaml.load(open(config_file, 'r'))
 
-    # Flatten domestic hot water profile to a daily mean value
-    # (Optional, not part of VDI 4655)
-    # -------------------------------------------------------------------------
-    load_curve_houses = flatten_daily_TWE(load_curve_houses, settings)
-#    print(load_curve_houses.head())
+    cfg['base_folder'] = os.path.dirname(config_file)
+    cfg['print_folder'] = os.path.join(cfg['base_folder'],
+                                       cfg.get('result_folder', 'Result'))
 
-    # Add external (complete) profiles
-    # (Optional, not part of VDI 4655)
-    # -------------------------------------------------------------------------
-    load_curve_houses = add_external_profiles(load_curve_houses, cfg)
+    # Define the file paths
+    filedir = os.path.dirname(__file__)
+    cfg.setdefault('data', dict())
+    cfg['data'].setdefault('holiday', os.path.join(filedir, 'resources_load',
+                                                   'Feiertage.xlsx'))
+    cfg['data'].setdefault('energy_factors',
+                           os.path.join(filedir, 'resources_load',
+                                        'VDI 4655 Typtag-Faktoren.xlsx'))
+    cfg['data'].setdefault('typtage', os.path.join(filedir, 'resources_load',
+                                                   'VDI 4655 Typtage.xlsx'))
+    cfg['data'].setdefault('BDEW', os.path.join(filedir, 'resources_load',
+                                                'BDEW Profile.xlsx'))
+    cfg['data'].setdefault('DOE', os.path.join(filedir, 'resources_load',
+                                               'DOE Profile TWE.xlsx'))
+    cfg['data'].setdefault('futureSolar',
+                           os.path.join(filedir, 'resources_load',
+                                        'futureSolar Profile.xlsx'))
 
-    # Randomize the load profiles of identical houses
-    # (Optional, not part of VDI 4655)
-    # -------------------------------------------------------------------------
-    load_curve_houses = copy_and_randomize_houses(load_curve_houses,
-                                                  houses_dict, cfg)
+    return cfg
 
-    # Debugging: Show the daily sum of each energy demand type:
-#    print(load_curve_houses.resample('D', label='left', closed='right').sum())
 
-    if logger.isEnabledFor(logging.DEBUG):
-        load_curve_houses.sort_index(axis=1, inplace=True)
+def main():
+    '''
+    The following is the 'main' function, which contains the rest of the script
+    '''
+    setup()
 
-        logger.info('Printing *_houses.dat file')
-        print(load_curve_houses.head())
-        try:
-            load_curve_houses.to_csv(
-                    os.path.join(print_folder, os.path.splitext(print_file)[0]
-                                 + '_houses.dat'))
-            # HINT: Be careful, can create huge file sizes
-#            load_curve_houses.to_excel(
-#                    os.path.join(print_folder, os.path.splitext(print_file)[0]
-#                                 + '_houses.xlsx'))
-        except Exception as ex:
-            logger.debug(ex)
+    # --- Measure start time of this script -----------------------------------
+    start_time = time.time()
 
-    # Sum up the energy demands of all houses, store result in weather_data
-    logger.info('Sum up the energy demands of all houses')
-    weather_data = sum_up_all_houses(load_curve_houses, weather_data, settings)
+    # --- Script options ------------------------------------------------------
+    config_file = None
+#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung\VDI_4655_config.yaml'
+#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE\VDI_4655_config.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\AP1\SB\Load\VDI_4655_config_Steinfurt_02.yaml'
+    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_P2HQuartier.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_Hannover-Kronsberg.yaml'
+#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Load\VDI_4655_config_Quartier_Neubau.yaml'
+#    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
+#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
+#    config_file = r'C:\Trnsys17\Work\SIZ055_Meldorf\Load\Meldorf_load_config.yaml'
+#    config_file = r'C:\Trnsys17\Work\SIZ10022_Quarree100\Load\VDI_4655_Q100_Kataster.yaml'
+
+    if config_file is None:  # show file dialog
+        config_file = file_dialog(title='Choose a yaml config file',
+                                  filetypes=(('YAML File', '*.yaml'),))
+        if config_file is None:
+            logger.error('Empty selection. Exit program...')
+            input('\nPress the enter key to exit.')
+            raise SystemExit
+
+    # Import the config YAML file and add the default settings
+    cfg = import_cfg_file(config_file)
+
+    # Read settings from the cfg
+    settings = cfg['settings']
+
+    # Set logging level
+    log_level = settings.get('log_level', 'WARNING')  # Use setting or default
+    if settings.get('Debug', False):
+        log_level = 'DEBUG'  # override with old 'DEBUG' key
+    logger.setLevel(level=log_level.upper())
+    logging.getLogger('weather_converter').setLevel(level=log_level.upper())
+
+    logger.info('Using configuration file ' + config_file)
+
+    # Aggregate load profiles
+    weather_data = aggregator_run(cfg)
 #    print(weather_data)
 
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    #       Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
-    #                        (Not part of the VDI 4655)
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    cfg = fit_heizkurve(weather_data, cfg)  # Optional
-    calc_heizkurve(weather_data, cfg)
-
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    #                Normalize results to a total of 1 kWh per year
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    normalize_energy(weather_data, cfg)
-
-#    print(weather_data)
-
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    #                             Plot & Print
-    # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
+    # Plot & Print
     plot_and_print(weather_data, cfg)
 
     # Print a final message with the required time
