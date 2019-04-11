@@ -989,10 +989,16 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
     http://www.bios-bioenergy.at/uploads/media/Paper-Winter-Gleichzeitigkeit-Euroheat-2001-09-02.pdf
 
     '''
+    if settings.get('GLF_on', True) is False:
+        return load_curve_houses
+
+    logger.info('Create (randomized) copies of the houses')
+
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
     load_curve_houses_ref = load_curve_houses.copy()  # Reference (no random)
     # Fix the 'randomness' (every run of the script generates the same results)
     np.random.seed(4)
+    randoms_all = []
 
     # Create a temporary dict with all the info needed for randomizer
     randomizer_dict = dict()
@@ -1014,14 +1020,18 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
                                             'sigma': sigma})
 
     # Create copies for every house
-    for house_name in randomizer_dict:
+    for i, house_name in enumerate(randomizer_dict):
+        fraction = (i+1) / len(randomizer_dict)
+        print('{:5.1f}% done'.format(fraction*100), end='\r')  # print progress
+
         copies = randomizer_dict[house_name]['copies']
         sigma = randomizer_dict[house_name]['sigma']
         randoms = np.random.normal(0, sigma, copies)  # Array of random values
         randoms_int = [int(value) for value in np.round(randoms, 0)]
 
         work_list = list(range(0, copies))
-        if len(work_list) > 100:
+        if len(work_list) > 100 and settings.get('run_in_parallel', False):
+            randoms_all += randoms_int
             # Use multiprocessing to increase the speed
             f_help = functools.partial(mp_copy_and_randomize,
                                        load_curve_houses, house_name,
@@ -1038,8 +1048,11 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
             load_curve_houses_ref = pd.concat([load_curve_houses_ref]
                                               + df_list_ref,
                                               axis=1, sort=False)
-        else:
+            if sigma and logger.isEnabledFor(logging.DEBUG):
+                debug_plot_normal_histogram(house_name, randoms_int)
+        elif len(work_list) > 0:
             # Implementation in serial
+            randoms_all += randoms_int
             for copy in range(0, copies):
                 df_new, df_ref = mp_copy_and_randomize(load_curve_houses,
                                                        house_name,
@@ -1051,47 +1064,64 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, settings):
                 load_curve_houses_ref = pd.concat([load_curve_houses_ref,
                                                    df_ref],
                                                   axis=1, sort=False)
+            if sigma and logger.isEnabledFor(logging.DEBUG):
+                debug_plot_normal_histogram(house_name, randoms_int)
+        else:
+            # The building exists only once. Here we do not add new copies,
+            # but instead overwrite the reference profile
+            if sigma is not False:
+                randoms = np.random.normal(0, sigma, 1)  # Array of randoms
+                randoms_int = [int(value) for value in np.round(randoms, 0)]
+                randoms_all += randoms_int
+                df_new, df_ref = mp_copy_and_randomize(load_curve_houses,
+                                                       house_name,
+                                                       randoms_int, sigma,
+                                                       0, b_print=True)
+                load_curve_houses.loc[:, house_name] = df_new.values
 
-        if sigma and logger.isEnabledFor(logging.DEBUG):
-            logger.debug('Interval shifts applied to copies of house '
-                         + house_name + ':')
-            print(randoms_int)
-            mu = np.mean(randoms_int)
-            sigma = np.std(randoms_int, ddof=1)
-            text_mean_std = 'Mean = {:0.2f}, std = {:0.2f}'.format(mu, sigma)
-            title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
-            print(text_mean_std)
-
-            # Make sure the save path exists
-            save_folder = os.path.join(base_folder, 'Result')
-            if not os.path.exists(save_folder):
-                os.makedirs(save_folder)
-
-            # Create a histogram of the data
-            limit = max(-1*min(randoms_int), max(randoms_int))
-            bins = range(-limit, limit+2)
-            plt.rcParams.update({'font.size': 16})
-            fig = plt.figure()
-            ax = fig.gca()
-            ax.yaxis.grid(True)  # Activate grid on horizontal axis
-            n, bins, patches = plt.hist(randoms_int, bins, align='left',
-                                        rwidth=0.9)
-            plt.title(str(copies)+' Kopien von Gebäude '+house_name +
-                      ' ('+title_mu_std+')')
-            plt.xlabel('Zeitschritte')
-            plt.ylabel('Anzahl')
-            plt.savefig(os.path.join(save_folder,
-                                     'histogram_'+house_name+'.png'),
-                        bbox_inches='tight', dpi=200)
-
-            if settings.get('show_plot', False) is True:
-                plt.show(block=False)  # Show plot without blocking the script
+    if sigma and logger.isEnabledFor(logging.DEBUG):
+        debug_plot_normal_histogram('Gebäude gesamt', randoms_all)
 
     # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
     calc_GLF(load_curve_houses, load_curve_houses_ref, settings)
 
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
     return load_curve_houses
+
+
+def debug_plot_normal_histogram(house_name, randoms_int):
+    logger.debug('Interval shifts applied to copies of house '
+                 + str(house_name) + ':')
+    print(randoms_int)
+    mu = np.mean(randoms_int)
+    sigma = np.std(randoms_int, ddof=1)
+    text_mean_std = 'Mean = {:0.2f}, std = {:0.2f}'.format(mu, sigma)
+    title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
+    print(text_mean_std)
+
+    # Make sure the save path exists
+    save_folder = os.path.join(base_folder, 'Result')
+    if not os.path.exists(save_folder):
+        os.makedirs(save_folder)
+
+    # Create a histogram of the data
+    limit = max(-1*min(randoms_int), max(randoms_int))
+    bins = range(-limit, limit+2)
+    plt.rcParams.update({'font.size': 16})
+    fig = plt.figure()
+    ax = fig.gca()
+    ax.yaxis.grid(True)  # Activate grid on horizontal axis
+    n, bins, patches = plt.hist(randoms_int, bins, align='left',
+                                rwidth=0.9)
+    plt.title(str(len(randoms_int))+' '+str(house_name)+' ('+title_mu_std+')')
+    plt.xlabel('Zeitschritte')
+    plt.ylabel('Anzahl')
+    plt.savefig(os.path.join(save_folder,
+                             'histogram_'+str(house_name)+'.png'),
+                bbox_inches='tight', dpi=200)
+
+    if settings.get('show_plot', False) is True:
+        plt.show(block=False)  # Show plot without blocking the script
 
 
 def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
