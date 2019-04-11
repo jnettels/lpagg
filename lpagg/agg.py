@@ -1328,10 +1328,13 @@ def sum_up_all_houses(load_curve_houses, weather_data):
     Also renames the columns from VDI 4655 standard to 'E_th', 'E_el',
     as used in the project futureSuN.
     '''
-    load_curve_houses = load_curve_houses.stack('class')
-    load_curve_houses_sum = load_curve_houses.groupby(level='energy',
-                                                      axis=1).sum()
-    load_curve_houses_sum = load_curve_houses_sum.unstack('class')
+    # TODO: The following line should be removed someday. See Pandas issue:
+    # https://github.com/pandas-dev/pandas/issues/24671
+    load_curve_houses.fillna(0, axis=1, inplace=True)
+
+    load_curve_houses_sum = load_curve_houses.groupby(
+            level=['energy', 'class'], axis=1).sum()
+
     load_curve_houses_sum.rename(columns={'Q_Heiz_TT': 'E_th_RH',
                                           'Q_Kalt_TT': 'E_th_KL',
                                           'Q_TWW_TT': 'E_th_TWE',
