@@ -1201,31 +1201,78 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, settings):
     return None
 
 
-def add_external_profiles(load_curve, settings):
+def load_excel_or_csv(filepath, **read_excel_kwargs):
+    '''Read data from file
+    '''
+    filetype = os.path.splitext(os.path.basename(filepath))[1]
+    if filetype in ['.xlsx', '.xls']:
+        # Excel can be read automatically with Pandas
+        df = pd.read_excel(filepath, **read_excel_kwargs)
+    elif filetype in ['.csv', '.dat']:
+        # csv files can have different formats
+        df = pd.read_csv(open(filepath, 'r'),
+                         sep=None, engine='python',  # Guess separator
+                         parse_dates=[0],  # Parse first column as date
+                         infer_datetime_format=True)
+    return df
+
+
+def add_external_profiles(load_curve_houses, settings):
     '''This allows to add additional external profiles to the calculated
     load curves.
-    Currently, they need to have the same time step as all other data, no
-    interpolation is performed.
+    Interpolation to the set frequency is performed.
+
+    If house names in existing and external profiles are identical, their
+    energies are summed up.
     '''
+    if config_dict.get('external_profiles', False):
+        logger.info('Add external profiles: Loading...')
+    else:
+        return load_curve_houses
+
+    ext_profiles = pd.DataFrame()
     building_dict = config_dict.get('external_profiles', dict())
-    for building in building_dict:
+
+    df_last = pd.DataFrame()  # For skipping reloading files repeatedly
+    path_last = None  # For skipping reloading files repeatedly
+    kwargs_last = dict()  # For skipping reloading files repeatedly
+
+    for i, building in enumerate(building_dict):
+        fraction = (i+1) / len(building_dict)
+        print('{:5.1f}% done'.format(fraction*100), end='\r')  # print progress
+
         filepath = building_dict[building]['file']
         class_ = building_dict[building]['class']
         rename_dict = building_dict[building]['rename_dict']
         read_excel_kwargs = building_dict[building]['read_excel_kwargs']
 #        logger.debug(filepath)
 
-        # Read data from file
-        filetype = os.path.splitext(os.path.basename(filepath))[1]
-        if filetype in ['.xlsx', '.xls']:
-            # Excel can be read automatically with Pandas
-            df = pd.read_excel(filepath, **read_excel_kwargs)
-        elif filetype in ['.csv', '.dat']:
-            # csv files can have different formats
-            df = pd.read_csv(open(filepath, 'r'),
-                             sep=None, engine='python',  # Guess separator
-                             parse_dates=[0],  # Parse first column as date
-                             infer_datetime_format=True)
+        if (filepath == path_last) and (read_excel_kwargs == kwargs_last):
+            # We have read this file before with the same settings
+            df = df_last.copy()
+#            print('skipping', i)
+            pass
+        else:
+            path_last = filepath
+            kwargs_last = read_excel_kwargs
+            # First load of a file with given settings
+            df = load_excel_or_csv(filepath, **read_excel_kwargs)
+
+            # Slice with time selection
+            df = df.loc[pd.datetime(*settings['start']):
+                        pd.datetime(*settings['end'])]
+
+            freq = pd.infer_freq(df.index, warn=True)
+            f_freq = settings['interpolation_freq']/freq
+            if f_freq < 1:
+                df = df.resample(rule=settings['interpolation_freq']).bfill()
+                # Divide by factor f_freq to keep the total energy constant
+                df *= f_freq
+            elif f_freq > 1:
+                df = df.resample(rule=settings['interpolation_freq'],
+                                 label='right', closed='right').sum()
+
+            df_last = df.copy()  # Save for next loop
 
         # Apply multiplication factor
         multiply_dict = building_dict[building].get('multiply_dict', dict())
@@ -1235,32 +1282,45 @@ def add_external_profiles(load_curve, settings):
         # Rename to VDI 4655 standards
         df.rename(columns=rename_dict, inplace=True)
 
-        freq = pd.infer_freq(df.index, warn=True)
-        f_freq = settings['interpolation_freq']/freq
-        if f_freq < 1:
-            df = df.resample(rule=settings['interpolation_freq']).bfill()
-            # Divide by factor f_freq to keep the total energy demand constant
-            df *= f_freq
-        elif f_freq > 1:
-            df = df.resample(rule=settings['interpolation_freq'],
-                             label='right', closed='right').sum()
-
         # Convert into a multi-index DataFrame
         multiindex = pd.MultiIndex.from_product(
             [[class_], [building], rename_dict.values()],
             names=['class', 'house', 'energy'])
-        ext_profiles = pd.DataFrame(index=df.index, columns=multiindex)
+        ext_profile = pd.DataFrame(index=load_curve_houses.index,
+                                   columns=multiindex)
         for col in rename_dict.values():
-            ext_profiles[class_, building, col] = df[col]
-
-        # Combine external profiles with existing profiles
-        load_curve = pd.concat([load_curve, ext_profiles], axis=1)
+            ext_profile[class_, building, col] = df[col]
 
         # Fill missing values (after resampling to a smaller timestep, the
         # beginning will have missing values that can be filled with backfill)
-        load_curve.fillna(method='backfill', inplace=True)
+        ext_profile.fillna(method='backfill', inplace=True)
 
-    return load_curve
+        # Collect all new external profiles
+        ext_profiles = pd.concat([ext_profiles, ext_profile], axis=1)
+
+    # Combine external profiles with existing profiles
+    # At this point the DataFrame can get quite large, too large for pandas
+    # to handle the stacking
+    logger.info('Add external profiles: Combining...')
+    load_curve_houses = pd.concat([load_curve_houses, ext_profiles], axis=1,
+                                  keys=['int', 'ext'], names=['source'])
+    load_curve_houses = load_curve_houses.sort_index(axis=1)
+
+    del df
+    del df_last
+    del ext_profile
+    del ext_profiles
+
+    # TODO: The following line should be removed someday. See Pandas issue:
+    # https://github.com/pandas-dev/pandas/issues/24671
+    load_curve_houses.fillna(0, axis=1, inplace=True)
+
+    logger.debug('Add external profiles: Grouping...')
+    load_curve_houses = load_curve_houses.groupby(
+            level=['class', 'house', 'energy'], axis=1).sum()
+#    print(load_curve_houses)
+
+    return load_curve_houses
 
 
 def sum_up_all_houses(load_curve_houses, weather_data):
