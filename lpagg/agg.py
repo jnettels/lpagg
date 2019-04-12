@@ -895,6 +895,15 @@ def load_DOE_profiles(weather_data, cfg, houses_dict):
 
 
 def load_futureSolar_profiles(weather_data, cfg, houses_dict):
+    '''Load profiles for commerical building simulated for the project
+    'futureSolar' (IGS TU Braunschweig). Includes heating and cooling.
+
+    In order to NOT use these profiles, set ``Q_Heiz_a`` and/or ``Q_Kalt_a``
+    to ``None`` for all houses in your list of houses.
+
+    These profiles start on a tuesday. Therefore we first have to align them
+    with the calendar of the aggregated profiles.
+    '''
 
     settings = cfg['settings']
     houses_list = settings['houses_list_BDEW']
@@ -935,6 +944,8 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
         house_type = houses_dict[house_name]['house_type']
         if house_type not in futureSolar_df.keys():
             # Only use 'G1G' and 'G4G'
+            logger.warning('house_type "'+str(house_type)+'" not found in '
+                           'futureSolar profiles: '+str(futureSolar_df.keys()))
             continue
 
         for energy_type in energy_types:
@@ -945,11 +956,15 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
     # Rescale to the given yearly energy demand:
     for column in futureSolar_profiles.columns:
         if column[1] == 'Q_Heiz_TT':
-            Q_a = houses_dict[column[0]].get('Q_Heiz_a', 1)
+            Q_a = houses_dict[column[0]].get('Q_Heiz_a', None)
         elif column[1] == 'Q_Kalt_TT':
-            Q_a = houses_dict[column[0]].get('Q_Kalt_a', 1)
+            Q_a = houses_dict[column[0]].get('Q_Kalt_a', None)
         sum_ = futureSolar_profiles[column].sum()
-        futureSolar_profiles[column] = futureSolar_profiles[column]/sum_ * Q_a
+
+        if Q_a is None:  # Do not use the loaded profiles (and remove them)
+            futureSolar_profiles.drop(columns=column, inplace=True)
+        else:  # Use the loaded profiles
+            futureSolar_profiles[column] *= Q_a / sum_
 
 #    print(futureSolar_profiles)
     return futureSolar_profiles
@@ -1295,10 +1310,15 @@ def add_external_profiles(load_curve_houses, cfg):
 
             df_last = df.copy()  # Save for next loop
 
-        # Apply multiplication factor
+        # Apply multiplication factors to columns
         multiply_dict = building_dict[building].get('multiply_dict', dict())
         for key, value in multiply_dict.items():
-            df[key] *= value
+            try:
+                df[key] *= value
+            except KeyError:
+                logging.error('Key "'+str(key)+'" not found in external '
+                              'profile '+str(filepath))
+                raise
 
         # Rename to VDI 4655 standards
         df.rename(columns=rename_dict, inplace=True)
@@ -1739,7 +1759,7 @@ def aggregator_run(cfg):
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     #                Normalize results to a total of 1 kWh per year
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
-    normalize_energy(weather_data, cfg)
+    normalize_energy(weather_data, cfg)  # Optional
 
     return weather_data
 
@@ -1828,7 +1848,7 @@ def get_GHD_profiles(weather_data, cfg, houses_dict):
 
 
 def import_cfg_file(config_file):
-    # --- Import the cfg from the YAML config_file --------------------
+    '''Import the cfg dictionary from the YAML config_file and set defaults'''
     cfg = yaml.load(open(config_file, 'r'))
 
     cfg['base_folder'] = os.path.dirname(config_file)
@@ -1919,4 +1939,7 @@ def main():
 
 
 if __name__ == '__main__':
+    '''This part is executed when the script is started directly with
+    Python, not when it is loaded as a module.
+    '''
     main()
