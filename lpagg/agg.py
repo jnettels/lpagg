@@ -1345,9 +1345,13 @@ def add_external_profiles(load_curve_houses, cfg):
 
 
 def sum_up_all_houses(load_curve_houses, weather_data, cfg):
-    '''By grouping the 'energy' level, we can take the sum of all houses.
-    Also renames the columns from VDI 4655 standard to 'E_th', 'E_el',
-    as used in the project futureSuN.
+    '''By grouping with the levels ``energy`` and ``class``, we can take
+    the sum of all houses. These level names are joined into a flat index.
+    Finally, the DataFrames ``load_curve_houses`` and ``weather_data`` are
+    joined and ``weather_data`` is returned.
+
+    Optionally rename the columns from VDI 4655 standard to a user definition
+    (if a dict ``rename_columns`` is defined in ``settings``).
     '''
     settings = cfg['settings']
     # TODO: The following line should be removed someday. See Pandas issue:
@@ -1357,12 +1361,8 @@ def sum_up_all_houses(load_curve_houses, weather_data, cfg):
     load_curve_houses_sum = load_curve_houses.groupby(
             level=['energy', 'class'], axis=1).sum()
 
-    load_curve_houses_sum.rename(columns={'Q_Heiz_TT': 'E_th_RH',
-                                          'Q_Kalt_TT': 'E_th_KL',
-                                          'Q_TWW_TT': 'E_th_TWE',
-                                          'Q_loss': 'E_th_loss',
-                                          'W_TT': 'E_el'},
-                                 inplace=True)
+    rename_dict = settings.get('rename_columns', dict())
+    load_curve_houses_sum.rename(columns=rename_dict, inplace=True)
 #    print(load_curve_houses_sum)
 
     # Flatten the heirarchical index
