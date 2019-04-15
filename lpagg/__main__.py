@@ -31,10 +31,8 @@ aggregator program.
 
 '''
 import pandas as pd              # Pandas
-import matplotlib as mpl
 import matplotlib.pyplot as plt  # Plotting library
 import time                      # Measure time
-import multiprocessing           # Parallel (Multi-) Processing
 import logging
 
 # Import local modules from load profile aggregator project
@@ -49,34 +47,16 @@ def main():
     '''
     The following is the 'main' function, which contains the rest of the script
     '''
-    setup()
+    misc.setup()
 
-    # --- Measure start time of this script -----------------------------------
+    # Measure start time of this script
     start_time = time.time()
 
-    # --- Script options ------------------------------------------------------
-    config_file = None
-#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\Lastprofile\VDI 4655\Berechnung\VDI_4655_config.yaml'
-#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP401_Zukünftige Funktionen\Quellen\RH+TWE\VDI_4655_config.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP1\SB\Load\VDI_4655_config_Steinfurt_02.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_P2HQuartier.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\P2H_Quartier\Load\VDI_4655_config_Hannover-Kronsberg.yaml'
-#    config_file = r'C:\Trnsys17\Work\futureSuN\AP4\Referenz_Quartier_Neubau\Load\VDI_4655_config_Quartier_Neubau.yaml'
-#    config_file = r'C:\Users\nettelstroth\Documents\02 Projekte - Auslagerung\SIZ10019_Quarree100_Heide\Load\VDI_4655_config.yaml'
-#    config_file = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP404_Konzepte für zukünftige Systemlösungen\03_Sonnenkamp\Lastprofile\VDI_4655_config_Sonnenkamp.yaml'
-#    config_file = r'C:\Trnsys17\Work\SIZ055_Meldorf\Load\Meldorf_load_config.yaml'
-#    config_file = r'C:\Trnsys17\Work\SIZ10022_Quarree100\Load\VDI_4655_Q100_Kataster.yaml'
-
-    if config_file is None:  # show file dialog
-        config_file = misc.file_dialog(title='Choose a yaml config file',
-                                       filetypes=(('YAML File', '*.yaml'),))
-        if config_file is None:
-            logger.error('Empty selection. Exit program...')
-            input('\nPress the enter key to exit.')
-            raise SystemExit
+    #  Get user input
+    args = run_OptionParser()
 
     # Import the config YAML file and add the default settings
-    cfg = agg.perform_configuration(config_file)
+    cfg = agg.perform_configuration(args.file)
 
     # Read settings from the cfg
     settings = cfg['settings']
@@ -99,22 +79,31 @@ def main():
     input('\nPress the enter key to exit.')
 
 
-def setup():
-    '''Perform some basic setup.
+def run_OptionParser():
+    '''Define and run the argument parser. Return the collected arguments.
     '''
-    multiprocessing.freeze_support()  # Needed for parallel processing
+    import argparse
+    description = 'The load profile aggregator combines profiles for heat '\
+                  'and power demand of buildings from different sources.'
+    parser = argparse.ArgumentParser(description=description,
+                                     formatter_class=argparse.
+                                     ArgumentDefaultsHelpFormatter)
 
-    # Global Pandas option for displaying terminal output
-    pd.set_option('display.max_columns', 0)
+    parser.add_argument('-f', '--file', dest='file', help='Path to a YAML '
+                        'configuration file.', type=str, default=None)
 
-    # Define the logging function
-    logging.basicConfig(format='%(asctime)-15s %(message)s')
+    args = parser.parse_args()
 
-    # Define style settings for the plots
-    try:  # Try to load personalized matplotlib style file
-        mpl.style.use('../futureSuN.mplstyle')
-    except OSError as ex:
-        logger.debug(ex)
+    if args.file is None:
+        args.file = misc.file_dialog(title='Choose a yaml config file',
+                                     filetypes=(('YAML File', '*.yaml'),))
+        if args.file is None:
+            logger.info('Empty selection. Show help and exit program...')
+            parser.print_help()
+            input('\nPress the enter key to exit.')
+            raise SystemExit
+
+    return args
 
 
 if __name__ == '__main__':

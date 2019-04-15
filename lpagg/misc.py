@@ -34,10 +34,30 @@ import time                      # Measure time
 import multiprocessing           # Parallel (Multi-) Processing
 import os                        # Operaing System
 import logging
+import pandas as pd              # Pandas
+import matplotlib as mpl
 from tkinter import Tk, filedialog
 
 # Define the logging function
 logger = logging.getLogger(__name__)
+
+
+def setup():
+    '''Perform some basic setup.
+    '''
+    multiprocessing.freeze_support()  # Needed for parallel processing
+
+    # Global Pandas option for displaying terminal output
+    pd.set_option('display.max_columns', 0)
+
+    # Define the logging function
+    logging.basicConfig(format='%(asctime)-15s %(message)s')
+
+    # Define style settings for the plots
+    try:  # Try to load personalized matplotlib style file
+        mpl.style.use('../futureSuN.mplstyle')
+    except OSError as ex:
+        logger.debug(ex)
 
 
 def file_dialog(initialdir=os.getcwd(),

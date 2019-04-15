@@ -33,8 +33,6 @@ import pandas as pd              # Pandas
 import os                        # Operaing System
 import matplotlib.pyplot as plt  # Plotting library
 import yaml                      # Read YAML configuration files
-import functools
-import numpy as np
 from scipy import optimize
 import logging
 
@@ -43,13 +41,21 @@ import weather_converter        # Script for interpolation of IGS weather files
 import VDI4655
 import BDEW
 import misc
+import simultaneity
 
 # Define the logging function
 logger = logging.getLogger(__name__)
 
 
-def perform_configuration(config_file):
-    '''Import the cfg dictionary from the YAML config_file and set defaults'''
+def perform_configuration(config_file, ignore_errors=False):
+    '''Import the cfg dictionary from the YAML config_file and set defaults.
+
+    Certain tasks must be performed, or else the program will not run
+    correctly. However, the user may choose to interfer and perform these
+    tasks manually. If 'ignore_errors' is true, this is possible.
+    Example: The dict 'houses' is not defined in the cfg and is constructed
+    from a different source instead.
+    '''
     logger.info('Using configuration file ' + config_file)
 
     cfg = yaml.load(open(config_file, 'r'))
@@ -68,6 +74,7 @@ def perform_configuration(config_file):
     logging.getLogger('weather_converter').setLevel(level=log_level.upper())
     logging.getLogger('VDI4655').setLevel(level=log_level.upper())
     logging.getLogger('BDEW').setLevel(level=log_level.upper())
+    logging.getLogger('simultaneity').setLevel(level=log_level.upper())
 
     # Define the file paths
     filedir = os.path.dirname(__file__)
@@ -92,11 +99,26 @@ def perform_configuration(config_file):
     cfg['print_folder'] = os.path.join(cfg['base_folder'],
                                        cfg.get('result_folder', 'Result'))
 
-    # Get the dictionary of houses from the cfg
-    # Buildings are separated into VDI4655 for households and BDEW for
-    # commercial types
+    # Certain tasks must be performed, or else the program will not run
+    try:
+        cfg = houses_sort(cfg)
+    except Exception:
+        if ignore_errors:
+            pass
+        else:
+            raise
+
+    return cfg
+
+
+def houses_sort(cfg):
+    '''Get the dictionary of houses from the cfg.
+    Buildings are separated into VDI4655 for households and BDEW for
+    commercial types.
+    '''
     houses_dict = cfg['houses']
     houses_list = sorted(houses_dict.keys())
+    settings = cfg['settings']
     settings['houses_list'] = houses_list
     settings['houses_list_VDI'] = []
     settings['houses_list_BDEW'] = []
@@ -146,8 +168,8 @@ def aggregator_run(cfg):
     # Randomize the load profiles of identical houses
     # (Optional, not part of VDI 4655)
     # -------------------------------------------------------------------------
-    load_curve_houses = copy_and_randomize_houses(load_curve_houses,
-                                                  houses_dict, cfg)
+    load_curve_houses = simultaneity.copy_and_randomize_houses(
+            load_curve_houses, houses_dict, cfg)
 
     # Debugging: Show the daily sum of each energy demand type:
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
@@ -255,243 +277,6 @@ def flatten_daily_TWE(load_curve_houses, settings):
 #        print(load_curve_houses)
 
     return load_curve_houses
-
-
-def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
-    '''Create copies of houses where needed. Apply a normal distribution to
-    the copies, if a standard deviation ``sigma`` is given in the config.
-
-    Remember: 68.3%, 95.5% and 99.7% of the values lie within one,
-    two and three standard deviations of the mean.
-    Example: With an interval of 15 min and a deviation of
-    sigma = 2 time steps, 68% of profiles are shifted up to ±30 min (±1σ).
-    27% of profiles are shifted ±30 to 60 min (±2σ) and another
-    4% are shifted ±60 to 90 min (±3σ).
-
-    This method decreases the maximum load and thereby creates a
-    "simultaneity factor" (Gleichzeitigkeitsfaktor). It can be calculated by
-    dividing the maximum loads with and without the normal distribution.
-
-    For a plausibilty check see pages 3 and 12 of:
-    Winter, Walter; Haslauer, Thomas; Obernberger, Ingwald (2001):
-    Untersuchungen der Gleichzeitigkeit in kleinen und mittleren
-    Nahwärmenetzen. In: Euroheat & Power (9/10). Online verfügbar unter
-    http://www.bios-bioenergy.at/uploads/media/Paper-Winter-Gleichzeitigkeit-Euroheat-2001-09-02.pdf
-
-    '''
-    settings = cfg['settings']
-    if settings.get('GLF_on', True) is False:
-        return load_curve_houses
-
-    logger.info('Create (randomized) copies of the houses')
-
-    load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
-    load_curve_houses_ref = load_curve_houses.copy()  # Reference (no random)
-    # Fix the 'randomness' (every run of the script generates the same results)
-    np.random.seed(4)
-    randoms_all = []
-
-    # Create a temporary dict with all the info needed for randomizer
-    randomizer_dict = dict()
-    for house_name in settings['houses_list']:
-        copies = houses_dict[house_name].get('copies', 0)
-        # Get standard deviation (spread or “width”) of the distribution:
-        sigma = houses_dict[house_name].get('sigma', False)
-
-        randomizer_dict[house_name] = dict({'copies': copies,
-                                            'sigma': sigma})
-
-    external_profiles = cfg.get('external_profiles', dict())
-    for house_name in external_profiles:
-        copies = external_profiles[house_name].get('copies', 0)
-        # Get standard deviation (spread or “width”) of the distribution:
-        sigma = external_profiles[house_name].get('sigma', False)
-
-        randomizer_dict[house_name] = dict({'copies': copies,
-                                            'sigma': sigma})
-
-    # Create copies for every house
-    for i, house_name in enumerate(randomizer_dict):
-        fraction = (i+1) / len(randomizer_dict)
-        print('{:5.1f}% done'.format(fraction*100), end='\r')  # print progress
-
-        copies = randomizer_dict[house_name]['copies']
-        sigma = randomizer_dict[house_name]['sigma']
-        randoms = np.random.normal(0, sigma, copies)  # Array of random values
-        randoms_int = [int(value) for value in np.round(randoms, 0)]
-
-        work_list = list(range(0, copies))
-        if len(work_list) > 100 and settings.get('run_in_parallel', False):
-            randoms_all += randoms_int
-            # Use multiprocessing to increase the speed
-            f_help = functools.partial(mp_copy_and_randomize,
-                                       load_curve_houses, house_name,
-                                       randoms_int, sigma)
-            return_list = misc.multiprocessing_job(f_help, work_list)
-            # Merge the existing and new dataframes
-            df_list_tuples = return_list.get()
-
-            df_list = [x[0] for x in df_list_tuples]
-            df_list_ref = [x[1] for x in df_list_tuples]
-
-            load_curve_houses = pd.concat([load_curve_houses]+df_list,
-                                          axis=1, sort=False)
-            load_curve_houses_ref = pd.concat([load_curve_houses_ref]
-                                              + df_list_ref,
-                                              axis=1, sort=False)
-            if sigma and logger.isEnabledFor(logging.DEBUG):
-                debug_plot_normal_histogram(house_name, randoms_int, cfg)
-        elif len(work_list) > 0:
-            # Implementation in serial
-            randoms_all += randoms_int
-            for copy in range(0, copies):
-                df_new, df_ref = mp_copy_and_randomize(load_curve_houses,
-                                                       house_name,
-                                                       randoms_int, sigma,
-                                                       copy, b_print=True)
-                # Merge the existing and new dataframes
-                load_curve_houses = pd.concat([load_curve_houses, df_new],
-                                              axis=1, sort=False)
-                load_curve_houses_ref = pd.concat([load_curve_houses_ref,
-                                                   df_ref],
-                                                  axis=1, sort=False)
-            if sigma and logger.isEnabledFor(logging.DEBUG):
-                debug_plot_normal_histogram(house_name, randoms_int, cfg)
-        else:
-            # The building exists only once. Here we do not add new copies,
-            # but instead overwrite the reference profile
-            if sigma is not False:
-                randoms = np.random.normal(0, sigma, 1)  # Array of randoms
-                randoms_int = [int(value) for value in np.round(randoms, 0)]
-                randoms_all += randoms_int
-                df_new, df_ref = mp_copy_and_randomize(load_curve_houses,
-                                                       house_name,
-                                                       randoms_int, sigma,
-                                                       0, b_print=True)
-                load_curve_houses.loc[:, house_name] = df_new.values
-
-    if sigma and logger.isEnabledFor(logging.DEBUG):
-        debug_plot_normal_histogram('Gebäude gesamt', randoms_all, cfg)
-
-    # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
-    calc_GLF(load_curve_houses, load_curve_houses_ref, cfg)
-
-    load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
-    return load_curve_houses
-
-
-def debug_plot_normal_histogram(house_name, randoms_int, cfg):
-    settings = cfg['settings']
-    logger.debug('Interval shifts applied to copies of house '
-                 + str(house_name) + ':')
-    print(randoms_int)
-    mu = np.mean(randoms_int)
-    sigma = np.std(randoms_int, ddof=1)
-    text_mean_std = 'Mean = {:0.2f}, std = {:0.2f}'.format(mu, sigma)
-    title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
-    print(text_mean_std)
-
-    # Make sure the save path exists
-    save_folder = os.path.join(cfg['base_folder'], 'Result')
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-
-    # Create a histogram of the data
-    limit = max(-1*min(randoms_int), max(randoms_int))
-    bins = range(-limit, limit+2)
-    plt.rcParams.update({'font.size': 16})
-    fig = plt.figure()
-    ax = fig.gca()
-    ax.yaxis.grid(True)  # Activate grid on horizontal axis
-    n, bins, patches = plt.hist(randoms_int, bins, align='left',
-                                rwidth=0.9)
-    plt.title(str(len(randoms_int))+' '+str(house_name)+' ('+title_mu_std+')')
-    plt.xlabel('Zeitschritte')
-    plt.ylabel('Anzahl')
-    plt.savefig(os.path.join(save_folder,
-                             'histogram_'+str(house_name)+'.png'),
-                bbox_inches='tight', dpi=200)
-
-    if settings.get('show_plot', False) is True:
-        plt.show(block=False)  # Show plot without blocking the script
-
-
-def mp_copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
-                          copy, b_print=False):
-    copy_name = str(house_name) + '_c' + str(copy)
-    if b_print and logger.isEnabledFor(logging.DEBUG):
-        print('Copy (and randomize) house', copy_name, end='\r')  # status
-    # Select the data of the house we want to copy
-    df_new = load_curve_houses[house_name]
-    # Rename the multiindex with the name of the copy
-    df_new = pd.concat([df_new], keys=[copy_name], names=['house'],
-                       axis=1)
-    df_ref = df_new.copy()
-
-    if sigma:  # Optional: Shift the rows
-        shift_step = randoms_int[copy]
-        if shift_step > 0:
-            # Shifting forward in time pushes the last entries out of
-            # the df and leaves the first entries empty. We take that
-            # overlap and insert it at the beginning
-            overlap = df_new[-shift_step:]
-            df_shifted = df_new.shift(shift_step)
-            df_shifted.dropna(inplace=True, how='all')
-            overlap.index = df_new[:shift_step].index
-            df_new = overlap.append(df_shifted)
-        elif shift_step < 0:
-            # Retrieve overlap from the beginning of the df, shift
-            # backwards in time, paste overlap at end of the df
-            overlap = df_new[:abs(shift_step)]
-            df_shifted = df_new.shift(shift_step)
-            df_shifted.dropna(inplace=True, how='all')
-            overlap.index = df_new[shift_step:].index
-            df_new = df_shifted.append(overlap)
-        elif shift_step == 0:
-            # No action required
-            pass
-
-    if b_print:
-        print(' ', end='\r')  # overwrite last status with empty line
-    return df_new, df_ref
-
-
-def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
-    '''Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
-    Uses a DataFrame with and one without randomness.
-    '''
-    settings = cfg['settings']
-    load_curve_houses_ran = load_curve_houses.copy()
-    load_ran = load_curve_houses_ran.groupby(level='energy', axis=1).sum()
-    load_ref = load_curve_houses_ref.groupby(level='energy', axis=1).sum()
-
-    hours = settings['interpolation_freq'].seconds / 3600.0        # h
-    sf_df = pd.DataFrame(index=['P_max_kW', 'P_max_ref_kW', 'GLF'],
-                         columns=['th_RH', 'th_TWE', 'th', 'el'])
-    sf_df.loc['P_max_kW', 'th_RH'] = load_ran['Q_Heiz_TT'].max() / hours
-    sf_df.loc['P_max_kW', 'th_TWE'] = load_ran['Q_TWW_TT'].max() / hours
-    sf_df.loc['P_max_kW', 'th'] = (load_ran['Q_Heiz_TT']
-                                   + load_ran['Q_TWW_TT']).max() / hours
-    sf_df.loc['P_max_kW', 'el'] = load_ran['W_TT'].max() / hours
-
-    sf_df.loc['P_max_ref_kW', 'th_RH'] = load_ref['Q_Heiz_TT'].max() / hours
-    sf_df.loc['P_max_ref_kW', 'th_TWE'] = load_ref['Q_TWW_TT'].max() / hours
-    sf_df.loc['P_max_ref_kW', 'th'] = (load_ref['Q_Heiz_TT']
-                                       + load_ref['Q_TWW_TT']).max() / hours
-    sf_df.loc['P_max_ref_kW', 'el'] = load_ref['W_TT'].max() / hours
-
-    sf_df.loc['GLF'] = sf_df.loc['P_max_kW']/sf_df.loc['P_max_ref_kW']
-
-    if logger.isEnabledFor(logging.INFO):
-        logger.info('Simultaneity factors (Gleichzeitigkeitsfaktoren):')
-        print(sf_df)
-    # Make sure the save path exists and save the DataFrame
-    save_folder = os.path.join(cfg['base_folder'], 'Result')
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-    sf_df.to_excel(os.path.join(save_folder, 'GLF.xlsx'))
-
-    return None
 
 
 def load_excel_or_csv(filepath, **read_excel_kwargs):
