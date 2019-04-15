@@ -11,10 +11,17 @@ settings:
     ### Output file name, is saved to a 'Result' subfolder
     print_file:     Example_load.dat
 
+    rename_columns:
+        Q_Heiz_TT: E_th_RH
+        Q_Kalt_TT: E_th_KL
+        Q_TWW_TT: E_th_TWE
+        Q_loss: E_th_loss
+        W_TT: E_el
+
     ### Which columns do you want to include in the printed file?
     ### (Leaving this commented out gives all the available columns)
-    print_columns:  [HOUR, E_th_RH_HH, E_th_TWE_HH, E_el_HH, E_th_RH_GHD,
-                     E_th_TWE_GHD, E_el_GHD, E_th_KL_GHD, E_th_loss]
+    # print_columns:  [HOUR, E_th_RH_HH, E_th_TWE_HH, E_el_HH, E_th_RH_GHD,
+                     # E_th_TWE_GHD, E_el_GHD, E_th_KL_GHD, E_th_loss]
 
     ### Do you want to print the index (i.e. time stamp for each row)?
     ### Set this to 'False' for TRNSYS (It cannot handle the datetime index)
@@ -25,8 +32,8 @@ settings:
     # show_plot:      True
 
     ### Time step used for interpolation, e.g. '15 minutes' or '1 hours'
-    intervall:      15 minutes
-    # intervall:      1 hours
+#    intervall:      15 minutes
+    intervall:      1 hours
 
     ### Start and ende date & time for interpolation
     start:          [2017,1,1,00,00,00]
@@ -35,7 +42,7 @@ settings:
 
     ### Include a zero-filled first row for TRNSYS
     # include_zero_row: True
-    
+
     ### Leapyears are a tricky thing. You can choose to delete February 29.
     ### with the following flag.
     ### Be aware: If your weather data only has 8760 hours and you choose a
@@ -45,15 +52,15 @@ settings:
     ### Instead of the VDI's temperature dependent method to determine the
     ### season, you have the option to use the BDEW method with fixed dates:
     # use_BDEW_seasons: True
-    
+
     ### The VDI 4655 default heat limit is 15°C (definition of summer days).
     ### For modern building types, this can be set to a lower value
     Tamb_heat_limit: 12
     zero_summer_heat_demand: True
-    
+
 
     ### Activate the debugging flag to display more info in the terminal
-    # log_level: debug
+    log_level: debug
 
 ### In this section you can define the relevant input for the 'Heizkurve'.
 ### If 'Heizkurve' is commented out, these calculations are not performed
@@ -65,7 +72,7 @@ Heizkurve:
     # m:          0.45    # Heizflächenexponent: Plattenheizkörper / Konvektor
     m:          0.1     # Heizflächenexponent: Fußbodenheizung
 
-### Based on the following input, the heat loss from the pipes to the 
+### Based on the following input, the heat loss from the pipes to the
 ### environment will be estimated (requires results from 'Heizkurve'):
 ### dTm         = (T_VL + T_RL)/2.0 - T_a
 ### Q_dot_loss  = 2 * length * loss_coefficient * dTm
@@ -100,46 +107,46 @@ Verteilnetz:
 ### - EFH: Einfamilienhaus
 ### - MFH: Mehrfamilienhaus
 ### - G1G: BDEW Gebäude "Büro" (Gewerbe werktags 8:00 – 18:00 Uhr)
-### - G4G: BDEW Gebäude "Handel" (Läden aller Art, Öffnungszeiten Werktag bis 
+### - G4G: BDEW Gebäude "Handel" (Läden aller Art, Öffnungszeiten Werktag bis
 ###        abends, Samstag bis nachmittags)
 
 houses:
     EFH:
-        Q_Heiz_a:       6360    # kWh, Jährlicher Heizenergieverbrauch
-        Q_TWW_a:        2290    # kWh, Jährliche Energiemenge Trinkwarmwasser
-        W_a:            3467    # kWh, Jährlicher Strombedarf
+        Q_Heiz_a:       6000    # kWh, Jährlicher Heizenergieverbrauch
+        # Q_TWW_a:        2290    # kWh, Jährliche Energiemenge Trinkwarmwasser
+        # W_a:            3467    # kWh, Jährlicher Strombedarf
         TRY:            4       # TRY region
         house_type:     EFH
         N_Pers:         3       # Anzahl Personen
         N_WE:           1       # Anzahl Wohneinheiten
-        copies:         49      # Added Copies. Can be randomized with 'sigma'
-        sigma:          2.5     # Standard deviation of normal distribution
+        copies:         24      # Added Copies. Can be randomized with 'sigma'
+        sigma:          4     # Standard deviation of normal distribution
 
     MFH:
-        Q_Heiz_a:       60923   # kWh, Jährlicher Heizenergieverbrauch
-        Q_TWW_a:        35031   # kWh, Jährliche Energiemenge Trinkwarmwasser
-        W_a:            35658   # kWh, Jährlicher Strombedarf
+        Q_Heiz_a:       60000   # kWh, Jährlicher Heizenergieverbrauch
+        # Q_TWW_a:        35031   # kWh, Jährliche Energiemenge Trinkwarmwasser
+        # W_a:            35658   # kWh, Jährlicher Strombedarf
         TRY:            4       # TRY region
         house_type:     MFH
         N_Pers:         45      # Anzahl Personen
         N_WE:           15      # Anzahl Wohneinheiten
-        copies:         63      # Added Copies. Can be randomized with 'sigma'
-        sigma:          1.5     # Standard deviation of normal distribution
+        copies:         24      # Added Copies. Can be randomized with 'sigma'
+        sigma:          2     # Standard deviation of normal distribution
 
     Buero:
-        Q_Heiz_a:       50359   # kWh, Jährlicher Heizenergieverbrauch
-        Q_Kalt_a:       6715    # kWh, Jährlicher Kältebedarf
-        Q_TWW_a:        1399    # kWh, Jährliche Energiemenge Trinkwarmwasser
-        W_a:            57493   # kWh, Jährlicher Strombedarf
+        Q_Heiz_a:       50000   # kWh, Jährlicher Heizenergieverbrauch
+        Q_Kalt_a:       7000    # kWh, Jährlicher Kältebedarf
+        Q_TWW_a:        1500    # kWh, Jährliche Energiemenge Trinkwarmwasser
+        W_a:            60000   # kWh, Jährlicher Strombedarf
         house_type:     G1G
-        copies:         5
+        copies:         4
         sigma:          1
     Handel:
-        Q_Heiz_a:       105962  # kWh, Jährlicher Heizenergieverbrauch
-        Q_Kalt_a:       47404   # kWh, Jährlicher Kältebedarf
-        Q_TWW_a:        4647    # kWh, Jährliche Energiemenge Trinkwarmwasser
-        W_a:            116342  # kWh, Jährlicher Strombedarf
+        Q_Heiz_a:       100000  # kWh, Jährlicher Heizenergieverbrauch
+        Q_Kalt_a:       43000   # kWh, Jährlicher Kältebedarf
+        Q_TWW_a:        4500    # kWh, Jährliche Energiemenge Trinkwarmwasser
+        W_a:            110000  # kWh, Jährlicher Strombedarf
         house_type:     G4G
-        copies:         10
+        copies:         9
         sigma:          1
-    
+
