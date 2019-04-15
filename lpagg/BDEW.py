@@ -24,8 +24,8 @@ The load profile aggregator combines profiles for heat and power demand
 of buildings from different sources.
 
 
-Module GHD
-----------
+Module BDEW
+-----------
 This module combines profiles for commercial building types from different
 sources.
 

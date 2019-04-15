@@ -41,7 +41,7 @@ import logging
 # Import other user-made modules (which must exist in the same folder)
 import weather_converter        # Script for interpolation of IGS weather files
 import VDI4655
-import GHD
+import BDEW
 import misc
 
 # Define the logging function
@@ -67,7 +67,7 @@ def perform_configuration(config_file):
     logging.getLogger('misc').setLevel(level=log_level.upper())
     logging.getLogger('weather_converter').setLevel(level=log_level.upper())
     logging.getLogger('VDI4655').setLevel(level=log_level.upper())
-    logging.getLogger('GHD').setLevel(level=log_level.upper())
+    logging.getLogger('BDEW').setLevel(level=log_level.upper())
 
     # Define the file paths
     filedir = os.path.dirname(__file__)
@@ -124,7 +124,7 @@ def aggregator_run(cfg):
 
     # For the GHD building sector, combine profiles from various sources:
     # (not part of VDI 4655)
-    GHD_profiles = GHD.get_GHD_profiles(weather_data, cfg, houses_dict)
+    GHD_profiles = BDEW.get_GHD_profiles(weather_data, cfg, houses_dict)
 
     load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
                                   axis=1, sort=False,
