@@ -103,3 +103,51 @@ def multiprocessing_job(helper_function, work_list):
     print('100.0% done', end='\r')
 
     return return_list
+
+
+def resample_energy(df, freq):
+    '''Resample energy time series data to a new frequency, while keeping
+    the total energy sum constant.
+
+    - In case of downsampling (to longer time intervalls)
+
+        - Simply take the sum
+
+    - For upsampling (to shorter time intervalls)
+
+        - Reindex with an index that is expanded at the beginning. For
+          example, resampling from time step of 1h to 15 min
+          needs 3 x 15min before the first time stamp)
+        - Use backwards fill to fill resulting NaN
+        - Divide all values by the fraction of new and old frequency
+
+    Args:
+        df (DataFrame): Pandas DataFrame with time index to resample.
+
+        freq (Timedelta): New frequency to resample to.
+
+    Returns:
+        df (DataFrame): Resampled DataFrame.
+
+    '''
+    from pandas.tseries.frequencies import to_offset
+
+    freq_orig = pd.infer_freq(df.index, warn=True)
+    freq_orig = pd.to_timedelta(to_offset(freq_orig))
+    f_freq = freq/freq_orig
+    if f_freq < 1:
+        # Reindex
+        start = df.index[0] - (freq_orig - freq)
+        end = df.index[-1]
+        df = df.reindex(pd.date_range(start=start, end=end, freq=freq))
+
+        # Fill all resulting missing values
+        df.fillna(method='backfill', inplace=True)
+
+        # Divide by factor f_freq to keep the total energy constant
+        df *= f_freq
+
+    elif f_freq > 1:
+        df = df.resample(rule=freq, label='right', closed='right').sum()
+
+    return df

@@ -34,6 +34,8 @@ import pandas as pd
 from pandas.tseries.frequencies import to_offset
 import logging
 
+# Import local modules from load profile aggregator project
+import lpagg.misc
 
 # Define the logging function
 logger = logging.getLogger(__name__)
@@ -62,6 +64,12 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
     be integrated easily. For example, the U.S. Department of Energy (DOE)
     profiles for building types can manually be converted to the BDEW format,
     then loaded with this function.
+
+    .. note::
+        The BDEW profiles use the unit 'W', while the VDI 4655 profiles
+        come in 'kWh'. The BDEW profiles are converted, even though that does
+        not have any effect (since they are normalized anyway).
+
     '''
     settings = cfg['settings']
     source_df = pd.read_excel(open(source_file, 'rb'), sheet_name=None,
@@ -120,26 +128,21 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
                 index_new.append(datetime_idx)
 
             profile_daily.index = index_new
-#            print(profile_daily)
 
             # Append to yearly profile
             profile_year = pd.concat([profile_year, profile_daily])
 
+        # Convert unit from 'W' to 'kWh'
+        freq = pd.infer_freq(profile_year.index, warn=True)
+        freq = pd.to_timedelta(to_offset(freq))
+        profile_year *= freq / (pd.Timedelta('1 hours') * 1000)  # W to kWh
+
+        # Resample to the desired frequency (time intervall)
+        profile_year = lpagg.misc.resample_energy(
+                profile_year, settings['interpolation_freq'])
+
         # Store in DataFrame that will be returned
         ret_profiles[house_name, energy_type] = profile_year
-
-    # Resample to the desired frequency (time intervall)
-    source_freq = pd.infer_freq(profile_daily.index)
-    source_freq = pd.to_timedelta(to_offset(source_freq))
-
-    if source_freq < settings['interpolation_freq']:
-        # In case of downsampling (to longer time intervalls) take the sum
-        ret_profiles = ret_profiles.resample(settings['interpolation_freq'],
-                                             label='right',
-                                             closed='right').sum()
-    elif source_freq > settings['interpolation_freq']:
-        # In case of upsampling (to shorter time intervalls) use backwards fill
-        ret_profiles.fillna(method='backfill', inplace=True)
 
     return ret_profiles
 
@@ -191,8 +194,7 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
 
     settings = cfg['settings']
     houses_list = settings['houses_list_BDEW']
-#    print(houses_list)
-    # BDEW_file
+
     futureSolar_df = pd.read_excel(open(cfg['data']['futureSolar'], 'rb'),
                                    index_col=[0],
                                    sheet_name='Profile', header=[0, 1])
@@ -206,8 +208,6 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
     if len(houses_list) == 0:  # Skip
         return futureSolar_profiles
 
-#    print(futureSolar_df.keys())
-
     for shift_steps, date_obj in enumerate(weather_data.index):
         if date_obj.dayofweek == 1:  # 1 equals Tuesday
             first_tuesday = date_obj
@@ -216,10 +216,11 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
 
     futureSolar_df.index = first_tuesday + futureSolar_df.index
 
-    futureSolar_df = futureSolar_df.resample(settings['interpolation_freq'],
-                                             label='right',
-                                             closed='right').sum()
+    # Resample to target frequency
+    futureSolar_df = lpagg.misc.resample_energy(futureSolar_df,
+                                                settings['interpolation_freq'])
 
+    # Finish aligning the calendar days
     overlap = futureSolar_df[-(shift_steps + 1):]
     overlap.index = overlap.index - pd.Timedelta('365 days')
     futureSolar_df = overlap.append(futureSolar_df)

@@ -340,15 +340,8 @@ def add_external_profiles(load_curve_houses, cfg):
             df = df.loc[pd.datetime(*settings['start']):
                         pd.datetime(*settings['end'])]
 
-            freq = pd.infer_freq(df.index, warn=True)
-            f_freq = settings['interpolation_freq']/freq
-            if f_freq < 1:
-                df = df.resample(rule=settings['interpolation_freq']).bfill()
-                # Divide by factor f_freq to keep the total energy constant
-                df *= f_freq
-            elif f_freq > 1:
-                df = df.resample(rule=settings['interpolation_freq'],
-                                 label='right', closed='right').sum()
+            # Resample to the desired frequency (time intervall)
+            df = lpagg.misc.resample_energy(df, settings['interpolation_freq'])
 
             df_last = df.copy()  # Save for next loop
 
@@ -373,10 +366,6 @@ def add_external_profiles(load_curve_houses, cfg):
                                    columns=multiindex)
         for col in rename_dict.values():
             ext_profile[class_, building, col] = df[col]
-
-        # Fill missing values (after resampling to a smaller timestep, the
-        # beginning will have missing values that can be filled with backfill)
-        ext_profile.fillna(method='backfill', inplace=True)
 
         # Collect all new external profiles
         ext_profiles = pd.concat([ext_profiles, ext_profile], axis=1)
