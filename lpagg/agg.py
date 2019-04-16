@@ -25,8 +25,8 @@ of buildings from different sources.
 
 
 Module agg
------------
-The aggregator module is the core of the load profile aggregator.
+----------
+The aggregator module is the core of the load profile aggregator project.
 
 '''
 import pandas as pd              # Pandas
@@ -36,12 +36,11 @@ import yaml                      # Read YAML configuration files
 from scipy import optimize
 import logging
 
-# Import other user-made modules (which must exist in the same folder)
-import weather_converter        # Script for interpolation of IGS weather files
-import VDI4655
-import BDEW
-import misc
-import simultaneity
+# Import local modules from load profile aggregator project
+import lpagg.weather_converter   # Script for interpolation of weather files
+import lpagg.VDI4655
+import lpagg.BDEW
+import lpagg.simultaneity
 
 # Define the logging function
 logger = logging.getLogger(__name__)
@@ -64,17 +63,17 @@ def perform_configuration(config_file, ignore_errors=False):
     settings = cfg['settings']
 
     # Set logging level
-    log_level = settings.get('log_level', 'WARNING')  # Use setting or default
+    log_level = settings.get('log_level', 'WARNING').upper()
     if settings.get('Debug', False):
         log_level = 'DEBUG'  # override with old 'DEBUG' key
-    logger.setLevel(level=log_level.upper())
+    logger.setLevel(level=log_level)
     # Set levels for all imported modules
-    logging.getLogger('agg').setLevel(level=log_level.upper())
-    logging.getLogger('misc').setLevel(level=log_level.upper())
-    logging.getLogger('weather_converter').setLevel(level=log_level.upper())
-    logging.getLogger('VDI4655').setLevel(level=log_level.upper())
-    logging.getLogger('BDEW').setLevel(level=log_level.upper())
-    logging.getLogger('simultaneity').setLevel(level=log_level.upper())
+    logging.getLogger('lpagg.agg').setLevel(level=log_level)
+    logging.getLogger('lpagg.misc').setLevel(level=log_level)
+    logging.getLogger('lpagg.weather_converter').setLevel(level=log_level)
+    logging.getLogger('lpagg.VDI4655').setLevel(level=log_level)
+    logging.getLogger('lpagg.BDEW').setLevel(level=log_level)
+    logging.getLogger('lpagg.simultaneity').setLevel(level=log_level)
 
     # Define the file paths
     filedir = os.path.dirname(__file__)
@@ -142,11 +141,11 @@ def aggregator_run(cfg):
     weather_data = load_weather_file(cfg)
 
     # For households, use the VDI 4655
-    load_curve_houses, houses_dict = VDI4655.VDI4655_run(weather_data, cfg)
+    load_curve_houses, houses_dict = lpagg.VDI4655.run(weather_data, cfg)
 
     # For the GHD building sector, combine profiles from various sources:
     # (not part of VDI 4655)
-    GHD_profiles = BDEW.get_GHD_profiles(weather_data, cfg, houses_dict)
+    GHD_profiles = lpagg.BDEW.get_GHD_profiles(weather_data, cfg, houses_dict)
 
     load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
                                   axis=1, sort=False,
@@ -168,7 +167,7 @@ def aggregator_run(cfg):
     # Randomize the load profiles of identical houses
     # (Optional, not part of VDI 4655)
     # -------------------------------------------------------------------------
-    load_curve_houses = simultaneity.copy_and_randomize_houses(
+    load_curve_houses = lpagg.simultaneity.copy_and_randomize_houses(
             load_curve_houses, houses_dict, cfg)
 
     # Debugging: Show the daily sum of each energy demand type:
@@ -233,7 +232,7 @@ def load_weather_file(cfg):
     logger.info('Read and interpolate the data in weather file '+weather_file)
 
     # Call external method in weather_converter.py:
-    weather_data = weather_converter.interpolate_weather_file(
+    weather_data = lpagg.weather_converter.interpolate_weather_file(
                                     weather_file_path,
                                     weather_data_type,
                                     datetime_start,
@@ -243,7 +242,7 @@ def load_weather_file(cfg):
 
     # Analyse weather data
     if logger.isEnabledFor(logging.INFO):
-        weather_converter.analyse_weather_file(
+        lpagg.weather_converter.analyse_weather_file(
                 weather_data, interpolation_freq, weather_file,
                 print_folder=cfg['print_folder'])
     weather_data.index.name = 'Time'
@@ -703,7 +702,7 @@ def plot_and_print(weather_data, cfg):
             logger.exception(ex)
 
     # Call external method in weather_converter.py:
-    weather_converter.print_IGS_weather_file(
+    lpagg.weather_converter.print_IGS_weather_file(
             weather_data,
             cfg['print_folder'],
             settings['print_file'],

@@ -52,14 +52,14 @@ import logging
 import pickle
 
 # Import local modules from load profile aggregator project
-import misc
+import lpagg.misc
 
 
 # Define the logging function
 logger = logging.getLogger(__name__)
 
 
-def VDI4655_run(weather_data, cfg):
+def run(weather_data, cfg):
     '''VDI 4655 Implementation
     '''
     # -------------------------------------------------------------------------
@@ -652,15 +652,15 @@ def get_load_curve_houses(load_profile_df, houses_dict, weather_data, cfg,
         # 'Partial' creates a function that only takes one argument. In our
         # case this is 'date_obj'. It will be given to the target function
         # 'get_energy_demand_values' as the last argument.
-        helper_function = functools.partial(get_energy_demand_values,
-                                            weather_data, houses_list,
-                                            houses_dict, energy_factor_types,
-                                            energy_demands_types,
-                                            load_curve_houses, load_profile_df,
-                                            daily_energy_demand_houses)
+        helper_func = functools.partial(get_energy_demand_values,
+                                        weather_data, houses_list,
+                                        houses_dict, energy_factor_types,
+                                        energy_demands_types,
+                                        load_curve_houses, load_profile_df,
+                                        daily_energy_demand_houses)
 
         work_list = weather_data.index
-        return_list = misc.multiprocessing_job(helper_function, work_list)
+        return_list = lpagg.misc.multiprocessing_job(helper_func, work_list)
 
         # The 'pool' returns a list. Feed its contents to the DataFrame
         for returned_df in return_list.get():

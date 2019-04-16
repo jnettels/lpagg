@@ -36,8 +36,8 @@ import time                      # Measure time
 import logging
 
 # Import local modules from load profile aggregator project
-import misc
-import agg
+import lpagg.misc
+import lpagg.agg
 
 # Define the logging function
 logger = logging.getLogger(__name__)
@@ -47,7 +47,7 @@ def main():
     '''
     The following is the 'main' function, which contains the rest of the script
     '''
-    misc.setup()
+    lpagg.misc.setup()
 
     # Measure start time of this script
     start_time = time.time()
@@ -56,18 +56,18 @@ def main():
     args = run_OptionParser()
 
     # Import the config YAML file and add the default settings
-    cfg = agg.perform_configuration(args.file)
+    cfg = lpagg.agg.perform_configuration(args.file)
 
     # Read settings from the cfg
     settings = cfg['settings']
     logger.setLevel(level=settings['log_level'].upper())
 
     # Aggregate load profiles
-    weather_data = agg.aggregator_run(cfg)
+    weather_data = lpagg.agg.aggregator_run(cfg)
 #    print(weather_data)
 
     # Plot & Print
-    agg.plot_and_print(weather_data, cfg)
+    lpagg.agg.plot_and_print(weather_data, cfg)
 
     # Print a final message with the required time
     script_time = pd.to_timedelta(time.time() - start_time, unit='s')
@@ -95,8 +95,9 @@ def run_OptionParser():
     args = parser.parse_args()
 
     if args.file is None:
-        args.file = misc.file_dialog(title='Choose a yaml config file',
-                                     filetypes=(('YAML File', '*.yaml'),))
+        args.file = lpagg.misc.file_dialog(title='Choose a yaml config file',
+                                           filetypes=(('YAML File', '*.yaml'),)
+                                           )
         if args.file is None:
             logger.info('Empty selection. Show help and exit program...')
             parser.print_help()
@@ -110,4 +111,8 @@ if __name__ == '__main__':
     '''This part is executed when the script is started directly with
     Python, not when it is loaded as a module.
     '''
-    main()
+    try:  # Wrap everything in a try-except to show exceptions with the logger
+        main()
+    except Exception as e:
+        logger.exception(e)
+        input('\nPress the enter key to exit.')  # Prevent console from closing

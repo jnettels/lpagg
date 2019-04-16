@@ -1,0 +1,35 @@
+package:
+  name: lpagg
+  version: '0.8.0'
+
+source:
+    path: ..
+
+build:
+  number: 14
+
+  entry_points:
+    # Put any entry points (scripts to be generated automatically) here.
+    - lpagg = lpagg.__main__:main
+    - simultaneity = lpagg.simultaneity:main
+
+
+requirements:
+    build:
+        - python
+        - setuptools
+        - setuptools_scm
+        - pandas >=0.24.1
+
+    run:
+        - python
+        - pandas >=0.24.1
+
+about:
+    home: https://github.com/jnettels/lpagg
+    summary: 'Load profile aggregator for building simulations'
+    description: 'Load profile aggregator for building simulations'
+    license: 'GPL3'
+    license_file: LICENSE.txt
+    author: 'Joris Nettelstroth'
+    author_email: 'joris.nettelstroth@stw.de'

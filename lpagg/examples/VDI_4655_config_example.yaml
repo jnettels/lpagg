@@ -5,8 +5,8 @@
 
 settings:
     ### Input weather data, must be from the 'IGS_Referenzklimaregion' type
-    weather_file:       IGS_Referenzklimaregion_04.dat
-    weather_data_type:  IGS
+    weather_file:       TRY2010_04_Jahr.dat
+    weather_data_type:  DWD
 
     ### Output file name, is saved to a 'Result' subfolder
     print_file:     Example_load.dat

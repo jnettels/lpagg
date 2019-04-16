@@ -62,7 +62,7 @@ import numpy as np
 import matplotlib.pyplot as plt  # Plotting library
 
 # Import local modules from load profile aggregator project
-import misc
+import lpagg.misc
 
 # Define the logging function
 logger = logging.getLogger(__name__)
@@ -120,8 +120,9 @@ def run_OptionParser():
     args = parser.parse_args()
 
     if args.file is None:
-        args.file = misc.file_dialog(title='Choose an Excel file',
-                                     filetypes=(('Excel File', '*.xlsx'),))
+        args.file = lpagg.misc.file_dialog(title='Choose an Excel file',
+                                           filetypes=(('Excel File', '*.xlsx'),
+                                                      ))
         if args.file is None:
             logger.info('Empty selection. Show help and exit program...')
             parser.print_help()
@@ -323,7 +324,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
             f_help = functools.partial(copy_and_randomize,
                                        load_curve_houses, house_name,
                                        randoms_int, sigma)
-            return_list = misc.multiprocessing_job(f_help, work_list)
+            return_list = lpagg.misc.multiprocessing_job(f_help, work_list)
             # Merge the existing and new dataframes
             df_list_tuples = return_list.get()
 
