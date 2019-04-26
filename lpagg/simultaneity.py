@@ -63,6 +63,7 @@ import matplotlib.pyplot as plt  # Plotting library
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
+import lpagg.DIN4708
 
 # Define the logging function
 logger = logging.getLogger(__name__)
@@ -439,6 +440,22 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
 
     sf_df.loc['GLF'] = sf_df.loc['P_max_kW']/sf_df.loc['P_max_ref_kW']
 
+    # Calculate a reference simultaneity factor with DIN 4708
+    homes_count = 0
+    buildings_count = 0
+    for house in cfg['houses']:
+        homes = cfg['houses'][house].get('N_WE', 0)
+        buildings = (1 + cfg['houses'][house].get('copies', 0))
+        buildings_count += buildings
+        homes *= buildings
+        homes_count += homes
+    GLF_DIN4708 = lpagg.DIN4708.calc_GLF(homes_count)
+    DIN4708_df = pd.Series(data=[buildings_count, homes_count, GLF_DIN4708],
+                           index=['Buildings', 'Homes', 'GLF'])
+    logger.info('Reference simultaneity factor from DIN 4708 for {:d} homes '
+                'in {:d} buildings is {:.2f}%.'
+                .format(homes_count, buildings_count, GLF_DIN4708*100))
+
     if logger.isEnabledFor(logging.INFO):
         logger.info('Simultaneity factors (Gleichzeitigkeitsfaktoren):')
         print(sf_df)
@@ -446,7 +463,10 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
     save_folder = os.path.join(cfg['base_folder'], 'Result')
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
-    sf_df.to_excel(os.path.join(save_folder, 'GLF.xlsx'))
+    writer = pd.ExcelWriter(os.path.join(save_folder, 'GLF.xlsx'))
+    sf_df.to_excel(writer, sheet_name='GLF')
+    DIN4708_df.to_excel(writer, sheet_name='DIN4708')
+    writer.save()  # Save the actual Excel file
 
     return None
 
