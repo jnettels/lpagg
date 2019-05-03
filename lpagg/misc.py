@@ -55,7 +55,8 @@ def setup():
 
     # Define style settings for the plots
     try:  # Try to load personalized matplotlib style file
-        mpl.style.use('../futureSuN.mplstyle')
+        mpl.style.use(os.path.join(os.path.dirname(__file__),
+                                   './lpagg.mplstyle'))
     except OSError as ex:
         logger.debug(ex)
 

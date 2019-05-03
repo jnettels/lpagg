@@ -60,6 +60,7 @@ import pandas as pd
 import functools
 import numpy as np
 import matplotlib.pyplot as plt  # Plotting library
+import matplotlib as mpl
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
@@ -81,7 +82,8 @@ def main():
     print(df)  # Show imported DataFrame on screen
 
     # 2) Create the simultaneity effect
-    df = create_simultaneity(df, args.sigma, args.copies)
+    df = create_simultaneity(df, args.sigma, args.copies, args.seed,
+                             os.path.dirname(args.file))
     print(df)  # Show results on screen
 
     # 3) Print results to an Excel spreadsheet
@@ -93,10 +95,17 @@ def setup():
     '''Basic setup of logger.
     '''
     # Define the logging function
-#    log_level = 'DEBUG'
-    log_level = 'INFO'
+    log_level = 'DEBUG'
+#    log_level = 'INFO'
     logger.setLevel(level=log_level.upper())  # Logger for this module
     logging.basicConfig(format='%(asctime)-15s %(message)s')
+
+    # Define style settings for the plots
+    try:  # Try to load personalized matplotlib style file
+        mpl.style.use(os.path.join(os.path.dirname(__file__),
+                                   './lpagg.mplstyle'))
+    except OSError as ex:
+        logger.debug(ex)
 
 
 def run_OptionParser():
@@ -133,7 +142,7 @@ def run_OptionParser():
     return args
 
 
-def create_simultaneity(df, sigma, copies, seed=4):
+def create_simultaneity(df, sigma, copies, seed, save_folder):
     '''Apply the simultaneity effect to the columns in a given DataFrame.
     This function is called by ``main()`` in the standalone script mode.
     It is the minimalist equivalent to ``copy_and_randomize_houses()``, which
@@ -179,6 +188,9 @@ def create_simultaneity(df, sigma, copies, seed=4):
             df_new, df_ref = copy_and_randomize(df, col, randoms_int,
                                                 sigma, copy=0)
             df.loc[:, col] = df_new.values
+
+        # Save a histogram plot
+        plot_normal_histogram(col, randoms_int, save_folder)
 
     return df
 
@@ -379,18 +391,29 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
 
 
 def debug_plot_normal_histogram(house_name, randoms_int, cfg):
+    '''Wrapper around ``plot_normal_histogram()`` used by the load profile
+    aggregator program.
+    '''
     settings = cfg['settings']
-    logger.debug('Interval shifts applied to copies of house '
-                 + str(house_name) + ':')
-    print(randoms_int)
+    save_folder = os.path.join(cfg['base_folder'], 'Result')
+    plot_normal_histogram(house_name, randoms_int, save_folder)
+
+    if settings.get('show_plot', False) is True:
+        plt.show(block=False)  # Show plot without blocking the script
+
+
+def plot_normal_histogram(house_name, randoms_int, save_folder):
+    '''Save a histogram of the values in ``randoms_int`` to a .png file.
+    '''
+    logger.debug('Interval shifts applied to ' + str(house_name) + ':')
+    logger.debug(randoms_int)
     mu = np.mean(randoms_int)
     sigma = np.std(randoms_int, ddof=1)
     text_mean_std = 'Mean = {:0.2f}, std = {:0.2f}'.format(mu, sigma)
     title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
-    print(text_mean_std)
+    logger.debug(text_mean_std)
 
     # Make sure the save path exists
-    save_folder = os.path.join(cfg['base_folder'], 'Result')
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
 
@@ -409,9 +432,6 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
     plt.savefig(os.path.join(save_folder,
                              'histogram_'+str(house_name)+'.png'),
                 bbox_inches='tight', dpi=200)
-
-    if settings.get('show_plot', False) is True:
-        plt.show(block=False)  # Show plot without blocking the script
 
 
 def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):

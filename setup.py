@@ -64,6 +64,7 @@ setup(
     package_data={'lpagg/examples': ['*.yaml'],
                   'lpagg/resources_load': ['*.xlsx'],
                   'lpagg/resources_weather': ['*_Jahr.dat'],
+                  'lpagg': ['lpagg.mplstyle'],
                   },
     entry_points={
         'console_scripts': ['lpagg = lpagg.__main__:main'],
