@@ -8,19 +8,24 @@ Installation
 1. You need Python. The recommended way is to install Python with
 [Anaconda](https://www.anaconda.com/distribution/),
 a package manager that distributes Python with data science packages.
-You also need to install [Git](https://git-scm.com/downloads) for
+During installation, (despite the warning) please set the advanced option:
+```
+[x] Add Anaconda to my PATH environment variable
+```
+
+2. You also need to install [Git](https://git-scm.com/downloads) for
 downloading this repository.
 
-2. Then you can clone this repository to a directory of your choice by
+3. Then you can clone this repository to a directory of your choice by
 opening a `cmd` window and writing:
 ```
 git clone https://github.com/jnettels/lpagg.git
 ```
-3. Now you need to change directory into the new folder:
+4. Now you need to change directory into the new folder:
 ```
 cd lpagg
 ```
-4. From here we can build and install `lpagg` with conda:
+5. From here you can build and install `lpagg` with conda:
 
 ```
 conda build conda.recipe
@@ -30,11 +35,11 @@ conda install --use-local lpagg -y
 Update
 ------
 When an update to `lpagg` is available in this repository, you can simply
-change to the folder from step 3 and download the latest files with
+change to the folder from step 4 and download the latest files with:
 ```
 git pull
 ```
-Afterwards, repeat step 4 to build and install the update.
+Afterwards, repeat step 5 to build and install the update.
 
 Usage
 =====
@@ -44,7 +49,10 @@ You should be able to start the program with a `cmd` window:
 ```
 python lpagg
 ```
-This will bring up a file dialog for choosing a configuration file.
+This will bring up a file dialog for choosing a YAML configuration file
+that contains all the settings required for the program. To try it,
+you can choose the example `lpagg\examples\VDI_4655_config_example.yaml`.
+
 You can also show a help message:
 ```
 python lpagg --help
@@ -52,9 +60,6 @@ python lpagg --help
 Another approach is to place a shortcut where you would like to use it.
 Moreover, you can now write you own Python scripts that use `lpagg`.
 Use the script `__main__.py` in this repository as an example.
-For most use cases, a YAML configuration file defines all the settings
-required for the program. See the example in
-lpagg/examples/VDI_4655_config_example.yaml
 
 simultaneity
 ------------
