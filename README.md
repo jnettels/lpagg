@@ -47,7 +47,7 @@ lpagg
 -----
 You should be able to start the program with a `cmd` window:
 ```
-python lpagg
+lpagg
 ```
 This will bring up a file dialog for choosing a YAML configuration file
 that contains all the settings required for the program. To try it,
@@ -55,7 +55,7 @@ you can choose the example `lpagg\examples\VDI_4655_config_example.yaml`.
 
 You can also show a help message:
 ```
-python lpagg --help
+lpagg --help
 ```
 Another approach is to place a shortcut where you would like to use it.
 Moreover, you can now write you own Python scripts that use `lpagg`.
@@ -70,5 +70,5 @@ This can also be used as a standalone script, where you have to
 provide a file with time series data. In a `cmd` window, write the
 following to learn more:
 ```
-python simultaneity.py --help
+simultaneity --help
 ```
