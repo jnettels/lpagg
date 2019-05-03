@@ -57,7 +57,8 @@ def perform_configuration(config_file, ignore_errors=False):
     '''
     logger.info('Using configuration file ' + config_file)
 
-    cfg = yaml.load(open(config_file, 'r'), Loader=yaml.FullLoader)
+    with open(config_file, 'r') as file:
+        cfg = yaml.load(file, Loader=yaml.FullLoader)
 
     # Read settings from the cfg
     settings = cfg['settings']
@@ -317,7 +318,8 @@ def add_external_profiles(load_curve_houses, cfg):
 
     for i, building in enumerate(building_dict):
         fraction = (i+1) / len(building_dict)
-        print('{:5.1f}% done'.format(fraction*100), end='\r')  # print progress
+        if logger.isEnabledFor(logging.INFO):  # print progress
+            print('{:5.1f}% done'.format(fraction*100), end='\r')
 
         filepath = building_dict[building]['file']
         class_ = building_dict[building]['class']
@@ -541,7 +543,8 @@ def calc_heizkurve(weather_data, cfg):
             T_VL_list.append(T_VL)
             T_RL_list.append(T_RL)
             M_dot_list.append(M_dot)
-            print('{:5.1f}% done'.format(j/total*100), end='\r')  # progress
+            if logger.isEnabledFor(logging.INFO):  # print progress
+                print('{:5.1f}% done'.format(j/total*100), end='\r')
 
         weather_data['E_th_loss'] = Q_loss_list
         weather_data['T_VL'] = T_VL_list

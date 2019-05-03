@@ -223,7 +223,7 @@ def get_typical_days(weather_data, cfg):
                  str(season_list.count('U')/steps_per_day))
 
     # --- Workdays, Sundays and public holidays -------------------------------
-    holidays = pd.read_excel(open(cfg['data']['holiday'], 'rb'),
+    holidays = pd.read_excel(cfg['data']['holiday'],
                              sheet_name='Feiertage',
                              index_col=[0])
     # Read through list of days line by line and see what kind of day they are.
@@ -346,7 +346,7 @@ def load_profile_factors(weather_data, cfg):
     # They are labeled 'left', while the IGS-Weatherdata is labeled 'right'!
 
     # Read the excel workbook, which will return a dict of the sheets
-    typtage_sheets_dict = pd.read_excel(open(cfg['data']['typtage'], 'rb'),
+    typtage_sheets_dict = pd.read_excel(cfg['data']['typtage'],
                                         sheet_name=None,
                                         index_col=[0, 1])
     # The DataFrame within every dict entry is combined to one large DataFrame
@@ -400,7 +400,8 @@ def load_profile_factors(weather_data, cfg):
     start = weather_data.index[0]
     while start < weather_data.index[-1]:
         end = start + pd.Timedelta('1 days') - interpolation_freq
-        print('Progress: '+str(start), end='\r')  # print progress
+        if logger.isEnabledFor(logging.INFO):
+            print('Progress: '+str(start), end='\r')  # print progress
         # Compare time stamps in typtage_df of the matching house and typtag
         typtag = weather_data.loc[start]['typtag']
 
@@ -740,7 +741,8 @@ def get_energy_demand_values_day(weather_data, houses_list, houses_dict,
     start = weather_data.index[0]
     while start < weather_data.index[-1]:
         end = start + pd.Timedelta('1 days')
-        print('Progress: '+str(start), end='\r')  # print progress
+        if logger.isEnabledFor(logging.INFO):
+            print('Progress: '+str(start), end='\r')  # print progress
         typtag = weather_data.loc[start]['typtag']
         for house_name in houses_list:
             house_type = houses_dict[house_name]['house_type']

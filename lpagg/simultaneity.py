@@ -323,7 +323,8 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
     # Create copies for every house
     for i, house_name in enumerate(randomizer_dict):
         fraction = (i+1) / len(randomizer_dict)
-        print('{:5.1f}% done'.format(fraction*100), end='\r')  # print progress
+        if logger.isEnabledFor(logging.INFO):  # print progress
+            print('{:5.1f}% done'.format(fraction*100), end='\r')
 
         copies = randomizer_dict[house_name]['copies']
         sigma = randomizer_dict[house_name]['sigma']

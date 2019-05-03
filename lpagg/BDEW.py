@@ -72,7 +72,7 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
 
     '''
     settings = cfg['settings']
-    source_df = pd.read_excel(open(source_file, 'rb'), sheet_name=None,
+    source_df = pd.read_excel(source_file, sheet_name=None,
                               skiprows=[0], header=[0, 1], index_col=[0],
                               skipfooter=1,
                               )
@@ -195,7 +195,7 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
     settings = cfg['settings']
     houses_list = settings['houses_list_BDEW']
 
-    futureSolar_df = pd.read_excel(open(cfg['data']['futureSolar'], 'rb'),
+    futureSolar_df = pd.read_excel(cfg['data']['futureSolar'],
                                    index_col=[0],
                                    sheet_name='Profile', header=[0, 1])
     futureSolar_df.index = pd.to_timedelta(futureSolar_df.index, unit='h')
