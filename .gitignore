@@ -2,7 +2,11 @@
 *~
 ~*
 __pycache__
+build/
+dist/
 Result*
 *.pyc
 *.dat
 *.xlsx
+*.pdf
+*.png

@@ -71,24 +71,43 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    '''Read user input, perform task and produce the output.
+    '''Read user input and run the script.
     '''
     setup()  # Set some basic settings
 
     args = run_OptionParser()  # Read user options
 
+    run(args.sigma, args.copies, args.seed, args.file,
+        set_hist=dict(PNG=True, PDF=False))
+
+
+def run(sigma, copies, seed, file, set_hist=dict()):
+    '''Perform task and produce the output.
+    '''
     # 1) Read in data as Pandas DataFrame from the given file
-    df = pd.read_excel(args.file, header=0, index_col=0)
-    print(df)  # Show imported DataFrame on screen
+    df = pd.read_excel(file, header=0, index_col=0)
+#    print(df)  # Show imported DataFrame on screen
 
     # 2) Create the simultaneity effect
-    df = create_simultaneity(df, args.sigma, args.copies, args.seed,
-                             os.path.dirname(args.file))
-    print(df)  # Show results on screen
+    df, df_ref = create_simultaneity(df, sigma, copies, seed,
+                                     os.path.dirname(file), set_hist)
+#    print(df)  # Show results on screen
+
+    df_sum = pd.DataFrame(data={'Shift': df.sum(axis=1),
+                                'Reference': df_ref.sum(axis=1)})
+    GLF = df_sum['Shift'].max() / df_sum['Reference'].max()
+
+    if logger.isEnabledFor(logging.DEBUG):
+        print(df_sum)
 
     # 3) Print results to an Excel spreadsheet
-    df.to_excel(os.path.splitext(args.file)[0]+'_GLF.xlsx')
+    output = os.path.splitext(file)[0]+'_c'+str(copies)+'_s'+str(sigma)+'.xlsx'
+    lpagg.misc.df_to_excel([df, df_ref, df_sum],
+                           sheet_names=['Shift', 'Reference', 'Sum'],
+                           path=output)
+
     # Done!
+    return output, GLF
 
 
 def setup():
@@ -142,7 +161,7 @@ def run_OptionParser():
     return args
 
 
-def create_simultaneity(df, sigma, copies, seed, save_folder):
+def create_simultaneity(df, sigma, copies, seed, save_folder, set_hist):
     '''Apply the simultaneity effect to the columns in a given DataFrame.
     This function is called by ``main()`` in the standalone script mode.
     It is the minimalist equivalent to ``copy_and_randomize_houses()``, which
@@ -165,6 +184,7 @@ def create_simultaneity(df, sigma, copies, seed, save_folder):
         df (Pandas DataFrame): The input data, combined with the new data
     '''
     np.random.seed(seed)  # Fixing the seed makes the results persistent
+    df_refs = df.copy()
 
     for col in df.columns:
         # Create a list of random values for all copies of the current column
@@ -178,7 +198,10 @@ def create_simultaneity(df, sigma, copies, seed, save_folder):
             # Combine the existing DataFrame and the last copy
             df = pd.concat([df, df_new], axis=1, sort=False,
                            verify_integrity=True)
+            df_refs = pd.concat([df_refs, df_ref], axis=1, sort=False,
+                                verify_integrity=True)
             df.sort_index(axis=1, inplace=True)  # Sort the column names
+            df_refs.sort_index(axis=1, inplace=True)  # Sort the column names
 
         if copies == 0:
             # No copies are requested. Here we do not add new copies,
@@ -188,11 +211,12 @@ def create_simultaneity(df, sigma, copies, seed, save_folder):
             df_new, df_ref = copy_and_randomize(df, col, randoms_int,
                                                 sigma, copy=0)
             df.loc[:, col] = df_new.values
+            df_refs.loc[:, col] = df_ref.values
 
         # Save a histogram plot
-        plot_normal_histogram(col, randoms_int, save_folder)
+        plot_normal_histogram(col, randoms_int, save_folder, set_hist)
 
-    return df
+    return df, df_refs
 
 
 def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
@@ -403,7 +427,8 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
         plt.show(block=False)  # Show plot without blocking the script
 
 
-def plot_normal_histogram(house_name, randoms_int, save_folder):
+def plot_normal_histogram(house_name, randoms_int, save_folder=None,
+                          set_hist=dict()):
     '''Save a histogram of the values in ``randoms_int`` to a .png file.
     '''
     logger.debug('Interval shifts applied to ' + str(house_name) + ':')
@@ -413,10 +438,6 @@ def plot_normal_histogram(house_name, randoms_int, save_folder):
     text_mean_std = 'Mean = {:0.2f}, std = {:0.2f}'.format(mu, sigma)
     title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
     logger.debug(text_mean_std)
-
-    # Make sure the save path exists
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
 
     # Create a histogram of the data
     limit = max(-1*min(randoms_int), max(randoms_int))
@@ -429,10 +450,23 @@ def plot_normal_histogram(house_name, randoms_int, save_folder):
                                 rwidth=0.9)
     plt.title(str(len(randoms_int))+' '+str(house_name)+' ('+title_mu_std+')')
     plt.xlabel('Zeitschritte')
-    plt.ylabel('Anzahl')
-    plt.savefig(os.path.join(save_folder,
-                             'histogram_'+str(house_name)+'.png'),
-                bbox_inches='tight', dpi=200)
+    plt.ylabel('Häufigkeit')
+
+    if save_folder is not None:
+        # Make sure the save path exists
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        if set_hist.get('PNG', False):
+            plt.savefig(os.path.join(save_folder,
+                                     'histogram_'+str(house_name)+'.png'),
+                        bbox_inches='tight', dpi=200)
+        if set_hist.get('PDF', False):
+            plt.savefig(os.path.join(save_folder,
+                                     'histogram_'+str(house_name)+'.pdf'),
+                        bbox_inches='tight')
+
+    return ax
 
 
 def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):

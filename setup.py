@@ -68,5 +68,6 @@ setup(
                   },
     entry_points={
         'console_scripts': ['lpagg = lpagg.__main__:main'],
+        'gui_scripts': ['simlty_GUI = lpagg.simlty_GUI:main'],
         }
 )
