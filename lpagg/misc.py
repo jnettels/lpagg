@@ -152,3 +152,96 @@ def resample_energy(df, freq):
         df = df.resample(rule=freq, label='right', closed='right').sum()
 
     return df
+
+
+def df_to_excel(df, path, sheet_names=[], merge_cells=False,
+                check_permission=True, **kwargs):
+    '''Wrapper around pandas' function ``DataFrame.to_excel()``, which creates
+    the required directory.
+    In case of a ``PermissionError`` (happens when the Excel file is currently
+    opended), the file is instead saved with a time stamp.
+
+    Additional keyword arguments are passed down to ``to_excel()``.
+    Can save a single DataFrame to a single Excel file or multiple DataFrames
+    to a combined Excel file.
+
+    The function calls itself recursively to achieve those features.
+
+    Args:
+        df (DataFrame or list): Pandas DataFrame object(s) to save
+
+        path (str): The full file path to save the DataFrame to
+
+        sheet_names (list): List of sheet names to use when saving multiple
+        DataFrames to the same Excel file
+
+        merge_cells (boolean, optional): Write MultiIndex and Hierarchical
+        Rows as merged cells. Default False.
+
+        check_permission (boolean): If the file already exists, instead try
+        to save with an appended time stamp.
+
+        freeze_panes (tuple or boolean, optional): Per default, the sheet
+        cells are frozen to always keep the index visible (by determining the
+        correct coordinate ``tuple``). Use ``False`` to disable this.
+
+    Returns:
+        None
+    '''
+    from collections.abc import Sequence
+    import time
+
+    if check_permission:
+        try:
+            # Try to complete the function without this permission check
+            df_to_excel(df, path, sheet_names=sheet_names,
+                        merge_cells=merge_cells, check_permission=False,
+                        **kwargs)
+            return  # Do not run the rest of the function
+        except PermissionError as e:
+            # If a PermissionError occurs, run the whole function again, but
+            # with another file path (with appended time stamp)
+            logger.critical(e)
+            ts = time.localtime()
+            ts = time.strftime('%Y-%m-%d_%H-%M-%S', ts)
+            path_time = (os.path.splitext(path)[0] + '_' +
+                         ts + os.path.splitext(path)[1])
+            logger.critical('Writing instead to:  '+path_time)
+            df_to_excel(df, path_time, sheet_names=sheet_names,
+                        merge_cells=merge_cells, **kwargs)
+            return  # Do not run the rest of the function
+
+    # Here the 'actual' function content starts:
+    if not os.path.exists(os.path.dirname(path)):
+        logging.debug('Create directory ' + os.path.dirname(path))
+        os.makedirs(os.path.dirname(path))
+
+    if isinstance(df, Sequence) and not isinstance(df, str):
+        # Save a list of DataFrame objects into a single Excel file
+        writer = pd.ExcelWriter(path)
+        for i, df_ in enumerate(df):
+            try:  # Use given sheet name, or just an enumeration
+                sheet = sheet_names[i]
+            except IndexError:
+                sheet = str(i)
+            # Add current sheet to the ExcelWriter by calling this
+            # function recursively
+            df_to_excel(df=df_, path=writer, sheet_name=sheet,
+                        merge_cells=merge_cells, **kwargs)
+        writer.save()  # Save the actual Excel file
+
+    else:
+        # Per default, the sheet cells are frozen to keep the index visible
+        if 'freeze_panes' not in kwargs or kwargs['freeze_panes'] is True:
+            # Find the right cell to freeze in the Excel sheet
+            if merge_cells:
+                freeze_rows = len(df.columns.names) + 1
+            else:
+                freeze_rows = 1
+
+            kwargs['freeze_panes'] = (freeze_rows, len(df.index.names))
+        elif kwargs['freeze_panes'] is False:
+            del(kwargs['freeze_panes'])
+
+        # Save one DataFrame to one Excel file
+        df.to_excel(path, merge_cells=merge_cells, **kwargs)
