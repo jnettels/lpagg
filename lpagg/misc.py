@@ -77,7 +77,7 @@ def file_dialog(initialdir=os.getcwd(),
     root.withdraw()
     file = filedialog.askopenfilename(initialdir=initialdir, title=title,
                                       filetypes=filetypes)
-    if file == '':
+    if file == '' or len(file)==0:
         path = None
     else:
         path = os.path.abspath(file)
