@@ -103,7 +103,21 @@ shortcut_table = [
      None,                     # IconIndex
      None,                     # ShowCmd
      'TARGETDIR'               # WkDir
-     ), ]
+     ),
+    ("ProgramMenuShortcut",        # Shortcut
+     "ProgramMenuFolder",          # Directory_
+     "Gleichzeitigkeit",     # Name
+     "TARGETDIR",              # Component_
+     "[TARGETDIR]Gleichzeitigkeit.exe",   # Target
+     None,                     # Arguments
+     'Gleichzeitigkeit in Zeitreihen',  # Description
+     None,                     # Hotkey
+     None,                     # Icon
+     None,                     # IconIndex
+     None,                     # ShowCmd
+     'TARGETDIR'               # WkDir
+     ),
+     ]
 
 # The setup function
 setup(
