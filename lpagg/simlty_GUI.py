@@ -31,12 +31,18 @@ Graphical user interface for the standalone ``simulataneity`` module.
 import numpy as np
 import os
 import sys
-from PyQt5 import QtWidgets, Qt, QtGui
+import logging
+import ctypes
+import matplotlib as mpl
+import lpagg.simultaneity
+from PyQt5 import QtWidgets, Qt, QtGui, QtCore
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-import matplotlib as mpl
+import matplotlib.pyplot as plt  # Plotting library
 
-import lpagg.simultaneity
+
+# Define the logging function
+logger = logging.getLogger(__name__)
 
 
 class MainClassAsGUI(QtWidgets.QMainWindow):
@@ -162,11 +168,11 @@ class SettingsGUI(QtWidgets.QWidget):
         self.tab1UI()
         self.tab2UI()
 
-        self.button = QtWidgets.QPushButton('Zeitverschiebung')
-        self.button.clicked.connect(self.perform_time_shift)
+        self.start_button = QtWidgets.QPushButton('Zeitverschiebung')
+        self.start_button.clicked.connect(self.perform_time_shift)
 
         self.mainLayout.addWidget(self.tabsWidget, 0, 0)
-        self.mainLayout.addWidget(self.button, 1, 0,)
+        self.mainLayout.addWidget(self.start_button, 1, 0,)
 
         self.plotWidget = plotWidget
 
@@ -224,9 +230,12 @@ class SettingsGUI(QtWidgets.QWidget):
             self.set_hist[key] = self.cb_list[i].isChecked()
 
     def perform_time_shift(self):
+        '''Callback for the button that starts the simultaneity calculation.
+        '''
         load_dir = './'
-        if getattr(sys, 'frozen', False):  # If frozen with cx_Freeze
-            load_dir = os.path.expanduser('~user')
+#        if getattr(sys, 'frozen', False):  # If frozen with cx_Freeze
+#            logger.debug(os.getcwd())
+#            load_dir = os.path.expanduser('~user')
 
         self.file = QtWidgets.QFileDialog.getOpenFileName(
                 self, 'Bitte Exceldatei mit Zeitreihe auswählen',
@@ -235,37 +244,79 @@ class SettingsGUI(QtWidgets.QWidget):
         if self.file == '' or self.file is None:
             return
 
+        self.start_button.setEnabled(False)
         self.statusBar().showMessage('Bitte warten...')
         Qt.QApplication.setOverrideCursor(Qt.QCursor(Qt.Qt.WaitCursor))
 
         try:
-            # Perform the time shift with the given settings
-            res = lpagg.simultaneity.run(self.settings['sigma'],
-                                                 int(self.settings['copies']),
-                                                 int(self.settings['seed']),
-                                                 self.file,
-                                                 self.set_hist)
-            output_file = res[0]
-            GLF = res[1]
+            self.objThread = QtCore.QThread()
+            self.obj = self.simultaneity_obj(self.settings, self.file,
+                                             self.set_hist)
+            self.obj.moveToThread(self.objThread)
+            self.objThread.started.connect(self.obj.run)
+            self.obj.finished.connect(self.done)
+            self.obj.finished.connect(self.objThread.quit)
+            self.objThread.start()
 
         except Exception as e:
+            logger.exception(e)
             Qt.QApplication.restoreOverrideCursor()
             self.statusBar().showMessage('')
+            self.start_button.setEnabled(True)
             QtWidgets.QMessageBox.critical(self, 'Fehler', str(e),
                                            QtWidgets.QMessageBox.Ok)
         else:
-            Qt.QApplication.restoreOverrideCursor()
-            self.statusBar().showMessage('GLF = {:0.1f}%'.format(GLF*100))
-            # Show a MessageBox.
-            QtWidgets.QMessageBox.information(self, 'Ausgabe erzeugt',
-                                              output_file,
-                                              QtWidgets.QMessageBox.Ok)
+            logger.debug('Waiting for return of results...')
+            pass
+
+    def done(self, result):
+        '''Function which is to be connected to the result returned from
+        ``simultaneity_obj``. Reads the result object and updates the
+        status information.
+        '''
+        output_file = result['output']
+        GLF = result['GLF']
+        Qt.QApplication.restoreOverrideCursor()
+        self.statusBar().showMessage('GLF = {:0.1f}%'.format(GLF*100))
+        # Show a MessageBox.
+        QtWidgets.QMessageBox.information(self, 'Ausgabe erzeugt',
+                                          str(output_file),
+                                          QtWidgets.QMessageBox.Ok)
+        self.start_button.setEnabled(True)
+
+    class simultaneity_obj(QtCore.QObject):
+        finished = QtCore.pyqtSignal('PyQt_PyObject')  # for emitting results
+
+        def __init__(self, settings, file, set_hist):
+            super().__init__()
+            self.settings = settings
+            self.file = file
+            self.set_hist = set_hist
+
+        def __del__(self):
+            logger.debug('simultaneity object deleted')
+
+        @QtCore.pyqtSlot()
+        def run(self):
+            logger.debug(str(self.settings))
+            # Perform the time shift with the given settings
+            result = lpagg.simultaneity.run(self.settings['sigma'],
+                                            int(self.settings['copies']),
+                                            int(self.settings['seed']),
+                                            self.file,
+                                            self.set_hist)
+            self.finished.emit(result)
 
 
 def main():
-    import ctypes
-    myappid = 'appid.lpagg.GUI'  # Define a unique AppID
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+    log_level = 'debug'
+    logger.setLevel(level=log_level.upper())  # Logger for this module
+    logging.basicConfig(format='%(asctime)-15s %(message)s')
+    logging.getLogger('lpagg.simultaneity').setLevel(level=log_level.upper())
+
+    if sys.platform == 'win32':
+        myappid = 'appid.lpagg.GUI'  # Define a unique AppID
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1'
     app = QtWidgets.QApplication([])

@@ -81,7 +81,7 @@ def main():
         set_hist=dict(PNG=True, PDF=False))
 
 
-def run(sigma, copies, seed, file, set_hist=dict()):
+def run(sigma, copies, seed, file, set_hist=dict(), show_plot=False):
     '''Perform task and produce the output.
     '''
     # 1) Read in data as Pandas DataFrame from the given file
@@ -100,14 +100,24 @@ def run(sigma, copies, seed, file, set_hist=dict()):
     if logger.isEnabledFor(logging.DEBUG):
         print(df_sum)
 
+    if show_plot:
+        logger.debug('Showing plot figure with matplotlib...')
+        try:  # Show a plot of the aggregated profiles
+            plt.close('all')
+            ax = df_sum.plot()
+            ax.yaxis.grid(True)  # Activate grid on horizontal axis
+            plt.show()
+        except Exception as e:
+            logger.exception(e)
+
     # 3) Print results to an Excel spreadsheet
     output = os.path.splitext(file)[0]+'_c'+str(copies)+'_s'+str(sigma)+'.xlsx'
     lpagg.misc.df_to_excel([df, df_ref, df_sum],
                            sheet_names=['Shift', 'Reference', 'Sum'],
                            path=output)
-
+    result = dict({'output': output, 'GLF': GLF})
     # Done!
-    return output, GLF
+    return result
 
 
 def setup():
