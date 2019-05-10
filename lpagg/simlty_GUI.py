@@ -33,13 +33,15 @@ import os
 import sys
 import logging
 import ctypes
+import traceback
 import matplotlib as mpl
 import lpagg.simultaneity
 from PyQt5 import QtWidgets, Qt, QtGui, QtCore
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT
 from matplotlib.figure import Figure
-import matplotlib.pyplot as plt  # Plotting library
-
+from pandas.plotting import register_matplotlib_converters
+register_matplotlib_converters()
 
 # Define the logging function
 logger = logging.getLogger(__name__)
@@ -100,7 +102,9 @@ class MainClassAsGUI(QtWidgets.QMainWindow):
 
 
 class MyMplCanvas(FigureCanvasQTAgg):
-    """Canvas to draw Matplotlib figures on"""
+    '''Canvas to draw Matplotlib figures on.
+    Is used for both the embedded histogram plot and the line plot.
+    '''
 
     def __init__(self, width=5, height=4, dpi=100):
         # Define style settings for the plots
@@ -110,17 +114,23 @@ class MyMplCanvas(FigureCanvasQTAgg):
             else:  # Otherwise, if running unfrozen (e.g., within Spyder)
                 homePath = os.path.dirname(__file__)
             mpl.style.use(os.path.join(homePath, './lpagg.mplstyle'))
-        except OSError:
+        except OSError as e:
+            logger.debug(e)
             pass
 
         self.fig = Figure(figsize=(width, height), dpi=dpi)
         super().__init__(self.fig)
         self.axes = self.fig.add_subplot(111)
 
-    def update_figure(self, sigma, copies, seed):
+    def update_histogram(self, sigma, copies, seed):
+        '''Create or update a histogram plot'''
         np.random.seed(seed)  # Fixing the seed makes the results persistent
+
         # Create a list of random values for all copies of the current column
-        randoms = np.random.normal(0, sigma, copies)  # Array of random values
+        if copies == 0:  # No copies (instead original profile is shifted)
+            randoms = np.random.normal(0, sigma, 1)
+        else:  # Normal usage: Only copies are shifted
+            randoms = np.random.normal(0, sigma, copies)
         randoms_int = [int(value) for value in np.round(randoms, 0)]
         limit = max(-1*min(randoms_int), max(randoms_int))
         bins = range(-limit, limit+2)
@@ -137,18 +147,49 @@ class MyMplCanvas(FigureCanvasQTAgg):
         self.axes.yaxis.grid(True)  # Activate grid on horizontal axis
         self.draw()
 
+    def update_lineplot(self, df):
+        '''Create or update a line plot with specific columns from the
+        resulting DataFrame'''
+        self.axes.cla()  # Clear axis
+        self.axes.plot(df['Shift'], label='Shift')
+        self.axes.plot(df['Reference'], '--', label='Referenz')
+        self.axes.axhline(df['Shift'].max(), linestyle='-.',
+                          label='max(Shift)', color='#e8d654')
+        self.axes.axhline(df['Reference'].max(), linestyle='-.',
+                          label='max(Referenz)', color='#5eccf3')
+        self.fig.legend(loc='upper center', ncol=5)
+        self.axes.yaxis.grid(True)  # Activate grid on horizontal axis
+        self.draw()
+
+
+class PlotWindow(QtWidgets.QWidget):
+    '''New window for plot figures.
+    '''
+    def __init__(self):
+        super().__init__()
+        self.plot_layout = QtWidgets.QVBoxLayout(self)
+        self.plot_canvas = MyMplCanvas(width=10, height=4, dpi=100)
+        self.navi_toolbar = NavigationToolbar2QT(self.plot_canvas, self)
+        self.plot_layout.addWidget(self.navi_toolbar)
+        self.plot_layout.addWidget(self.plot_canvas)  # the matplotlib canvas
+
+    def update_lineplot(self, df):
+        self.setWindowTitle('Zeitreihen')
+        self.plot_canvas.update_lineplot(df)
+
 
 class SettingsGUI(QtWidgets.QWidget):
-    """By inheriting from QtWidgets.QWidget our MainClassAsGUI becomes
-    a QWidget, thus it gets e.g. the functions self.setLayout() and self.show()
+    '''The left part of the splitter in the MainWindow. All input boxes and
+    buttons are created here. This part is devided into several tabs.
 
-    """
+    '''
     def __init__(self, plotWidget, statusBar):
         super().__init__()  # Exec parent's init function
 
         self.statusBar = statusBar
         self.settings = dict(sigma=1, copies=10, seed=4)
         self.set_hist = dict(PNG=True, PDF=False)
+        self.plot_timeseries = True
         self.file_in = None
         self.file_out = None
 
@@ -179,6 +220,8 @@ class SettingsGUI(QtWidgets.QWidget):
         self.callback_lineEdits()  # Draw the first histogram
 
     def tab1UI(self):
+        '''Tab with the main settings.
+        '''
         for i in range(self.tab1Layout.count()):
             self.tab1Layout.itemAt(i).widget().close()
 
@@ -194,6 +237,8 @@ class SettingsGUI(QtWidgets.QWidget):
             n += 1
 
     def tab2UI(self):
+        '''Tab with other settings (for histogram plots)
+        '''
         n = 0
         label = QtWidgets.QLabel('Die Ausgabe erfolgt als Excel Datei, mit '
                                  'den Einstellungen für "copies" und "sigma" '
@@ -205,32 +250,60 @@ class SettingsGUI(QtWidgets.QWidget):
         label.setWordWrap(True)
         self.tab2Layout.addWidget(label, n, 0)
         n += 1
+
+        # Create checkboxes for histogram settings
         self.cb_list = []
         for key, value in self.set_hist.items():
-            cb = QtWidgets.QCheckBox(key+' Histogramm')
+            cb = QtWidgets.QCheckBox(key+' Histogramm speichern')
             cb.setChecked(value)
             cb.stateChanged.connect(self.callback_cbs)
             self.tab2Layout.addWidget(cb, n, 0)
             self.cb_list.append(cb)
             n += 1
 
+        # Create checkbox for additional settings
+        cb = QtWidgets.QCheckBox('Zeitreihe anzeigen')
+        cb.setChecked(self.plot_timeseries)
+        cb.stateChanged.connect(self.callback_cb_ts)
+        self.tab2Layout.addWidget(cb, n, 0)
+        n += 1
+
     def callback_lineEdits(self):
+        '''This callback is called when any of the lineEdit widgets are
+        edited. It updates the histogram with the new settings
+        '''
         for i, key in enumerate(self.settings):
+            settings_copy = self.settings[key]
             try:
                 self.settings[key] = float(self.lineEdit_list[i].text())
-            except Exception:
-                pass
-
-        self.plotWidget.update_figure(self.settings['sigma'],
-                                      int(self.settings['copies']),
-                                      int(self.settings['seed']))
+                self.plotWidget.update_histogram(self.settings['sigma'],
+                                                 int(self.settings['copies']),
+                                                 int(self.settings['seed']))
+            except Exception as e:
+                self.settings[key] = settings_copy
+                self.lineEdit_list[i].setText(str(settings_copy))
+                logger.error(e)
+                QtWidgets.QMessageBox.critical(self, 'Fehler', str(e),
+                                               QtWidgets.QMessageBox.Ok)
 
     def callback_cbs(self, state):
+        '''This callback is called when any of the checkbox widgets are
+        changed. It stores the user input.
+        '''
         for i, key in enumerate(self.set_hist):
             self.set_hist[key] = self.cb_list[i].isChecked()
 
+    def callback_cb_ts(self, state):
+        '''This callback is called when the timeseries checkbox widget is
+        changed. It stores the user input.
+        '''
+        self.plot_timeseries = state
+
     def perform_time_shift(self):
         '''Callback for the button that starts the simultaneity calculation.
+        To prevent the GUI from becoming unresponsive, an extra object for
+        the task is created and moved to a thread of its own. Several
+        connections for starting and finishing the tasks need to be made.
         '''
         load_dir = './'
 #        if getattr(sys, 'frozen', False):  # If frozen with cx_Freeze
@@ -248,12 +321,14 @@ class SettingsGUI(QtWidgets.QWidget):
         self.statusBar().showMessage('Bitte warten...')
         Qt.QApplication.setOverrideCursor(Qt.QCursor(Qt.Qt.WaitCursor))
 
-        try:
+        try:  # Thread magic to prevent unresponsive GUI
             self.objThread = QtCore.QThread()
             self.obj = self.simultaneity_obj(self.settings, self.file,
                                              self.set_hist)
             self.obj.moveToThread(self.objThread)
             self.objThread.started.connect(self.obj.run)
+            self.obj.failed.connect(self.fail)
+            self.obj.failed.connect(self.objThread.quit)
             self.obj.finished.connect(self.done)
             self.obj.finished.connect(self.objThread.quit)
             self.objThread.start()
@@ -270,9 +345,10 @@ class SettingsGUI(QtWidgets.QWidget):
             pass
 
     def done(self, result):
-        '''Function which is to be connected to the result returned from
-        ``simultaneity_obj``. Reads the result object and updates the
+        '''Function which is connected to the ``finished`` signal from
+        ``simultaneity_obj``. Reads the returned result object and updates the
         status information.
+        Also creates a line plot of the time series in a new window.
         '''
         output_file = result['output']
         GLF = result['GLF']
@@ -284,8 +360,45 @@ class SettingsGUI(QtWidgets.QWidget):
                                           QtWidgets.QMessageBox.Ok)
         self.start_button.setEnabled(True)
 
+        if self.plot_timeseries:
+            try:  # Create a line plot of the time series in a new window
+                self.plot_window = PlotWindow()
+                self.plot_window.update_lineplot(result['df_sum'])
+                self.plot_window.show()
+            except Exception as e:
+                logger.exception(e)
+                QtWidgets.QMessageBox.critical(self, 'Fehler', str(e),
+                                               QtWidgets.QMessageBox.Ok)
+
+    def fail(self, error):
+        '''Function which is connected to the ``failed`` signal from
+        ``simultaneity_obj``. Is called if an exception occurs.
+        '''
+        Qt.QApplication.restoreOverrideCursor()
+
+        msg = QtWidgets.QMessageBox()
+        msg.setIcon(QtWidgets.QMessageBox.Critical)
+        msg.setWindowTitle('Fehler')
+        msg.setText('Bei der Verarbeitung der Zeitreihen ist ein Fehler '
+                    'aufgetreten. Siehe die vollständige Fehlermeldung für '
+                    'zusätzliche Informationen.')
+        msg.setDetailedText(error)
+        msg.setStandardButtons(QtWidgets.QMessageBox.Ok)
+        msg.setEscapeButton(QtWidgets.QMessageBox.Ok)
+        msg.exec_()
+
+        self.start_button.setEnabled(True)
+        self.statusBar().showMessage('')
+
     class simultaneity_obj(QtCore.QObject):
+        '''We want to perform the simultaneity calculation, which can take
+        several seconds, in a seperate thread. This prevents the GUI from
+        locking up or becoming unresponsive. In order for this to work,
+        the long running task is performed by a seperate object, which this
+        class defines.
+        '''
         finished = QtCore.pyqtSignal('PyQt_PyObject')  # for emitting results
+        failed = QtCore.pyqtSignal('PyQt_PyObject')  # for emitting results
 
         def __init__(self, settings, file, set_hist):
             super().__init__()
@@ -298,18 +411,23 @@ class SettingsGUI(QtWidgets.QWidget):
 
         @QtCore.pyqtSlot()
         def run(self):
-            logger.debug(str(self.settings))
             # Perform the time shift with the given settings
-            result = lpagg.simultaneity.run(self.settings['sigma'],
-                                            int(self.settings['copies']),
-                                            int(self.settings['seed']),
-                                            self.file,
-                                            self.set_hist)
-            self.finished.emit(result)
+            try:
+                result = lpagg.simultaneity.run(self.settings['sigma'],
+                                                int(self.settings['copies']),
+                                                int(self.settings['seed']),
+                                                self.file,
+                                                self.set_hist)
+            except Exception as e:
+                logger.exception(e)
+                error = traceback.format_exc()
+                self.failed.emit(error)
+            else:
+                self.finished.emit(result)
 
 
 def main():
-    log_level = 'debug'
+    log_level = 'error'
     logger.setLevel(level=log_level.upper())  # Logger for this module
     logging.basicConfig(format='%(asctime)-15s %(message)s')
     logging.getLogger('lpagg.simultaneity').setLevel(level=log_level.upper())

@@ -115,7 +115,7 @@ def run(sigma, copies, seed, file, set_hist=dict(), show_plot=False):
     lpagg.misc.df_to_excel([df, df_ref, df_sum],
                            sheet_names=['Shift', 'Reference', 'Sum'],
                            path=output)
-    result = dict({'output': output, 'GLF': GLF})
+    result = dict({'output': output, 'GLF': GLF, 'df_sum': df_sum})
     # Done!
     return result
 
@@ -452,6 +452,7 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
     # Create a histogram of the data
     limit = max(-1*min(randoms_int), max(randoms_int))
     bins = range(-limit, limit+2)
+    default_font = plt.rcParams.get('font.size')
     plt.rcParams.update({'font.size': 16})
     fig = plt.figure()
     ax = fig.gca()
@@ -476,6 +477,8 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
                                      'histogram_'+str(house_name)+'.pdf'),
                         bbox_inches='tight')
 
+    # Reset settings
+    plt.rcParams.update({'font.size': default_font})
     return ax
 
 
