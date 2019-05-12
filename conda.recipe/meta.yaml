@@ -1,12 +1,14 @@
+{% set data = load_setup_py_data() %}
+
 package:
   name: lpagg
-  version: '0.9.1'
+  version: {{ data['version'] }}
 
 source:
     path: ..
 
 build:
-  number: 0
+  number: {{ GIT_DESCRIBE_NUMBER }}
 
   entry_points:
     # Put any entry points (scripts to be generated automatically) here.
