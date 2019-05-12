@@ -227,7 +227,10 @@ setup(
                                r'./res/icon.png',
                                ]
                            },
-             'bdist_msi': {'data': {"Shortcut": shortcut_table}},
+             'bdist_msi': {'data': {"Shortcut": shortcut_table},
+                           'upgrade_code':
+                               '{4d27fdce-eca0-4f0a-bdf7-a06bd383351e}',
+                           },
              },
 )
 
