@@ -167,7 +167,7 @@ def get_type99_header(weather_file_path, interpolate_freq):
 <var> CCOVER  <col> 8 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read cloud cover in [octas] (Bedeckungsgrad in Achtel)
 <var> PAMB    <col> 9 <interp> 1 <add> 0 <mult> 1 <samp> -1 !...to read ambient air pressure in [hPa]
 <data>
-   '''
+'''
 
     replace_dict = get_TRNSYS_coordinates(weather_file_path)
     replace_dict['interval'] = interpolation_freq.seconds / 3600.0  # h
