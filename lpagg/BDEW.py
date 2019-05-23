@@ -176,7 +176,8 @@ def load_DOE_profiles(weather_data, cfg, houses_dict):
     for column in DOE_profiles.columns:
         Q_TWW_a = houses_dict[column[0]]['Q_TWW_a']
         yearly_sum = DOE_profiles[column].sum()
-        DOE_profiles[column] = DOE_profiles[column]/yearly_sum * Q_TWW_a
+        if yearly_sum > 0:
+            DOE_profiles[column] = DOE_profiles[column]/yearly_sum * Q_TWW_a
 
     return DOE_profiles
 
@@ -248,7 +249,7 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
 
         if Q_a is None:  # Do not use the loaded profiles (and remove them)
             futureSolar_profiles.drop(columns=column, inplace=True)
-        else:  # Use the loaded profiles
+        elif sum_ > 0:  # Use the loaded profiles
             futureSolar_profiles[column] *= Q_a / sum_
 
 #    print(futureSolar_profiles)
