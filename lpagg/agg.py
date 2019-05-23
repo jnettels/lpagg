@@ -179,18 +179,18 @@ def aggregator_run(cfg):
 
         logger.info('Printing *_houses.dat file')
         print(load_curve_houses.head())
-        try:
-            load_curve_houses.to_csv(
-                    os.path.join(cfg['print_folder'],
-                                 os.path.splitext(settings['print_file'])[0]
-                                 + '_houses.dat'))
-            # HINT: Be careful, can create huge file sizes
-#            load_curve_houses.to_excel(
-#                    os.path.join(cfg['print_folder'],
-#                                 os.path.splitext(settings['print_file'])[0]
-#                                 + '_houses.xlsx'))
-        except Exception as ex:
-            logger.debug(ex)
+        load_curve_houses.to_csv(
+                os.path.join(cfg['print_folder'],
+                             os.path.splitext(settings['print_file'])[0]
+                             + '_houses.dat'))
+
+    if settings.get('print_houses_xlsx', False):
+        logger.info('Printing *_houses.xlsx file')
+        # Be careful, can create huge file sizes
+        load_curve_houses.to_excel(
+                os.path.join(cfg['print_folder'],
+                             os.path.splitext(settings['print_file'])[0]
+                             + '_houses.xlsx'))
 
     # Sum up the energy demands of all houses, store result in weather_data
     logger.info('Sum up the energy demands of all houses')
