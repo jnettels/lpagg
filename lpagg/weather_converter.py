@@ -132,23 +132,35 @@ def get_TRNSYS_coordinates(weather_file_path):
     Returns:
         TRNcoords (dict): Dictionary with longitude and latitude
     '''
+    TRNcoords = dict()
+
     with open(weather_file_path, 'r') as weather_file:
         regex = r'Rechtswert\s*:\s(?P<x>\d*).*\nHochwert\s*:\s(?P<y>\d*)'
         match = re.search(regex, weather_file.read())
-        if match:  # Matches of the regular expression were found
-            url = 'http://epsg.io/trans?s_srs=3034&t_srs=4326'
+
+    if match:  # Matches of the regular expression were found
+        url = 'http://epsg.io/trans?s_srs=3034&t_srs=4326'
+
+        try:
             response = requests.get(url, params=match.groupdict())
             coords = response.json()  # Create dict from json object
-            TRNcoords = {'longitude': float(coords['x'])*-1,  # negative
-                         'latitude': float(coords['y'])}
+            TRNcoords['longitude'] = float(coords['x'])*-1  # negative
+            TRNcoords['latitude'] = float(coords['y'])
             logger.info('Coordinates for TRNSYS: '+str(TRNcoords))
-            return TRNcoords
 
-        else:
-            return dict()
+        except Exception:
+            logger.error('Internet connection is required to convert '
+                         'coordinates to TRNSYS format. Please fill out '
+                         'longitude and latitude manually!')
+            TRNcoords['longitude'] = 'Error (Rechtswert = {} Meter)'.format(
+                    match.groupdict()['x'])
+            TRNcoords['latitude'] = 'Error (Hochwert = {} Meter)'.format(
+                    match.groupdict()['y'])
+
+    return TRNcoords
 
 
-def get_type99_header(weather_file_path, interpolate_freq):
+def get_type99_header(weather_file_path, interpolation_freq):
     '''Create the header for Type99 weather files.
     '''
 
