@@ -487,9 +487,23 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
     Uses a DataFrame with and one without randomness.
     '''
     settings = cfg['settings']
+
+    # Some GHD energies may be split into different columns
+    load_curve_houses.sort_index(axis=1, inplace=True)
+
     load_curve_houses_ran = load_curve_houses.copy()
-    load_ran = load_curve_houses_ran.groupby(level='energy', axis=1).sum()
-    load_ref = load_curve_houses_ref.groupby(level='energy', axis=1).sum()
+    try:
+        load_ran = load_curve_houses_ran.groupby(level='energy', axis=1).sum()
+        load_ref = load_curve_houses_ref.groupby(level='energy', axis=1).sum()
+    except KeyError:
+        # TODO: This error appeared first in pandas 0.25.0
+        # Swapping the levels before grouping seems to fix it, though.
+        load_curve_houses_ran = load_curve_houses_ran.swaplevel(
+                i='energy', j='house', axis=1)
+        load_curve_houses_ref = load_curve_houses_ref.swaplevel(
+                i='energy', j='house', axis=1)
+        load_ran = load_curve_houses_ran.groupby(level='energy', axis=1).sum()
+        load_ref = load_curve_houses_ref.groupby(level='energy', axis=1).sum()
 
     hours = settings['interpolation_freq'].seconds / 3600.0        # h
     sf_df = pd.DataFrame(index=['P_max_kW', 'P_max_ref_kW', 'GLF'],
