@@ -15,6 +15,7 @@ build:
     - lpagg = lpagg.__main__:main
     - simultaneity = lpagg.simultaneity:main
     - simlty_GUI = lpagg.simlty_GUI:main
+    - dwd2trnsys = lpagg.dwd2trnsys:main
 
 requirements:
     build:
