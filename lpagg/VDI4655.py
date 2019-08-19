@@ -24,9 +24,31 @@ The load profile aggregator combines profiles for heat and power demand
 of buildings from different sources.
 
 
-Module VDI4655
---------------
-Implementation of VDI 4655
+Module VDI 4655
+---------------
+This is an implementation of the calculation of economic efficiency
+using the annuity method defined in the German VDI 4655.
+
+    **VDI 4655**
+
+    **Reference load profiles of single-family and
+    multi-family houses for the use of CHP systems**
+
+    *May 2008 (ICS 91.140.01)*
+
+Copyright:
+
+    *Verein Deutscher Ingenieure e.V.*
+
+    *VDI Standards Department*
+
+    *VDI-Platz 1, 40468 Duesseldorf, Germany*
+
+Reproduced with the permission of the Verein Deutscher Ingenieure e.V.,
+for non-commercial use only.
+
+Notes
+-----
 
 This script creates full year energy demand time series of domestic buildings
 for use in simulations. This is achieved by an implementation of the VDI 4655,
