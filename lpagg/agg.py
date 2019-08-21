@@ -319,7 +319,7 @@ def add_external_profiles(load_curve_houses, cfg):
     for i, building in enumerate(building_dict):
         fraction = (i+1) / len(building_dict)
         if logger.isEnabledFor(logging.INFO):  # print progress
-            print('{:5.1f}% done'.format(fraction*100), end='\r')
+            print('\r{:5.1f}% done'.format(fraction*100), end='\r')
 
         filepath = building_dict[building]['file']
         class_ = building_dict[building]['class']
@@ -544,7 +544,7 @@ def calc_heizkurve(weather_data, cfg):
             T_RL_list.append(T_RL)
             M_dot_list.append(M_dot)
             if logger.isEnabledFor(logging.INFO):  # print progress
-                print('{:5.1f}% done'.format(j/total*100), end='\r')
+                print('\r{:5.1f}% done'.format(j/total*100), end='\r')
 
         weather_data['E_th_loss'] = Q_loss_list
         weather_data['T_VL'] = T_VL_list
