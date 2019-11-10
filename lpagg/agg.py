@@ -58,7 +58,7 @@ def perform_configuration(config_file, ignore_errors=False):
     logger.info('Using configuration file ' + config_file)
 
     with open(config_file, 'r') as file:
-        cfg = yaml.load(file, Loader=yaml.FullLoader)
+        cfg = yaml.load(file, Loader=yaml.UnsafeLoader)
 
     # Read settings from the cfg
     settings = cfg['settings']
