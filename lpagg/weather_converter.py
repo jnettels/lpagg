@@ -420,7 +420,9 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file,
         if not os.path.exists(print_folder):
             os.makedirs(print_folder)
 
-        file = os.path.join(print_folder, os.path.splitext(weather_file)[0])
+        file = os.path.join(print_folder,
+                            os.path.splitext(os.path.basename(weather_file)
+                                             )[0])
         with open(file + '_stats.dat', 'w') as f:
             f.write(w_stats)
 
@@ -571,13 +573,6 @@ if __name__ == "__main__":
     bool_print_index = False
     remove_leapyear = False
 
-    '''
-    base_folder = u'V:\\MA\\2_Projekte\\SIZ10015_futureSuN\\4_Bearbeitung\\AP4_Transformation\\AP404_Konzepte für zukünftige Systemlösungen\\Lastprofile\\VDI 4655\\Berechnung\\Wetter'
-    base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\SB\Weather\\TRY_38265002816500'
-    base_folder = u'C:\\Trnsys17\\Work\\futureSuN\\HK\Weather\\TRY2010_03'
-    base_folder = r'V:\MA\2_Projekte\SIZ10015_futureSuN\4_Bearbeitung\AP4_Transformation\AP402_Randbedingungen\Wetterdaten\DWD TRY 2011\Daten\TRY-Daten'
-    base_folder = r'V:\MA\2_Projekte\SIZ10002_Hydraulik\5_Archiv\Backups Mani\Dissertation\3_Trnsys Modell\3_Wetterdaten\TRY Ortsgenau DWD\TRY_42255002859500'
-    '''
     base_folder = r'.\resources_weather'
 
     '''

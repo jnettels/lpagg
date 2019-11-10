@@ -216,9 +216,9 @@ def load_weather_file(cfg):
     """Read and interpolate weather data files.
     """
     settings = cfg['settings']
-    weather_file = settings['weather_file']
-    weather_file_path = os.path.join(os.path.dirname(__file__),
-                                     'resources_weather', weather_file)
+    weather_file = os.path.join(cfg['base_folder'], settings['weather_file'])
+    weather_file = os.path.abspath(weather_file)
+
     weather_data_type = settings['weather_data_type']
     datetime_start = pd.datetime(*settings['start'])  # * reads list as args
     datetime_end = pd.datetime(*settings['end'])
@@ -234,7 +234,7 @@ def load_weather_file(cfg):
 
     # Call external method in weather_converter.py:
     weather_data = lpagg.weather_converter.interpolate_weather_file(
-                                    weather_file_path,
+                                    weather_file,
                                     weather_data_type,
                                     datetime_start,
                                     datetime_end,
@@ -261,7 +261,7 @@ def flatten_daily_TWE(load_curve_houses, settings):
 
     if settings.get('flatten_daily_TWE', False):
 
-        logger.info('Create (randomized) copies of the houses')
+        logger.info('Flatten daily domestic hot water profile')
 
         # Resample TWW energy in DataFrame to days and take mean
         Q_TWW_avg_list = load_curve_houses.loc[

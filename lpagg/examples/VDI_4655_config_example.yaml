@@ -4,8 +4,10 @@
 ### This is an example config file that shows the available settings
 
 settings:
-    ### Input weather data, must be from the 'IGS_Referenzklimaregion' type
-    weather_file:       TRY2010_04_Jahr.dat
+    ### Input weather data, must be of the type 'IGS' or 'DWD'.
+    ### TRY weather data downloaded from Deutscher Wetterdienst (DWD)
+    ### (https://kunden.dwd.de/obt/) should work right away as type 'DWD'.
+    weather_file:       ..\resources_weather\TRY2010_04_Jahr.dat
     weather_data_type:  DWD
 
     ### Output file name, is saved to a 'Result' subfolder
@@ -56,12 +58,17 @@ settings:
     ### The VDI 4655 default heat limit is 15°C (definition of summer days).
     ### For modern building types, this can be set to a lower value
     Tamb_heat_limit: 12
+    # In addition to the Tamb_heat_limit, you may overwrite the VDI4655 and
+    # set heat demand on all summer days to zero:
     zero_summer_heat_demand: True
 
+    ### Use daily mean as constant value for domestic hot water
+    # flatten_daily_TWE: True
 
     ### Activate the debugging flag to display more info in the terminal
     log_level: debug
 
+### This section is not part of VDI 4655:
 ### In this section you can define the relevant input for the 'Heizkurve'.
 ### If 'Heizkurve' is commented out, these calculations are not performed
 Heizkurve:
@@ -72,6 +79,7 @@ Heizkurve:
     # m:          0.45    # Heizflächenexponent: Plattenheizkörper / Konvektor
     m:          0.1     # Heizflächenexponent: Fußbodenheizung
 
+### This section is not part of VDI 4655:
 ### Based on the following input, the heat loss from the pipes to the
 ### environment will be estimated (requires results from 'Heizkurve'):
 ### dTm         = (T_VL + T_RL)/2.0 - T_a
