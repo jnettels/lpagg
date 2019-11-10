@@ -521,7 +521,12 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
                                        + load_ref['Q_TWW_TT']).max() / hours
     sf_df.loc['P_max_ref_kW', 'el'] = load_ref['W_TT'].max() / hours
 
-    sf_df.loc['GLF'] = sf_df.loc['P_max_kW']/sf_df.loc['P_max_ref_kW']
+    for col in ['th_RH', 'th_TWE', 'th', 'el']:
+        try:
+            sf_df.loc['GLF', col] = (sf_df.loc['P_max_kW', col]
+                                     / sf_df.loc['P_max_ref_kW', col])
+        except ZeroDivisionError:
+            sf_df.loc['GLF', col] = float('NaN')
 
     # Calculate a reference simultaneity factor with DIN 4708
     homes_count = 0
