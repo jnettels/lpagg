@@ -51,7 +51,7 @@ def setup():
     pd.set_option('display.max_columns', 0)
 
     # Define the logging function
-    logging.basicConfig(format='%(asctime)-15s %(message)s')
+    logging.basicConfig(format='%(asctime)-15s %(levelname)-8s %(message)s')
 
     # Define style settings for the plots
     try:  # Try to load personalized matplotlib style file
@@ -77,7 +77,7 @@ def file_dialog(initialdir=os.getcwd(),
     root.withdraw()
     file = filedialog.askopenfilename(initialdir=initialdir, title=title,
                                       filetypes=filetypes)
-    if file == '' or len(file)==0:
+    if file == '' or len(file) == 0:
         path = None
     else:
         path = os.path.abspath(file)
@@ -97,11 +97,11 @@ def multiprocessing_job(helper_function, work_list):
     while return_list.ready() is False:
         remaining = return_list._number_left
         fraction = (total - remaining)/total
-        print('{:5.1f}% done'.format(fraction*100), end='\r')  # print progress
+        print('\r{:5.1f}% done'.format(fraction*100), end='\r')  # progress
         time.sleep(1.0)
 
     pool.join()
-    print('100.0% done', end='\r')
+    print('\r100.0% done', end='\r')
 
     return return_list
 

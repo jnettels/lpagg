@@ -255,7 +255,7 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
     '''
     copy_name = str(house_name) + '_c' + str(copy)
     if b_print and logger.isEnabledFor(logging.DEBUG):
-        print('Copy (and randomize) house', copy_name, end='\r')  # status
+        print('\rCopy (and randomize) house', copy_name, end='\r')  # status
     # Select the data of the house we want to copy
     df_new = load_curve_houses[house_name]
     # Rename the multiindex with the name of the copy
@@ -287,7 +287,7 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
             pass
 
     if b_print:
-        print(' ', end='\r')  # overwrite last status with empty line
+        print('\r ', end='\r')  # overwrite last status with empty line
     return df_new, df_ref
 
 
@@ -358,7 +358,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
     for i, house_name in enumerate(randomizer_dict):
         fraction = (i+1) / len(randomizer_dict)
         if logger.isEnabledFor(logging.INFO):  # print progress
-            print('{:5.1f}% done'.format(fraction*100), end='\r')
+            print('\r{:5.1f}% done'.format(fraction*100), end='\r')
 
         copies = randomizer_dict[house_name]['copies']
         sigma = randomizer_dict[house_name]['sigma']
@@ -431,7 +431,8 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
     '''
     settings = cfg['settings']
     save_folder = os.path.join(cfg['base_folder'], 'Result')
-    plot_normal_histogram(house_name, randoms_int, save_folder)
+    plot_normal_histogram(house_name, randoms_int, save_folder,
+                          set_hist=dict({'PNG': True, 'PDF': True}))
 
     if settings.get('show_plot', False) is True:
         plt.show(block=False)  # Show plot without blocking the script
@@ -520,7 +521,12 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
                                        + load_ref['Q_TWW_TT']).max() / hours
     sf_df.loc['P_max_ref_kW', 'el'] = load_ref['W_TT'].max() / hours
 
-    sf_df.loc['GLF'] = sf_df.loc['P_max_kW']/sf_df.loc['P_max_ref_kW']
+    for col in ['th_RH', 'th_TWE', 'th', 'el']:
+        try:
+            sf_df.loc['GLF', col] = (sf_df.loc['P_max_kW', col]
+                                     / sf_df.loc['P_max_ref_kW', col])
+        except ZeroDivisionError:
+            sf_df.loc['GLF', col] = float('NaN')
 
     # Calculate a reference simultaneity factor with DIN 4708
     homes_count = 0

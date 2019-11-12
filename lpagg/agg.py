@@ -58,7 +58,7 @@ def perform_configuration(config_file, ignore_errors=False):
     logger.info('Using configuration file ' + config_file)
 
     with open(config_file, 'r') as file:
-        cfg = yaml.load(file, Loader=yaml.FullLoader)
+        cfg = yaml.load(file, Loader=yaml.UnsafeLoader)
 
     # Read settings from the cfg
     settings = cfg['settings']
@@ -216,9 +216,9 @@ def load_weather_file(cfg):
     """Read and interpolate weather data files.
     """
     settings = cfg['settings']
-    weather_file = settings['weather_file']
-    weather_file_path = os.path.join(os.path.dirname(__file__),
-                                     'resources_weather', weather_file)
+    weather_file = os.path.join(cfg['base_folder'], settings['weather_file'])
+    weather_file = os.path.abspath(weather_file)
+
     weather_data_type = settings['weather_data_type']
     datetime_start = pd.datetime(*settings['start'])  # * reads list as args
     datetime_end = pd.datetime(*settings['end'])
@@ -234,7 +234,7 @@ def load_weather_file(cfg):
 
     # Call external method in weather_converter.py:
     weather_data = lpagg.weather_converter.interpolate_weather_file(
-                                    weather_file_path,
+                                    weather_file,
                                     weather_data_type,
                                     datetime_start,
                                     datetime_end,
@@ -261,7 +261,7 @@ def flatten_daily_TWE(load_curve_houses, settings):
 
     if settings.get('flatten_daily_TWE', False):
 
-        logger.info('Create (randomized) copies of the houses')
+        logger.info('Flatten daily domestic hot water profile')
 
         # Resample TWW energy in DataFrame to days and take mean
         Q_TWW_avg_list = load_curve_houses.loc[
@@ -319,7 +319,7 @@ def add_external_profiles(load_curve_houses, cfg):
     for i, building in enumerate(building_dict):
         fraction = (i+1) / len(building_dict)
         if logger.isEnabledFor(logging.INFO):  # print progress
-            print('{:5.1f}% done'.format(fraction*100), end='\r')
+            print('\r{:5.1f}% done'.format(fraction*100), end='\r')
 
         filepath = building_dict[building]['file']
         class_ = building_dict[building]['class']
@@ -544,7 +544,7 @@ def calc_heizkurve(weather_data, cfg):
             T_RL_list.append(T_RL)
             M_dot_list.append(M_dot)
             if logger.isEnabledFor(logging.INFO):  # print progress
-                print('{:5.1f}% done'.format(j/total*100), end='\r')
+                print('\r{:5.1f}% done'.format(j/total*100), end='\r')
 
         weather_data['E_th_loss'] = Q_loss_list
         weather_data['T_VL'] = T_VL_list

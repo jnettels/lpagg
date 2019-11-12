@@ -423,7 +423,7 @@ def load_profile_factors(weather_data, cfg):
     while start < weather_data.index[-1]:
         end = start + pd.Timedelta('1 days') - interpolation_freq
         if logger.isEnabledFor(logging.INFO):
-            print('Progress: '+str(start), end='\r')  # print progress
+            print('\rProgress: '+str(start), end='\r')  # print progress
         # Compare time stamps in typtage_df of the matching house and typtag
         typtag = weather_data.loc[start]['typtag']
 
@@ -764,7 +764,7 @@ def get_energy_demand_values_day(weather_data, houses_list, houses_dict,
     while start < weather_data.index[-1]:
         end = start + pd.Timedelta('1 days')
         if logger.isEnabledFor(logging.INFO):
-            print('Progress: '+str(start), end='\r')  # print progress
+            print('\rProgress: '+str(start), end='\r')  # print progress
         typtag = weather_data.loc[start]['typtag']
         for house_name in houses_list:
             house_type = houses_dict[house_name]['house_type']
