@@ -60,7 +60,7 @@ def main():
 
     # Read settings from the cfg
     settings = cfg['settings']
-    logger.setLevel(level=settings['log_level'].upper())
+    logger.setLevel(level=settings.get('log_level', 'INFO').upper())
 
     # Aggregate load profiles
     weather_data = lpagg.agg.aggregator_run(cfg)
