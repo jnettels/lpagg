@@ -72,6 +72,7 @@ import pandas as pd
 import functools
 import logging
 import pickle
+import datetime
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
@@ -159,12 +160,12 @@ def get_season_list_BDEW(weather_data):
 
     for j, date_obj in enumerate(weather_data.index):
         YEAR = date_obj.year
-        if date_obj <= pd.datetime(YEAR, 3, 21, 00, 00, 00) or \
-           date_obj > pd.datetime(YEAR, 10, 31, 00, 00, 00):
+        if date_obj <= datetime.datetime(YEAR, 3, 21, 00, 00, 00) or \
+           date_obj > datetime.datetime(YEAR, 10, 31, 00, 00, 00):
             season_list.append('Winter')  # Winter
 
-        elif date_obj > pd.datetime(YEAR, 5, 15, 00, 00, 00) and \
-                date_obj <= pd.datetime(YEAR, 9, 15, 00, 00, 00):
+        elif date_obj > datetime.datetime(YEAR, 5, 15, 00, 00, 00) and \
+                date_obj <= datetime.datetime(YEAR, 9, 15, 00, 00, 00):
             season_list.append('Sommer')  # Summer
 
         else:
@@ -338,9 +339,10 @@ def load_profile_factors(weather_data, cfg):
         for item in typtage_combinations:
             if item not in N_typtage.index:
                 N_typtage[item] = 0  # Set the 'typtage' not found to zero
-        print(pd.DataFrame(N_typtage).T.to_string(index=False,
-              columns=typtage_combinations,  # fixed sorting of columns
-              float_format='{:.0f}'.format))
+        print(pd.DataFrame(N_typtage).T.to_string(
+            index=False,
+            columns=typtage_combinations,  # fixed sorting of columns
+            float_format='{:.0f}'.format))
 
     if settings.get('pickle_load_profile', False):
         # If the previous run had the same interpolation_freq, we do not need
@@ -381,7 +383,8 @@ def load_profile_factors(weather_data, cfg):
     # to datetime.datetime by adding an arbitrary datetime.date object
     datetime_column = []
     for row, time_obj in enumerate(typtage_df['Zeit']):
-        datetime_obj = pd.datetime.combine(pd.datetime(2017, 1, 1), time_obj)
+        datetime_obj = datetime.datetime.combine(
+            datetime.datetime(2017, 1, 1), time_obj)
         datetime_column.append(datetime_obj)
     typtage_df['Zeit'] = datetime_column
     # Now the column 'Zeit' can be added to the multiindex
@@ -428,7 +431,8 @@ def load_profile_factors(weather_data, cfg):
         typtag = weather_data.loc[start]['typtag']
 
         typtage_df.loc[house_types[0], typtag].index
-        start_tt = pd.datetime.combine(pd.datetime(2017, 1, 1), start.time())
+        start_tt = datetime.datetime.combine(datetime.datetime(2017, 1, 1),
+                                             start.time())
         end_tt = start_tt + pd.Timedelta('1 days') - interpolation_freq
 
         for energy in energy_factor_types:

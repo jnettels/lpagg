@@ -35,6 +35,7 @@ import matplotlib.pyplot as plt  # Plotting library
 import yaml                      # Read YAML configuration files
 from scipy import optimize
 import logging
+import datetime
 
 # Import local modules from load profile aggregator project
 import lpagg.weather_converter   # Script for interpolation of weather files
@@ -220,10 +221,10 @@ def load_weather_file(cfg):
     weather_file = os.path.abspath(weather_file)
 
     weather_data_type = settings['weather_data_type']
-    datetime_start = pd.datetime(*settings['start'])  # * reads list as args
-    datetime_end = pd.datetime(*settings['end'])
-#    datetime_start = pd.datetime(2017,1,1,00,00,00) # Example
-#    datetime_end = pd.datetime(2018,1,1,00,00,00)
+    datetime_start = datetime.datetime(*settings['start'])  # * read as args
+    datetime_end = datetime.datetime(*settings['end'])
+#    datetime_start = datetime.datetime(2017,1,1,00,00,00) # Example
+#    datetime_end = datetime.datetime(2018,1,1,00,00,00)
     interpolation_freq = pd.Timedelta(settings['intervall'])
 #    interpolation_freq = pd.Timedelta('14 minutes')
 #    interpolation_freq = pd.Timedelta('1 hours')

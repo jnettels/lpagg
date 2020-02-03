@@ -30,6 +30,7 @@ import calendar                   # Calendar
 import re                         # Regular expressions
 import requests
 import logging
+import datetime
 
 # Define the logging function
 logger = logging.getLogger(__name__)
@@ -226,7 +227,7 @@ def interpolate_weather_file(weather_file_path,
 
     # Assumption: The IGS weather files always start at January 01.
     current_year = datetime_start.year
-    newyear = pd.datetime(current_year, 1, 1)
+    newyear = datetime.datetime(current_year, 1, 1)
     # Convert hours of year to DateTime and make that the index of DataFrame
     weather_data.index = pd.to_timedelta(weather_data['HOUR'],
                                          unit='h') + newyear
@@ -559,9 +560,9 @@ if __name__ == "__main__":
 
     ''' Script options
     '''
-    datetime_start = pd.datetime(2017, 1, 1, 00, 00, 00)
-#    datetime_end = pd.datetime(2017, 2, 1, 00, 00, 00)
-    datetime_end = pd.datetime(2018, 1, 1, 00, 00, 00)
+    datetime_start = datetime.datetime(2017, 1, 1, 00, 00, 00)
+#    datetime_end = datetime.datetime(2017, 2, 1, 00, 00, 00)
+    datetime_end = datetime.datetime(2018, 1, 1, 00, 00, 00)
 #    interpolation_freq = pd.Timedelta('15 minutes')
     interpolation_freq = pd.Timedelta('1 hours')
 
