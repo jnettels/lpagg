@@ -33,6 +33,7 @@ An internet connection is required to convert the coordinates.
 import pandas as pd               # Pandas
 import os                         # Operaing System
 import logging
+import datetime
 import lpagg.weather_converter as wc
 
 # Define the logging function
@@ -56,8 +57,8 @@ def main():
 
     ''' Script options
     '''
-    datetime_start = pd.datetime(2017, 1, 1, 00, 00, 00)
-    datetime_end = pd.datetime(2018, 1, 1, 00, 00, 00)
+    datetime_start = datetime.datetime(2017, 1, 1, 00, 00, 00)
+    datetime_end = datetime.datetime(2018, 1, 1, 00, 00, 00)
     interpolation_freq = pd.Timedelta('1 hours')
 
     bool_print_header = False
