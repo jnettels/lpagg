@@ -27,12 +27,13 @@ requirements:
     run:
         - python
         - pandas >=0.24.1
-        - openpyxl >=2.6.1
+        - openpyxl >=3.0.3
         - pyyaml >=5.1
         - matplotlib
         - scipy
         - requests
         - xlrd
+        - geopy
 
 test:
   source_files:

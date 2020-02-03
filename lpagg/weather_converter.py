@@ -164,10 +164,11 @@ def get_TRNSYS_coordinates(weather_file_path):
 def get_type99_header(weather_file_path, interpolation_freq):
     '''Create the header for Type99 weather files.
     '''
+    import geopy
 
     type99_header = '''<userdefined>
 <longitude>   -0.000  ! east of greenwich: negative
-<latitude>     0.000  !
+<latitude>     0.000  ! <location_str>
 <gmt>             1   ! time shift from GMT, east: positive (hours)
 <interval>        1   ! Data file time interval between consecutive lines
 <firsttime>       1   ! Time corresponding to first data line (hours)
@@ -186,6 +187,17 @@ def get_type99_header(weather_file_path, interpolation_freq):
     replace_dict['interval'] = interpolation_freq.seconds / 3600.0  # h
     replace_dict['firsttime'] = interpolation_freq.seconds / 3600.0  # h
     replace_dict['gmt'] = 1  # currently fixed
+
+    try:
+        geolocator = geopy.geocoders.Nominatim(user_agent='weather_converter')
+        location = geolocator.reverse((replace_dict['latitude'],
+                                       replace_dict['longitude']*-1))
+    except ValueError:
+        logger.error('Module GeoPy failed to find location details for '
+                     'given coordinates, most likely due to missing '
+                     'internet connection.')
+    else:
+        type99_header = re.sub('<location_str>', str(location), type99_header)
 
     for key, value in replace_dict.items():
         re_find = r'<'+key+r'>\s*(.*)\s!'
