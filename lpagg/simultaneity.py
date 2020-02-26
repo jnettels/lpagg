@@ -421,8 +421,66 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
     # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
     calc_GLF(load_curve_houses, load_curve_houses_ref, cfg)
 
+    if cfg['settings'].get('show_plot', False) is True:
+        # Plot lineplots of shifted and reference load profiles
+        plot_shifted_lineplots(load_curve_houses, load_curve_houses_ref, cfg)
+
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
     return load_curve_houses
+
+
+def plot_shifted_lineplots(df_shift, df_ref, cfg):
+    """Plot lineplot of sum of shifted and reference load profiles.
+
+    This helps to visualize the quality of the simultaneity shift.
+
+    Args:
+        df_shift (DataFrame): Shifted load profiles.
+
+        df_ref (DataFrame): Reference load profiles.
+
+        cfg (dict): The configuration for the load profile aggregator.
+
+    Returns:
+        None.
+
+    """
+    import matplotlib.dates as mdates
+
+    # Group by energy to sum up all classes and houses
+    # and convert from kWh to kW
+    hours = cfg['settings']['interpolation_freq'].seconds / 3600.0  # h
+    load_shift = df_shift.groupby(level='energy', axis=1).sum() / hours
+    load_ref = df_ref.groupby(level='energy', axis=1).sum() / hours
+
+    # Separate the energies into thermal and electrical
+    load_th_shift = load_shift[['Q_Heiz_TT', 'Q_TWW_TT']].sum(axis=1)
+    load_el_shift = load_shift['W_TT']
+    load_th_ref = load_ref[['Q_Heiz_TT', 'Q_TWW_TT']].sum(axis=1)
+    load_el_ref = load_ref['W_TT']
+
+    # Create two plot figures for thermal and electrical
+    for load_shift, load_ref, ylabel in zip(
+            [load_th_shift, load_el_shift],
+            [load_th_ref, load_el_ref],
+            ['thermische Leistung in [kW]', 'elektrische Leistung in [kW]']
+            ):
+
+        fig = plt.figure()
+        ax = fig.gca()
+        plt.plot(load_shift, label='Shift')
+        plt.plot(load_ref, '--', label='Referenz')
+        plt.axhline(load_shift.max(), linestyle='-.',
+                    label='max(Shift)', color='#e8d654')
+        plt.axhline(load_ref.max(), linestyle='-.',
+                    label='max(Referenz)', color='#5eccf3')
+        plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, 1.0))
+        plt.ylabel(ylabel)
+        ax.yaxis.grid(True)  # Activate grid on horizontal axis
+        ax.xaxis.set_tick_params(rotation=30)  # rotation is useful sometimes
+        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
+        plt.tight_layout()  # Fit plot within figure cleanly
+        plt.show(block=False)  # Show plot without blocking the script
 
 
 def debug_plot_normal_histogram(house_name, randoms_int, cfg):
