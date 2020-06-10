@@ -1,22 +1,19 @@
-# -*- coding: utf-8 -*-
-'''
-**dwd2trnsys: Convert DWD weather data to TRNSYS**
+# Copyright (C) 2019 Joris Nettelstroth
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
-
+"""dwd2trnsys: Convert DWD weather data to TRNSYS.
 
 dwd2trnsys
 ==========
@@ -38,7 +35,15 @@ To create a standalone installer:
 
     python setup_d2t_exe.py bdist_msi
 
-'''
+Known issues
+------------
+
+With cx_Freeze 6.1, an error appeared about not beeing able to find
+the generated exe file at the path ``build/exe.win-amd64-3.7/dwd2trnsys.exe``.
+Following the error trace and replacing ``exe.targetName`` with
+``os.path.abspath(exe.targetName)`` solved the issue.
+
+"""
 
 from setuptools_scm import get_version
 from cx_Freeze import setup, Executable
@@ -156,7 +161,7 @@ setup(
                                         'Cython',
                                         'cytoolz',
                                         'dask',
-                                        'et_xmlfile',
+                                        # 'et_xmlfile',
                                         'h5netcdf',
                                         'h5py',
                                         'html',
@@ -179,7 +184,7 @@ setup(
                                         'nose',
                                         'notebook',
                                         'numexpr',
-                                        'openpyxl',
+                                        # 'openpyxl',
                                         'OpenSSL',
                                         'PIL',
                                         'pkg_resources',
