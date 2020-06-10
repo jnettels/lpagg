@@ -604,8 +604,8 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
     GLF_DIN4708 = lpagg.DIN4708.calc_GLF(homes_count)
     DIN4708_df = pd.Series(data=[buildings_count, homes_count, GLF_DIN4708],
                            index=['Buildings', 'Homes', 'GLF'])
-    logger.info('Reference simultaneity factor from DIN 4708 for {:d} homes '
-                'in {:d} buildings is {:.2f}%.'
+    logger.info('Reference simultaneity factor from DIN 4708 for {:.0f} homes'
+                ' in {:.0f} buildings is {:.2f}%.'
                 .format(homes_count, buildings_count, GLF_DIN4708*100))
 
     if logger.isEnabledFor(logging.INFO):
