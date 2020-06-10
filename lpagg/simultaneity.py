@@ -334,6 +334,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
     # Fix the 'randomness' (every run of the script generates the same results)
     np.random.seed(4)
     randoms_all = []
+    sigma_used = False  # Was a sigma > 0 used for any building?
 
     # Create a temporary dict with all the info needed for randomizer
     randomizer_dict = dict()
@@ -341,6 +342,8 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
         copies = houses_dict[house_name].get('copies', 0)
         # Get standard deviation (spread or “width”) of the distribution:
         sigma = houses_dict[house_name].get('sigma', False)
+        if sigma > 0:
+            sigma_used = True
 
         randomizer_dict[house_name] = dict({'copies': copies,
                                             'sigma': sigma})
@@ -350,6 +353,8 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
         copies = external_profiles[house_name].get('copies', 0)
         # Get standard deviation (spread or “width”) of the distribution:
         sigma = external_profiles[house_name].get('sigma', False)
+        if sigma > 0:
+            sigma_used = True
 
         randomizer_dict[house_name] = dict({'copies': copies,
                                             'sigma': sigma})
@@ -415,7 +420,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
                                                     0, b_print=True)
                 load_curve_houses.loc[:, house_name] = df_new.values
 
-    if sigma and logger.isEnabledFor(logging.DEBUG):
+    if sigma_used and logger.isEnabledFor(logging.DEBUG):
         debug_plot_normal_histogram('Gebäude gesamt', randoms_all, cfg)
 
     # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
@@ -488,7 +493,7 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
     aggregator program.
     '''
     settings = cfg['settings']
-    save_folder = os.path.join(cfg['base_folder'], 'Result')
+    save_folder = cfg['print_folder']
     plot_normal_histogram(house_name, randoms_int, save_folder,
                           set_hist=dict({'PNG': True, 'PDF': True}))
 
@@ -595,6 +600,7 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
         buildings_count += buildings
         homes *= buildings
         homes_count += homes
+
     GLF_DIN4708 = lpagg.DIN4708.calc_GLF(homes_count)
     DIN4708_df = pd.Series(data=[buildings_count, homes_count, GLF_DIN4708],
                            index=['Buildings', 'Homes', 'GLF'])
@@ -606,7 +612,7 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
         logger.info('Simultaneity factors (Gleichzeitigkeitsfaktoren):')
         print(sf_df)
     # Make sure the save path exists and save the DataFrame
-    save_folder = os.path.join(cfg['base_folder'], 'Result')
+    save_folder = cfg['print_folder']
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
     writer = pd.ExcelWriter(os.path.join(save_folder, 'GLF.xlsx'))
