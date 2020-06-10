@@ -97,8 +97,10 @@ def perform_configuration(config_file, ignore_errors=False):
 
     # Derive additional settings from user input
     cfg['base_folder'] = os.path.dirname(config_file)
-    cfg['print_folder'] = os.path.join(cfg['base_folder'],
-                                       cfg.get('result_folder', 'Result'))
+    cfg.setdefault('print_folder',
+                   os.path.join(cfg['base_folder'],
+                                cfg['settings'].get('result_folder',
+                                                    'Result')))
 
     # Certain tasks must be performed, or else the program will not run
     try:
@@ -187,11 +189,22 @@ def aggregator_run(cfg):
 
     if settings.get('print_houses_xlsx', False):
         logger.info('Printing *_houses.xlsx file')
+        df_H = load_curve_houses
+        df_D = df_H.resample('D', label='left', closed='right').sum()
+        df_W = df_D.resample('W', label='right', closed='right').sum()
+        df_M = df_D.resample('M', label='right', closed='right').sum()
+        df_A = df_M.resample('A', label='right', closed='right').sum()
+        print(df_M)
+
         # Be careful, can create huge file sizes
-        load_curve_houses.to_excel(
-                os.path.join(cfg['print_folder'],
-                             os.path.splitext(settings['print_file'])[0]
-                             + '_houses.xlsx'))
+        df_to_excel(df=[df_H, df_D, df_W, df_M, df_A],
+                    sheet_names=['Hour', 'Day', 'Week', 'Month', 'Year'],
+                    path=os.path.join(
+                        cfg['print_folder'],
+                        os.path.splitext(settings['print_file'])[0]
+                        + '_houses.xlsx'),
+                    merge_cells=True,
+                    )
 
     # Sum up the energy demands of all houses, store result in weather_data
     logger.info('Sum up the energy demands of all houses')
@@ -325,13 +338,14 @@ def add_external_profiles(load_curve_houses, cfg):
         filepath = building_dict[building]['file']
         class_ = building_dict[building]['class']
         rename_dict = building_dict[building]['rename_dict']
-        read_excel_kwargs = building_dict[building]['read_excel_kwargs']
-#        logger.debug(filepath)
+        read_excel_kwargs = building_dict[building].get('read_excel_kwargs',
+                                                        dict())
+        # logger.debug(filepath)
 
         if (filepath == path_last) and (read_excel_kwargs == kwargs_last):
             # We have read this file before with the same settings
             df = df_last.copy()
-#            print('skipping', i)
+            # print('skipping', i)
             pass
         else:
             path_last = filepath
@@ -340,8 +354,13 @@ def add_external_profiles(load_curve_houses, cfg):
             df = load_excel_or_csv(filepath, **read_excel_kwargs)
 
             # Slice with time selection
-            df = df.loc[pd.datetime(*settings['start']):
-                        pd.datetime(*settings['end'])]
+            try:
+                df = df.loc[datetime.datetime(*settings['start']):
+                            datetime.datetime(*settings['end'])]
+            except Exception:
+                logger.error('Error while slicing the external profile: {}\n{}'
+                             .format(filepath, df.to_string(max_rows=10)))
+                raise
 
             # Resample to the desired frequency (time intervall)
             df = lpagg.misc.resample_energy(df, settings['interpolation_freq'])
@@ -701,3 +720,99 @@ def plot_and_print(weather_data, cfg):
             settings['print_file'],
             settings.get('print_index', True),
             settings.get('print_header', True))
+
+
+def df_to_excel(df, path, sheet_names=[], merge_cells=False,
+                check_permission=True, **kwargs):
+    """Save one or multiple DataFrames to an Excel file.
+
+    Wrapper around pandas' function ``DataFrame.to_excel()``, which creates
+    the required directory.
+    In case of a ``PermissionError`` (happens when the Excel file is currently
+    opended), the file is instead saved with a time stamp.
+
+    Additional keyword arguments are passed down to ``to_excel()``.
+    Can save a single DataFrame to a single Excel file or multiple DataFrames
+    to a combined Excel file.
+
+    The function calls itself recursively to achieve those features.
+
+    Args:
+        df (DataFrame or list): Pandas DataFrame object(s) to save
+
+        path (str): The full file path to save the DataFrame to
+
+        sheet_names (list): List of sheet names to use when saving multiple
+        DataFrames to the same Excel file
+
+        merge_cells (boolean, optional): Write MultiIndex and Hierarchical
+        Rows as merged cells. Default False.
+
+        check_permission (boolean): If the file already exists, instead try
+        to save with an appended time stamp.
+
+        freeze_panes (tuple or boolean, optional): Per default, the sheet
+        cells are frozen to always keep the index visible (by determining the
+        correct coordinate ``tuple``). Use ``False`` to disable this.
+
+    Returns:
+        None
+    """
+    from collections.abc import Sequence
+    import time
+    import xlsxwriter
+
+    if check_permission:
+        try:
+            # Try to complete the function without this permission check
+            df_to_excel(df, path, sheet_names=sheet_names,
+                        merge_cells=merge_cells, check_permission=False,
+                        **kwargs)
+            return  # Do not run the rest of the function
+        except xlsxwriter.exceptions.FileCreateError as e:
+            # If a PermissionError occurs, run the whole function again, but
+            # with another file path (with appended time stamp)
+            logger.critical(e)
+            ts = time.localtime()
+            ts = time.strftime('%Y-%m-%d_%H-%M-%S', ts)
+            path_time = (os.path.splitext(path)[0] + '_' +
+                         ts + os.path.splitext(path)[1])
+            logger.critical('Writing instead to:  '+path_time)
+            df_to_excel(df, path_time, sheet_names=sheet_names,
+                        merge_cells=merge_cells, **kwargs)
+            return  # Do not run the rest of the function
+
+    # Here the 'actual' function content starts:
+    if not os.path.exists(os.path.dirname(path)):
+        logging.debug('Create directory ' + os.path.dirname(path))
+        os.makedirs(os.path.dirname(path))
+
+    if isinstance(df, Sequence) and not isinstance(df, str):
+        # Save a list of DataFrame objects into a single Excel file
+        writer = pd.ExcelWriter(path)
+        for i, df_ in enumerate(df):
+            try:  # Use given sheet name, or just an enumeration
+                sheet = sheet_names[i]
+            except IndexError:
+                sheet = str(i)
+            # Add current sheet to the ExcelWriter by calling this
+            # function recursively
+            df_to_excel(df=df_, path=writer, sheet_name=sheet,
+                        merge_cells=merge_cells, **kwargs)
+        writer.save()  # Save the actual Excel file
+
+    else:
+        # Per default, the sheet cells are frozen to keep the index visible
+        if 'freeze_panes' not in kwargs or kwargs['freeze_panes'] is True:
+            # Find the right cell to freeze in the Excel sheet
+            if merge_cells:
+                freeze_rows = len(df.columns.names) + 1
+            else:
+                freeze_rows = 1
+
+            kwargs['freeze_panes'] = (freeze_rows, len(df.index.names))
+        elif kwargs['freeze_panes'] is False:
+            del(kwargs['freeze_panes'])
+
+        # Save one DataFrame to one Excel file
+        df.to_excel(path, merge_cells=merge_cells, **kwargs)
