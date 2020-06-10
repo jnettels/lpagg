@@ -66,7 +66,10 @@ def calc_GLF(N):
     Returns:
         GLF (float): simultaneity factor
     '''
-    GLF = W_z() / W_z(N)
+    try:
+        GLF = W_z() / W_z(N)
+    except ZeroDivisionError:
+        GLF = 0
     return GLF
 
 
