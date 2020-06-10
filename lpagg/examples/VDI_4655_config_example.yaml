@@ -5,14 +5,15 @@
 
 settings:
     ### Input weather data, must be of the type 'IGS' or 'DWD'.
-    ### TRY weather data downloaded from Deutscher Wetterdienst (DWD)
+    ### 'IGS': Weather data in TRNSYS Type99 format.
+    ### 'DWD': TRY weather data downloaded from Deutscher Wetterdienst
     ### (https://kunden.dwd.de/obt/) should work right away as type 'DWD'.
     weather_file:       ../resources_weather/TRY2010_04_Jahr.dat
     weather_data_type:  DWD
 
     ### Output file name, is saved to a 'Result' subfolder
     print_file:     Example_load.dat
-    
+
     ### Overwrite the default folder where print_file is saved
     # result_folder: Result
 
@@ -70,6 +71,10 @@ settings:
 
     ### Activate the debugging flag to display more info in the terminal
     log_level: debug
+
+    ### Print *_houses.xlsx file (in addition to .dat, which is always saved).
+    ### Be careful, can create large file sizes that take long to save!
+    # print_houses_xlsx: True
 
 ### This section is not part of VDI 4655:
 ### In this section you can define the relevant input for the 'Heizkurve'.
@@ -150,6 +155,8 @@ houses:
         Q_TWW_a:        1500    # kWh, Jährliche Energiemenge Trinkwarmwasser
         W_a:            60000   # kWh, Jährlicher Strombedarf
         house_type:     G1G
+        N_Pers:         0      # Anzahl Personen
+        N_WE:           0      # Anzahl Wohneinheiten
         copies:         4
         sigma:          1
     Handel:
@@ -158,6 +165,18 @@ houses:
         Q_TWW_a:        4500    # kWh, Jährliche Energiemenge Trinkwarmwasser
         W_a:            110000  # kWh, Jährlicher Strombedarf
         house_type:     G4G
+        N_Pers:         0      # Anzahl Personen
+        N_WE:           0      # Anzahl Wohneinheiten
         copies:         9
         sigma:          1
 
+
+### In addition to defining a list of all houses in this config file,
+### you can load the list of houses from an Excel file. The houses from the
+### Excel file are added to the 'houses' list and overwrite houses with
+### the same name! Leave cells with Q_TWW_a and W_a empty to let them
+### be calculated according to VDI4655 automatically.
+# houses_table_file:
+#     file: ./VDI_4655_houses_example.xlsx  # path relative to this config
+#     kwargs:  # optional keyword arguments for pandas read_excel()
+#         sheet_name: Example  # If no name is given, the first one is used
