@@ -2,7 +2,7 @@ name: Python Jobs
 
 on: [push, pull_request]
 
-jobs:        
+jobs:
   job_1:
     runs-on: ${{ matrix.os }}
     name: Build
@@ -10,24 +10,24 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest]
         python-version: [3.7]
-    
+
     steps:
     - name: Checkout
       uses: actions/checkout@v1  # use the latest code commit
-      
+
     - name: Setup conda with python ${{ matrix.python-version }}
       uses: s-weigand/setup-conda@v1.0.1
-         
+
     - name: Install dependencies with conda
       run: |
         conda install conda-build setuptools setuptools_scm pandas pyqt
         conda install -c conda-forge cx_freeze -y
-         
+
     - name: Build & install lpagg with conda
       run: |
-        conda build conda.recipe
-        conda install lpagg --use-local      
-               
+        conda build conda.recipe -c conda-forge
+        conda install lpagg --use-local -c conda-forge
+
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
       if: runner.os == 'Windows'  # Only applies to windows
       run: |
