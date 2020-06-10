@@ -12,6 +12,9 @@ settings:
 
     ### Output file name, is saved to a 'Result' subfolder
     print_file:     Example_load.dat
+    
+    ### Overwrite the default folder where print_file is saved
+    # result_folder: Result
 
     rename_columns:
         Q_Heiz_TT: E_th_RH
