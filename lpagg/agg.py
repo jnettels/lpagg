@@ -29,6 +29,7 @@ Module agg
 The aggregator module is the core of the load profile aggregator project.
 
 '''
+import numpy as np
 import pandas as pd              # Pandas
 import os                        # Operaing System
 import matplotlib.pyplot as plt  # Plotting library
@@ -104,12 +105,53 @@ def perform_configuration(config_file, ignore_errors=False):
 
     # Certain tasks must be performed, or else the program will not run
     try:
+        cfg = get_houses_from_table_file(cfg)
         cfg = houses_sort(cfg)
     except Exception:
         if ignore_errors:
             pass
         else:
             raise
+
+    return cfg
+
+
+def get_houses_from_table_file(cfg):
+    """Get building information from a table file.
+
+    In addition to defining a dictionary with all houses in the yaml config,
+    load the list of houses from an Excel table (if given).
+    """
+    if cfg.get('houses_table_file'):
+        # File path is interpreted relative to yaml config file
+        file = os.path.join(cfg['base_folder'],
+                            cfg['houses_table_file'].get('file', ''))
+
+        # Optional keyword arguments can be used to customize read_excel()
+        kwargs = cfg['houses_table_file'].get('kwargs', dict())
+        kwargs.setdefault('index_col', 0)
+        df = pd.read_excel(file, **kwargs)
+        df_dict = df.to_dict()  # Convert DataFrame to dictionary
+
+        cfg.setdefault('houses', dict())  # define, if it does not exist
+        # Add each house to the existing 'houses' dict
+        for house in df_dict.keys():
+            # There is one special case to catch:
+            # If Q_TWW_a or W_a are left empty in Excel, they are supposed
+            # to be calculated according to VDI4655.
+            # For this to work, we need to delete them from the dict.
+            for energy in ['Q_TWW_a', 'W_a']:
+                if df_dict[house][energy] is np.nan:
+                    del df_dict[house][energy]
+
+            # Issue a warning, if necessary:
+            if cfg['houses'].get(house) is not None:
+                logger.warning('You are overwriting the data of house {} '
+                               'defined in the YAML file with the data '
+                               'defined in the Excel file.'.format(house))
+
+            # Now we can add the house to the dict
+            cfg['houses'][house] = df_dict[house]
 
     return cfg
 
