@@ -69,6 +69,7 @@ import functools
 import logging
 import pickle
 import datetime as dt
+import holidays
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
@@ -257,10 +258,12 @@ def get_typical_days(weather_data, cfg):
     logger.debug('Number of days in transition: ' +
                  str(season_list.count('U')/steps_per_day))
 
-    # --- Workdays, Sundays and public holidays -------------------------------
-    holidays = pd.read_excel(cfg['data']['holiday'],
-                             sheet_name='Feiertage',
-                             index_col=[0])
+    # Use https://pypi.org/project/holidays/ for holiday-detection
+    available_holidays = []
+    if settings.get('holidays'):
+        country = settings['holidays'].get('country', 'DE')
+        province = settings['holidays'].get('province', None)
+        available_holidays = holidays.CountryHoliday(country, prov=province)
 
     # Read through list of days line by line and see what kind of day they are.
     # Problem: In the weather data, the bins are labeled on the 'right'
@@ -275,7 +278,7 @@ def get_typical_days(weather_data, cfg):
         if date_obj.dayofweek == 6:  # 6 equals Sunday
             weekdays_list.append('S')
             weekdays_list_BDEW.append('Sonntag')
-        elif str(date_obj.date()) in holidays.index:
+        elif date_obj in available_holidays:
             weekdays_list.append('S')
             weekdays_list_BDEW.append('Sonntag')
             flag_holidays_found = True
