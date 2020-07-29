@@ -692,16 +692,21 @@ def plot_and_print(weather_data, cfg):
     settings = cfg['settings']
     # Print a table of the energy sums to the console (monthly and annual)
     filter_sum = ['E_th_', 'E_el']
-    filter_sum_heat = ['E_th_']
+    filter_sum_th = ['E_th_']
+    filter_sum_el = ['E_el_']
     sum_list = []
-    sum_list_heat = []
+    sum_list_th = []
+    sum_list_el = []
     for column in weather_data.columns:
         for filter_ in filter_sum:
             if filter_ in column:
                 sum_list.append(column)
-        for filter_ in filter_sum_heat:
+        for filter_ in filter_sum_th:
             if filter_ in column:
-                sum_list_heat.append(column)
+                sum_list_th.append(column)
+        for filter_ in filter_sum_el:
+            if filter_ in column:
+                sum_list_el.append(column)
 
     # Set the number of decimal points for the following terminal output
     pd.set_option('precision', 2)
@@ -721,7 +726,11 @@ def plot_and_print(weather_data, cfg):
     if logger.isEnabledFor(logging.INFO):
         print(weather_annual_sum)
         print('Total heat energy demand is {:.2f} kWh.'.format(
-            weather_annual_sum[sum_list_heat].sum(axis=1).sum()))
+            weather_annual_sum[sum_list_th].sum(axis=1).sum()))
+        print('Total electricity demand is {:.2f} kWh.'.format(
+            weather_annual_sum[sum_list_el].sum(axis=1).sum()))
+        print('     Total energy demand is {:.2f} kWh.'.format(
+            weather_annual_sum.sum(axis=1).sum()))
         print()
 
     pd.reset_option('precision')  # ...and reset the setting from above
