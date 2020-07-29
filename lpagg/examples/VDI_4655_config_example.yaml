@@ -75,6 +75,12 @@ settings:
     # set heat demand on all summer days to zero:
     zero_summer_heat_demand: True
 
+    # Holidays are treated as sundays. You can select a country and
+    # (optionally) a province: https://pypi.org/project/holidays/
+    holidays:
+        country: DE
+        # province: NI  # BW,BY,BYP,BE,BB,HB,HH,HE,MV,NI,NW,RP,SL,SN,ST,SH,TH
+
     ### Use daily mean as constant value for domestic hot water
     # flatten_daily_TWE: True
 
