@@ -1,22 +1,19 @@
-# -*- coding: utf-8 -*-
-'''
-**LPagg: Load profile aggregator for building simulations**
+# Copyright (C) 2020 Joris Zimmermann
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
-
+"""LPagg: Load profile aggregator for building simulations.
 
 LPagg
 =====
@@ -49,7 +46,6 @@ for non-commercial use only.
 
 Notes
 -----
-
 This script creates full year energy demand time series of domestic buildings
 for use in simulations. This is achieved by an implementation of the VDI 4655,
 which gives sample energy demands for a number of typical days ('Typtage').
@@ -67,7 +63,7 @@ from weather data (e.g. DWD TRY).
 Most of the settings for this script are controlled with a configuration file
 called 'config_file', the location of which is defined down below.
 
-'''
+"""
 import pandas as pd
 import functools
 import logging
@@ -83,8 +79,7 @@ logger = logging.getLogger(__name__)
 
 
 def run(weather_data, cfg):
-    '''VDI 4655 Implementation
-    '''
+    """Run the VDI 4655 Implementation."""
     # -------------------------------------------------------------------------
     # VDI 4655 - Step 1: Determine the "typtag" key for each timestep
     # -------------------------------------------------------------------------
@@ -191,7 +186,9 @@ def get_season_list_BDEW(weather_data):
 
 
 def get_typical_days(weather_data, cfg):
-    '''VDI 4655 - Step 1: Determine the "typtag" key for each timestep
+    """Run VDI 4655 - Step 1.
+
+    Determine the "typtag" key for each timestep ().
 
     For the full "typtag", we need to identify:
 
@@ -199,8 +196,7 @@ def get_typical_days(weather_data, cfg):
         - Workdays, Sundays and public holidays
         - Cloud cover amount
 
-    '''
-
+    """
     settings = cfg['settings']
     # Flag to determine if any holidays have been found:
     interpolation_freq = pd.Timedelta(settings['intervall'])
@@ -333,10 +329,11 @@ def get_typical_days(weather_data, cfg):
 
 
 def load_profile_factors(weather_data, cfg):
-    '''VDI 4655 - Step 2:
+    """Run VDI 4655 - Step 2.
+
     Match 'typtag' keys and reference load profile factors for each timestep
     (for each 'typtag' key, one load profile is defined by VDI 4655)
-    '''
+    """
     settings = cfg['settings']
     interpolation_freq = settings['interpolation_freq']
     # Define all 'typtag' combinations and house types:
@@ -471,14 +468,14 @@ def load_profile_factors(weather_data, cfg):
 
 
 def get_annual_energy_demand(cfg):
-    '''Read in houses and calculate their annual energy demand.
+    """Read in houses and calculate their annual energy demand.
 
     VDI 4655 provides estimates for annual electrical and DHW energy demand
     (``W_a`` and ``Q_TWW_a``). ``Q_Heiz_TT`` cannot be estimated, but must
     be defined in the config file.
     If ``W_a`` or ``Q_TWW_a` are defined in the config file, their estimation
     is not used.
-    '''
+    """
     houses_dict = cfg['houses']
     houses_list = sorted(houses_dict.keys())
 
@@ -566,8 +563,7 @@ def get_annual_energy_demand(cfg):
 
 
 def get_daily_energy_demand_houses(houses_dict, cfg):
-    '''Determine the houses' energy demand values for each 'typtag'
-
+    """Determine the houses' energy demand values for each 'typtag'.
 
     .. note::
         "The factors ``F_el_TT`` and ``F_TWW_TT`` are negative in some cases as
@@ -580,7 +576,7 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
 
         This occurs when ``N_Pers`` or ``N_WE`` are too large.
 
-    '''
+    """
     settings = cfg['settings']
     typtage_combinations = settings['typtage_combinations']
     houses_list = settings['houses_list_VDI']
@@ -674,8 +670,7 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
 
 def get_load_curve_houses(load_profile_df, houses_dict, weather_data, cfg,
                           daily_energy_demand_houses):
-    '''Generate the houses' energy demand values for each timestep
-    '''
+    """Generate the houses' energy demand values for each timestep."""
     settings = cfg['settings']
     energy_demands_types = settings['energy_demands_types']
     houses_list = settings['houses_list_VDI']
@@ -746,13 +741,13 @@ def get_energy_demand_values(weather_data, houses_list, houses_dict,
                              energy_factor_types, energy_demands_types,
                              load_curve_houses, load_profile_df,
                              daily_energy_demand_houses, date_obj):
-    '''
+    """Get the energy demand values for all time steps.
+
     This functions works through the lists houses_list and energy_factor_types
     for a given time step (=date_obj) and multiplies the current load profile
     value with the daily energy demand. It returns the result: the energy
     demand values for all houses and energy types (in kWh)
-    '''
-
+    """
     typtag = weather_data.loc[date_obj]['typtag']
     for house_name in houses_list:
         house_type = houses_dict[house_name]['house_type']
@@ -772,12 +767,13 @@ def get_energy_demand_values_day(weather_data, houses_list, houses_dict,
                                  energy_factor_types, energy_demands_types,
                                  load_curve_houses, load_profile_df,
                                  daily_energy_demand_houses):
-    '''
+    """Get the energy demand values for all days.
+
     This functions works through the lists houses_list and energy_factor_types
     day by day and multiplies the current load profile
     value with the daily energy demand. It returns the result: the energy
     demand values for all houses and energy types (in kWh)
-    '''
+    """
     start = weather_data.index[0]
     while start < weather_data.index[-1]:
         end = start + pd.Timedelta('1 days')
@@ -802,6 +798,7 @@ def get_energy_demand_values_day(weather_data, houses_list, houses_dict,
 
 
 def main():
+    """Run the main method (unused and redundant)."""
     pass
 
 

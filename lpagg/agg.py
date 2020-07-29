@@ -1,22 +1,19 @@
-# -*- coding: utf-8 -*-
-'''
-**LPagg: Load profile aggregator for building simulations**
+# Copyright (C) 2020 Joris Zimmermann
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
-
+"""LPagg: Load profile aggregator for building simulations.
 
 LPagg
 =====
@@ -28,7 +25,7 @@ Module agg
 ----------
 The aggregator module is the core of the load profile aggregator project.
 
-'''
+"""
 import numpy as np
 import pandas as pd              # Pandas
 import os                        # Operaing System
@@ -49,14 +46,14 @@ logger = logging.getLogger(__name__)
 
 
 def perform_configuration(config_file, ignore_errors=False):
-    '''Import the cfg dictionary from the YAML config_file and set defaults.
+    """Import the cfg dictionary from the YAML config_file and set defaults.
 
     Certain tasks must be performed, or else the program will not run
     correctly. However, the user may choose to interfer and perform these
     tasks manually. If 'ignore_errors' is true, this is possible.
     Example: The dict 'houses' is not defined in the cfg and is constructed
     from a different source instead.
-    '''
+    """
     logger.info('Using configuration file ' + config_file)
 
     with open(config_file, 'r') as file:
@@ -157,10 +154,11 @@ def get_houses_from_table_file(cfg):
 
 
 def houses_sort(cfg):
-    '''Get the dictionary of houses from the cfg.
+    """Get the dictionary of houses from the cfg.
+
     Buildings are separated into VDI4655 for households and BDEW for
     commercial types.
-    '''
+    """
     houses_dict = cfg['houses']
     houses_list = sorted(houses_dict.keys())
     settings = cfg['settings']
@@ -180,9 +178,7 @@ def houses_sort(cfg):
 
 
 def aggregator_run(cfg):
-    '''
-    Aggregate load profiles
-    '''
+    """Run the aggregator to create the load profiles."""
     settings = cfg['settings']
     weather_data = load_weather_file(cfg)
 
@@ -272,8 +268,7 @@ def aggregator_run(cfg):
 
 
 def load_weather_file(cfg):
-    """Read and interpolate weather data files.
-    """
+    """Read and interpolate weather data files."""
     settings = cfg['settings']
     weather_file = os.path.join(cfg['base_folder'], settings['weather_file'])
     weather_file = os.path.abspath(weather_file)
@@ -310,14 +305,13 @@ def load_weather_file(cfg):
 
 
 def flatten_daily_TWE(load_curve_houses, settings):
-    '''Flatten domestic hot water profile to a daily mean value.
+    """Flatten domestic hot water profile to a daily mean value.
 
     The domestic hot water demand profile represents what is actually
     used within the house. But the total demand of a house with hot
     water circulation is nearly constant for each day (from the
     perspective of a district heating system).
-    '''
-
+    """
     if settings.get('flatten_daily_TWE', False):
 
         logger.info('Flatten daily domestic hot water profile')
@@ -339,8 +333,7 @@ def flatten_daily_TWE(load_curve_houses, settings):
 
 
 def load_excel_or_csv(filepath, **read_excel_kwargs):
-    '''Read data from file
-    '''
+    """Read data from file."""
     filetype = os.path.splitext(os.path.basename(filepath))[1]
     if filetype in ['.xlsx', '.xls']:
         # Excel can be read automatically with Pandas
@@ -355,13 +348,11 @@ def load_excel_or_csv(filepath, **read_excel_kwargs):
 
 
 def add_external_profiles(load_curve_houses, cfg):
-    '''This allows to add additional external profiles to the calculated
-    load curves.
-    Interpolation to the set frequency is performed.
+    """Add additional external profiles to the calculated load curves.
 
-    If house names in existing and external profiles are identical, their
-    energies are summed up.
-    '''
+    Interpolation to the set frequency is performed. If house names in existing
+    and external profiles are identical, their energies are summed up.
+    """
     settings = cfg['settings']
     if cfg.get('external_profiles', False):
         logger.info('Add external profiles: Loading...')
@@ -463,14 +454,16 @@ def add_external_profiles(load_curve_houses, cfg):
 
 
 def sum_up_all_houses(load_curve_houses, weather_data, cfg):
-    '''By grouping with the levels ``energy`` and ``class``, we can take
+    """Sum up the energies of all houses.
+
+    By grouping with the levels ``energy`` and ``class``, we can take
     the sum of all houses. These level names are joined into a flat index.
     Finally, the DataFrames ``load_curve_houses`` and ``weather_data`` are
     joined and ``weather_data`` is returned.
 
     Optionally rename the columns from VDI 4655 standard to a user definition
     (if a dict ``rename_columns`` is defined in ``settings``).
-    '''
+    """
     settings = cfg['settings']
     # TODO: The following line should be removed someday. See Pandas issue:
     # https://github.com/pandas-dev/pandas/issues/24671
@@ -494,14 +487,15 @@ def sum_up_all_houses(load_curve_houses, weather_data, cfg):
 
 
 def calc_heizkurve(weather_data, cfg):
-    '''Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
+    """Calculate a 'Heizkurve (Vorlauf- und Rücklauftemperatur)'.
+
     (Not part of the VDI 4655)
 
     Calculation according to:
     Knabe, Gottfried (1992): Gebäudeautomation. 1. Aufl.
     Berlin: Verl. für Bauwesen.
     Section 6.2.1., pages 267-268
-    '''
+    """
     settings = cfg['settings']
     interpolation_freq = settings['interpolation_freq']
 
@@ -628,7 +622,9 @@ def calc_heizkurve(weather_data, cfg):
 
 
 def fit_heizkurve(weather_data, cfg):
-    '''In some cases a certain total heat loss of the district heating pipes
+    """Fit heat loss coefficient of heatcurve to a given total heat loss.
+
+    In some cases a certain total heat loss of the district heating pipes
     is desired, and the correct heat loss coefficient has to be determined.
     In this case (an optimization problem), we need to find the root of
     the function fit_pipe_heat_loss().
@@ -643,11 +639,13 @@ def fit_heizkurve(weather_data, cfg):
 
     Returns:
         cfg (Dict):  Configuration dict with updated loss_coefficient
-    '''
+    """
     settings = cfg['settings']
 
     def fit_pipe_heat_loss(loss_coefficient):
-        '''Helper function that is created as an input for SciPy's optimize
+        """Help with fitting the heat loss.
+
+        Helper function that is created as an input for SciPy's optimize
         function. Returns the difference between target and current heat loss.
 
         Args:
@@ -655,7 +653,7 @@ def fit_heizkurve(weather_data, cfg):
 
         Returns:
             error (float): Deviation between set and current heat loss
-        '''
+        """
         E_th_loss_set = cfg['Verteilnetz']['loss_total_kWh']
         cfg['Verteilnetz']['loss_coefficient'] = loss_coefficient[0]
 
@@ -680,8 +678,7 @@ def fit_heizkurve(weather_data, cfg):
 
 
 def normalize_energy(weather_data, cfg):
-    '''Normalize results to a total of 1 kWh per year
-    '''
+    """Normalize results to a total of 1 kWh per year."""
     settings = cfg['settings']
     if cfg.get('normalize', False) is True:
         logger.info('Normalize load profile')
@@ -691,8 +688,7 @@ def normalize_energy(weather_data, cfg):
 
 
 def plot_and_print(weather_data, cfg):
-    '''Plot & Print
-    '''
+    """Plot & print the results."""
     settings = cfg['settings']
     # Print a table of the energy sums to the console (monthly and annual)
     filter_sum = ['E_th_', 'E_el']

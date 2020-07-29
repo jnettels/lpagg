@@ -1,22 +1,18 @@
-# -*- coding: utf-8 -*-
-'''
-**LPagg: Load profile aggregator for building simulations**
+# Copyright (C) 2020 Joris Zimmermann
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
-
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
+"""LPagg: Load profile aggregator for building simulations.
 
 LPagg
 =====
@@ -29,7 +25,7 @@ Module misc
 This is a collection of miscellaneous functions that are shared by the other
 modules in the project.
 
-'''
+"""
 import time                      # Measure time
 import multiprocessing           # Parallel (Multi-) Processing
 import os                        # Operaing System
@@ -43,8 +39,7 @@ logger = logging.getLogger(__name__)
 
 
 def setup():
-    '''Perform some basic setup.
-    '''
+    """Perform some basic setup."""
     multiprocessing.freeze_support()  # Needed for parallel processing
 
     # Global Pandas option for displaying terminal output
@@ -65,14 +60,14 @@ def file_dialog(initialdir=os.getcwd(),
                 title='Choose a file',
                 filetypes=(('YAML File', '*.yaml'),)
                 ):
-    '''This function presents a file dialog.
+    """Present a file dialog.
 
     Args:
         None
 
     Return:
         path (str): File path
-    '''
+    """
     root = Tk()
     root.withdraw()
     file = filedialog.askopenfilename(initialdir=initialdir, title=title,
@@ -85,8 +80,7 @@ def file_dialog(initialdir=os.getcwd(),
 
 
 def multiprocessing_job(helper_function, work_list):
-    '''Generalization of multiprocessing with integrated progress printing.
-    '''
+    """Generalize multiprocessing with integrated progress printing."""
     number_of_cores = min(multiprocessing.cpu_count()-1, len(work_list))
     logger.info('Parallel processing on '+str(number_of_cores)+' cores')
     pool = multiprocessing.Pool(number_of_cores)
@@ -107,8 +101,9 @@ def multiprocessing_job(helper_function, work_list):
 
 
 def resample_energy(df, freq):
-    '''Resample energy time series data to a new frequency, while keeping
-    the total energy sum constant.
+    """Resample energy time series data to a new frequency.
+
+    This keeps the total energy sum constant.
 
     - In case of downsampling (to longer time intervalls)
 
@@ -130,7 +125,7 @@ def resample_energy(df, freq):
     Returns:
         df (DataFrame): Resampled DataFrame.
 
-    '''
+    """
     from pandas.tseries.frequencies import to_offset
 
     freq_orig = pd.infer_freq(df.index, warn=True)
@@ -156,7 +151,9 @@ def resample_energy(df, freq):
 
 def df_to_excel(df, path, sheet_names=[], merge_cells=False,
                 check_permission=True, **kwargs):
-    '''Wrapper around pandas' function ``DataFrame.to_excel()``, which creates
+    """Save a DataFrame to an Excel file.
+
+    Wrapper around pandas' function ``DataFrame.to_excel()``, which creates
     the required directory.
     In case of a ``PermissionError`` (happens when the Excel file is currently
     opended), the file is instead saved with a time stamp.
@@ -187,7 +184,7 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
 
     Returns:
         None
-    '''
+    """
     from collections.abc import Sequence
     import time
 

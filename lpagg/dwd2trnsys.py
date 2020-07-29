@@ -1,24 +1,19 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# Copyright (C) 2020 Joris Zimmermann
 
-'''
-**dwd2trnsys: Convert DWD weather data to TRNSYS**
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
-
+"""dwd2trnsys: Convert DWD weather data to TRNSYS.
 
 dwd2trnsys
 ==========
@@ -28,7 +23,7 @@ Script for converting weather data downloaded from Deutscher Wetterdienst
 https://kunden.dwd.de/obt/
 
 An internet connection is required to convert the coordinates.
-'''
+"""
 
 import pandas as pd               # Pandas
 import os                         # Operaing System
@@ -41,10 +36,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    '''Read weather file downloaded from DWD and convert it to a TRNSYS
-    weather file for Type 99.
-    '''
-
+    """Read weather file by DWD and convert it to TRNSYS file for Type 99."""
     # Global Pandas option for displaying terminal output
     pd.set_option('display.max_columns', 0)
 
@@ -55,8 +47,7 @@ def main():
     logger.setLevel(level=log_level)
     logging.getLogger('lpagg.weather_converter').setLevel(level=log_level)
 
-    ''' Script options
-    '''
+    # Set script options
     datetime_start = datetime.datetime(2017, 1, 1, 00, 00, 00)
     datetime_end = datetime.datetime(2018, 1, 1, 00, 00, 00)
     interpolation_freq = pd.Timedelta('1 hours')
@@ -66,6 +57,7 @@ def main():
     remove_leapyear = False
     weather_data_type = 'DWD'
 
+    # Run script
     weather_file_list = wc.run_OptionParser()
     base_folder = os.path.dirname(weather_file_list[0])
 

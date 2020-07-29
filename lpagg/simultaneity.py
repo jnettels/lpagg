@@ -1,22 +1,19 @@
-# -*- coding: utf-8 -*-
-'''
-**LPagg: Load profile aggregator for building simulations**
+# Copyright (C) 2020 Joris Zimmermann
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
-
+"""LPagg: Load profile aggregator for building simulations.
 
 LPagg
 =====
@@ -52,7 +49,7 @@ dividing the maximum loads with and without the normal distribution.
     27% of profiles are shifted ±30 to 60 min (±2σ) and another
     4% are shifted ±60 to 90 min (±3σ).
 
-'''
+"""
 
 import os
 import logging
@@ -71,8 +68,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    '''Read user input and run the script.
-    '''
+    """Read user input and run the script."""
     setup()  # Set some basic settings
 
     args = run_OptionParser()  # Read user options
@@ -82,8 +78,7 @@ def main():
 
 
 def run(sigma, copies, seed, file, set_hist=dict(), show_plot=False):
-    '''Perform task and produce the output.
-    '''
+    """Perform task and produce the output."""
     # 1) Read in data as Pandas DataFrame from the given file
     df = pd.read_excel(file, header=0, index_col=0)
 #    print(df)  # Show imported DataFrame on screen
@@ -121,8 +116,7 @@ def run(sigma, copies, seed, file, set_hist=dict(), show_plot=False):
 
 
 def setup():
-    '''Basic setup of logger.
-    '''
+    """Set up the logger."""
     # Define the logging function
     log_level = 'DEBUG'
 #    log_level = 'INFO'
@@ -138,8 +132,7 @@ def setup():
 
 
 def run_OptionParser():
-    '''Define and run the argument parser. Return the collected arguments.
-    '''
+    """Define and run the argument parser. Return the collected arguments."""
     import argparse
     description = 'simultaneity.py: Create simultaneity effects in time series'
     parser = argparse.ArgumentParser(description=description,
@@ -172,7 +165,8 @@ def run_OptionParser():
 
 
 def create_simultaneity(df, sigma, copies, seed, save_folder, set_hist):
-    '''Apply the simultaneity effect to the columns in a given DataFrame.
+    """Apply the simultaneity effect to the columns in a given DataFrame.
+
     This function is called by ``main()`` in the standalone script mode.
     It is the minimalist equivalent to ``copy_and_randomize_houses()``, which
     is used in the load profile aggregator program. Both call
@@ -192,7 +186,7 @@ def create_simultaneity(df, sigma, copies, seed, save_folder, set_hist):
 
     Returns:
         df (Pandas DataFrame): The input data, combined with the new data
-    '''
+    """
     np.random.seed(seed)  # Fixing the seed makes the results persistent
     df_refs = df.copy()
 
@@ -231,7 +225,7 @@ def create_simultaneity(df, sigma, copies, seed, save_folder, set_hist):
 
 def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
                        copy, b_print=False):
-    '''Apply the simultaneity effect to a column in a given DataFrame.
+    """Apply the simultaneity effect to a column in a given DataFrame.
 
     Args:
         load_curve_houses (DataFrame): Time series data to use.
@@ -252,7 +246,7 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
         df_new (DataFrame): The new data
 
         df_ref (DataFrame): Reference data (copies without time shift)
-    '''
+    """
     copy_name = str(house_name) + '_c' + str(copy)
     if b_print and logger.isEnabledFor(logging.DEBUG):
         print('\rCopy (and randomize) house', copy_name, end='\r')  # status
@@ -292,9 +286,11 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
 
 
 def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
-    '''Create copies of houses where needed. Apply a normal distribution to
-    the copies, if a standard deviation ``sigma`` is given in the config.
-    This function is an internal part of the load profile aggregator program.
+    """Create copies of houses where needed.
+
+    Apply a normal distribution to the copies, if a standard deviation
+    ``sigma`` is given in the config. This function is an internal part
+    of the load profile aggregator program.
 
     Remember: 68.3%, 95.5% and 99.7% of the values lie within one,
     two and three standard deviations of the mean.
@@ -322,7 +318,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
 
     Returns:
         load_curve_houses (DataFrame): Manipulatted time series data
-    '''
+    """
     settings = cfg['settings']
     if settings.get('GLF_on', True) is False:
         return load_curve_houses
@@ -489,9 +485,11 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
 
 
 def debug_plot_normal_histogram(house_name, randoms_int, cfg):
-    '''Wrapper around ``plot_normal_histogram()`` used by the load profile
+    """Plot a histogram for debugging purposes.
+
+    Wrapper around ``plot_normal_histogram()`` used by the load profile
     aggregator program.
-    '''
+    """
     settings = cfg['settings']
     save_folder = cfg['print_folder']
     plot_normal_histogram(house_name, randoms_int, save_folder,
@@ -503,8 +501,7 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
 
 def plot_normal_histogram(house_name, randoms_int, save_folder=None,
                           set_hist=dict()):
-    '''Save a histogram of the values in ``randoms_int`` to a .png file.
-    '''
+    """Save a histogram of the values in ``randoms_int`` to a .png file."""
     logger.debug('Interval shifts applied to ' + str(house_name) + ':')
     logger.debug(randoms_int)
     mu = np.mean(randoms_int)
@@ -547,9 +544,10 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
 
 
 def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
-    '''Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
+    """Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor).
+
     Uses a DataFrame with and one without randomness.
-    '''
+    """
     settings = cfg['settings']
 
     # Some GHD energies may be split into different columns
@@ -624,8 +622,7 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
 
 
 if __name__ == '__main__':
-    '''This code is executed when the script is started
-    '''
+    """This code is executed when the script is started."""
     try:  # Wrap everything in a try-except to show exceptions with the logger
         main()
     except Exception as e:

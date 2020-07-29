@@ -41,9 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 def main():
-    '''
-    The following is the 'main' function, which contains the rest of the script
-    '''
+    """Run the main function, which contains the rest of the script."""
     lpagg.misc.setup()
 
     # Measure start time of this script
@@ -77,8 +75,7 @@ def main():
 
 
 def run_OptionParser():
-    '''Define and run the argument parser. Return the collected arguments.
-    '''
+    """Define and run the argument parser. Return the collected arguments."""
     import argparse
     description = 'The load profile aggregator combines profiles for heat '\
                   'and power demand of buildings from different sources.'
@@ -105,9 +102,8 @@ def run_OptionParser():
 
 
 if __name__ == '__main__':
-    '''This part is executed when the script is started directly with
-    Python, not when it is loaded as a module.
-    '''
+    """This part is executed when the script is started directly with
+    Python, not when it is loaded as a module."""
     try:  # Wrap everything in a try-except to show exceptions with the logger
         main()
     except Exception as e:

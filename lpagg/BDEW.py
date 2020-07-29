@@ -1,22 +1,20 @@
-# -*- coding: utf-8 -*-
-'''
-**LPagg: Load profile aggregator for building simulations**
+# Copyright (C) 2020 Joris Zimmermann
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
 
+"""LPagg: Load profile aggregator for building simulations.
 
 LPagg
 =====
@@ -29,7 +27,7 @@ Module BDEW
 This module combines profiles for commercial building types from different
 sources.
 
-'''
+"""
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
 import logging
@@ -42,9 +40,10 @@ logger = logging.getLogger(__name__)
 
 
 def get_GHD_profiles(weather_data, cfg, houses_dict):
-    '''For the GHD building sector, combine profiles from various sources:
+    """Combine profiles from various sources for the GHD building sector.
+
     (not part of VDI 4655)
-    '''
+    """
     BDEW_profiles = load_BDEW_profiles(weather_data, cfg, houses_dict)
     DOE_profiles = load_DOE_profiles(weather_data, cfg, houses_dict)
     futureSolar_profiles = load_futureSolar_profiles(weather_data, cfg,
@@ -59,7 +58,8 @@ def get_GHD_profiles(weather_data, cfg, houses_dict):
 
 def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
                              energy_type):
-    '''Load energy profiles from files that are structured like BDEW profiles.
+    """Load energy profiles from files that are structured like BDEW profiles.
+
     Is used for BDEW profiles, and allows profiles from other sources to
     be integrated easily. For example, the U.S. Department of Energy (DOE)
     profiles for building types can manually be converted to the BDEW format,
@@ -70,7 +70,7 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
         come in 'kWh'. The BDEW profiles are converted, even though that does
         not have any effect (since they are normalized anyway).
 
-    '''
+    """
     settings = cfg['settings']
     source_df = pd.read_excel(source_file, sheet_name=None,
                               skiprows=[0], header=[0, 1], index_col=[0],
@@ -148,7 +148,7 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
 
 
 def load_BDEW_profiles(weather_data, cfg, houses_dict):
-
+    """Load profiles for GHD from BDEW."""
     source_file = cfg['data']['BDEW']
     energy_type = 'W_TT'
     BDEW_profiles = load_BDEW_style_profiles(source_file, weather_data,
@@ -165,7 +165,7 @@ def load_BDEW_profiles(weather_data, cfg, houses_dict):
 
 
 def load_DOE_profiles(weather_data, cfg, houses_dict):
-
+    """Load profiles for GHD from DOE (departement of energy)."""
     source_file = cfg['data']['DOE']
     energy_type = 'Q_TWW_TT'
     DOE_profiles = load_BDEW_style_profiles(source_file, weather_data,
@@ -183,16 +183,16 @@ def load_DOE_profiles(weather_data, cfg, houses_dict):
 
 
 def load_futureSolar_profiles(weather_data, cfg, houses_dict):
-    '''Load profiles for commerical building simulated for the project
-    'futureSolar' (IGS TU Braunschweig). Includes heating and cooling.
+    """Load profiles for commerical buildings from project 'futureSolar'.
+
+    These heating and cooling profiles were simulated by IGS TU Braunschweig.
 
     In order to NOT use these profiles, set ``Q_Heiz_a`` and/or ``Q_Kalt_a``
     to ``None`` for all houses in your list of houses.
 
     These profiles start on a tuesday. Therefore we first have to align them
     with the calendar of the aggregated profiles.
-    '''
-
+    """
     settings = cfg['settings']
     houses_list = settings['houses_list_BDEW']
 
