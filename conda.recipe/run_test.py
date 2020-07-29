@@ -1,22 +1,19 @@
-# -*- coding: utf-8 -*-
-'''
-**LPagg: Load profile aggregator for building simulations**
+# Copyright (C) 2020 Joris Zimmermann
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
-
+"""LPagg: Load profile aggregator for building simulations.
 
 LPagg
 =====
@@ -27,7 +24,7 @@ of buildings from different sources.
 Module run_test
 ---------------
 Tests to run during build process.
-'''
+"""
 
 import unittest
 import os
@@ -37,6 +34,7 @@ import lpagg.agg
 
 
 def main_test():
+    """Run test function."""
     lpagg.misc.setup()
 
     #  Get user input
@@ -69,8 +67,11 @@ def main_test():
 
 
 class TestMethods(unittest.TestCase):
+    """Defines tests."""
+
     def test(self):
-        self.assertAlmostEqual(main_test(), 7675170.695521058)
+        """Run test."""
+        self.assertAlmostEqual(main_test(), 7675164.026327237)
 
 
 if __name__ == '__main__':
