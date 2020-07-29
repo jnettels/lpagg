@@ -72,7 +72,7 @@ import pandas as pd
 import functools
 import logging
 import pickle
-import datetime
+import datetime as dt
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
@@ -130,7 +130,7 @@ def run(weather_data, cfg):
 
     # (6.3) Allocation of building site:
     # -------------------------------------------------------------------------
-    # The user has to give the number of the TRY climat zone
+    # The user has to give the number of the TRY climate zone
     # in the yaml file. It is used in (6.4).
 
     # (6.4) Determination of the houses' energy demand values for each 'typtag'
@@ -150,22 +150,38 @@ def run(weather_data, cfg):
 
 
 def get_season_list_BDEW(weather_data):
-    '''Get a list of seasons as defined by for the BDEW profiles
+    """Get a list of seasons as defined by BDEW for the BDEW profiles.
 
     Winter:       01.11. to 20.03.
     Summer:       15.05. to 14.09.
     Transition:   21.03. to 14.05. and 15.09. to 31.10.
-    '''
+
+    .. note::
+        It might seem like the time comparisons are implemented incorrectly.
+        ``date_obj <= 21.3. 00:00`` includes the 21.3. at 00:00 am, while
+        winter is only supposed to include the 20.3. Should it not be
+        ``date_obj < 21.3. 00:00`` instead?
+        No, the implementation is correct, because of how the weather data
+        is treated. In accordance to the DWD default, each timestamp
+        represents the time step before.
+        Thus the timestamp ``21.3. 00:00`` marks 20.3. 23:45 to 24:00 in
+        a 15min interval which is still included in the winter season.
+
+    """
     season_list = []
 
     for j, date_obj in enumerate(weather_data.index):
         YEAR = date_obj.year
-        if date_obj <= datetime.datetime(YEAR, 3, 21, 00, 00, 00) or \
-           date_obj > datetime.datetime(YEAR, 10, 31, 00, 00, 00):
+
+        winter_end = dt.datetime(YEAR, 3, 21, 00, 00, 00)
+        winter_start = dt.datetime(YEAR, 10, 31, 00, 00, 00)
+        summer_start = dt.datetime(YEAR, 5, 15, 00, 00, 00)
+        summer_end = dt.datetime(YEAR, 9, 15, 00, 00, 00)
+
+        if date_obj <= winter_end or date_obj > winter_start:
             season_list.append('Winter')  # Winter
 
-        elif date_obj > datetime.datetime(YEAR, 5, 15, 00, 00, 00) and \
-                date_obj <= datetime.datetime(YEAR, 9, 15, 00, 00, 00):
+        elif date_obj > summer_start and date_obj <= summer_end:
             season_list.append('Sommer')  # Summer
 
         else:
@@ -380,11 +396,10 @@ def load_profile_factors(weather_data, cfg):
         typtage_df = pd.concat([typtage_df, typtage_df_new])
 
     # The column 'Zeit' is of the type datetime.time. It must be converted
-    # to datetime.datetime by adding an arbitrary datetime.date object
+    # to dt.datetime by adding an arbitrary datetime.date object
     datetime_column = []
     for row, time_obj in enumerate(typtage_df['Zeit']):
-        datetime_obj = datetime.datetime.combine(
-            datetime.datetime(2017, 1, 1), time_obj)
+        datetime_obj = dt.datetime.combine(dt.datetime(2017, 1, 1), time_obj)
         datetime_column.append(datetime_obj)
     typtage_df['Zeit'] = datetime_column
     # Now the column 'Zeit' can be added to the multiindex
@@ -431,8 +446,7 @@ def load_profile_factors(weather_data, cfg):
         typtag = weather_data.loc[start]['typtag']
 
         typtage_df.loc[house_types[0], typtag].index
-        start_tt = datetime.datetime.combine(datetime.datetime(2017, 1, 1),
-                                             start.time())
+        start_tt = dt.datetime.combine(dt.datetime(2017, 1, 1), start.time())
         end_tt = start_tt + pd.Timedelta('1 days') - interpolation_freq
 
         for energy in energy_factor_types:
