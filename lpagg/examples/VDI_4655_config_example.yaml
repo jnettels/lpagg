@@ -55,6 +55,15 @@ settings:
     ### leap year, you won't have December 31.
     remove_leapyear:    False   # If True, delete February 29.
 
+    ### Account for daylight saving time (DST):
+    ### Normally, we only count continuous hours in "UTC+1" (Coordinated
+    ### Universal Time) and apply the VDI 4655 and BDEW profiles directly.
+    ### However, during summer these profiles should be applied to the local
+    ### time including daylight saving time in the summer "Central European
+    ### Time (CET)". Effectively, this settings shifts the profiles +1 hour
+    ### during summer.
+    # apply_DST: True
+
     ### Instead of the VDI's temperature dependent method to determine the
     ### season, you have the option to use the BDEW method with fixed dates:
     # use_BDEW_seasons: True

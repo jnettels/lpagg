@@ -197,7 +197,10 @@ def aggregator_run(cfg):
                                   axis=1, sort=False,
                                   keys=['HH', 'GHD'], names=['class'])
 
-#    print(load_curve_houses)
+    if settings.get('apply_DST', False):
+        # Shift the profiles according to daylight saving time
+        # (Optional, not part of VDI 4655)
+        load_curve_houses = apply_DST(load_curve_houses)
 
     # Flatten domestic hot water profile to a daily mean value
     # (Optional, not part of VDI 4655)
@@ -858,3 +861,59 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
 
         # Save one DataFrame to one Excel file
         df.to_excel(path, merge_cells=merge_cells, **kwargs)
+
+
+def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET'):
+    """Apply daylight saving time to a DataFrame.
+
+    Assumes that the values in the given DataFrame are meant to be in timezone
+    tz_DST, while the current index is formated as timezone tz_default.
+    After fitting the data to an index with tz_DST, the timezone is converted
+    tz_default before returning it. Effectively, this shifts the profiles
+    +1 hour during summer.
+
+    See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
+
+    Args:
+        df (DataFrame): A Pandas DataFrame with datetime index.
+
+        tz_default (str, optional): The timezone of the index. Defaults
+        to 'Etc/GMT-1' (for central europe, but without summer time).
+
+        tz_DST (TYPE, optional): The timezone of the data. Defaults to 'CET'
+        (Central European Time, which includes daylight saving time).
+
+    Returns:
+        df_DST (DataFrame): DataFrame indexed with tz_default.
+
+    """
+    # Localize the DataFrame with the default timezone, to make it tz-aware
+    df_default = df.tz_localize(tz_default)
+    # Remove localization from the temporary DataFrame that we are manipulating
+    df_DST = df_default.tz_localize(None)
+    # Localize the temporary df to the DST timezone. Ambiguous is a list of
+    # True for all steps to tell that all steps are meant as local time.
+    # This will cause some steps to be nonexistent, which we fill with 'NaT'.
+    df_DST = df_DST.tz_localize(tz_DST, ambiguous=[True]*len(df_DST.index),
+                                nonexistent='NaT')
+    # Convert from local timezone (with DST) to default (without DST)
+    df_DST = df_DST.tz_convert(tz_default)
+    # Drop the empty time stamp(s) from March (where hour we skipped in DST
+    # was deleted).
+    df_DST = df_DST[df_DST.index.notnull()]
+    # In October, the repeated DST-hour is not in the index yet.
+    # Reindex with the initial index. This will cause missing rows in October.
+    # We fill them with method forward fill.
+    df_DST = df_DST.reindex_like(df_default, method='ffill')
+    # Finally, make the DataFrame timezone-unaware before returning it.
+    df_DST = df_DST.tz_localize(None)
+
+    # Shifting the time steps in this manner slightly alters the yearly sums.
+    # They have to stay constant, since they are normalized to a certain sum.
+    for column in df_default.columns:
+        sum_default = df_default[column].sum()
+        sum_DST = df_DST[column].sum()
+        if sum_DST != 0:  # Would produce NaN otherwise
+            df_DST[column] = df_DST[column]/sum_DST * sum_default
+
+    return df_DST
