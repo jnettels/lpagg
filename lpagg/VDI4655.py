@@ -261,6 +261,7 @@ def get_typical_days(weather_data, cfg):
     holidays = pd.read_excel(cfg['data']['holiday'],
                              sheet_name='Feiertage',
                              index_col=[0])
+
     # Read through list of days line by line and see what kind of day they are.
     # Problem: In the weather data, the bins are labeled on the 'right'
     # (Each time stamp describes the interval before). Therefore the time stamp
@@ -274,7 +275,7 @@ def get_typical_days(weather_data, cfg):
         if date_obj.dayofweek == 6:  # 6 equals Sunday
             weekdays_list.append('S')
             weekdays_list_BDEW.append('Sonntag')
-        elif date_obj.date() in holidays.index:
+        elif str(date_obj.date()) in holidays.index:
             weekdays_list.append('S')
             weekdays_list_BDEW.append('Sonntag')
             flag_holidays_found = True
