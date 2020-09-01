@@ -410,11 +410,19 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
                 randoms = np.random.normal(0, sigma, 1)  # Array of randoms
                 randoms_int = [int(value) for value in np.round(randoms, 0)]
                 randoms_all += randoms_int
+                if randoms_int[0] == 0:
+                    continue
                 df_new, df_ref = copy_and_randomize(load_curve_houses,
                                                     house_name,
                                                     randoms_int, sigma,
                                                     0, b_print=True)
-                load_curve_houses.loc[:, house_name] = df_new.values
+                try:
+                    load_curve_houses.loc[:, house_name] = df_new.values
+                except ValueError:  # TODO
+                    # This used to work all the time, then for some random
+                    # cases it does not anymore. However, the easier approach
+                    # seems to work just fine:
+                    load_curve_houses[house_name] = df_new.values
 
     if sigma_used and logger.isEnabledFor(logging.DEBUG):
         debug_plot_normal_histogram('Gebäude gesamt', randoms_all, cfg)
