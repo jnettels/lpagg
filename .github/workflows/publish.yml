@@ -1,0 +1,49 @@
+name: Publish Releases
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    runs-on: ${{ matrix.os }}
+    name: Build
+    strategy:
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+        python-version: [3.7, 3.8]
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v1  # use the latest code commit
+
+    - uses: secrethub/actions/env-export@v0.1.0
+        env:
+          SECRETHUB_CREDENTIAL: ${{ secrets.SECRETHUB_CREDENTIAL }}
+          ANACONDA_USERNAME: secrethub://jzimmer/personal/anaconda/username
+          ANACONDA_PASSWORD: secrethub://jzimmer/personal/anaconda/password
+
+    - name: Setup conda with python ${{ matrix.python-version }}
+      uses: s-weigand/setup-conda@v1
+      with:
+        update-conda: true
+        python-version: ${{ matrix.python-version }}
+
+    - name: Initialize powershell for conda (Windows only)
+      if: runner.os == 'Windows'
+      run: conda init powershell
+
+    - name: Install dependencies with conda
+      run: |
+        conda install numpy
+        conda install conda-build setuptools setuptools_scm pandas pyqt
+        conda install -c conda-forge cx_freeze -y
+
+    - name: Build & upload with conda
+      run: |
+        # login to anaconda
+        anaconda login --username "$ANACONDA_USERNAME" --password "$ANACONDA_PASSWORD"
+        # Set automatic upload to anaconda.org
+        conda config --set anaconda_upload yes
+        # Run build process
+        conda build conda.recipe -c conda-forge
