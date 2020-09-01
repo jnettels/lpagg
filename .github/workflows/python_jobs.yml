@@ -27,6 +27,7 @@ jobs:
 
     - name: Install dependencies with conda
       run: |
+        conda install numpy
         conda install conda-build setuptools setuptools_scm pandas pyqt
         conda install -c conda-forge cx_freeze -y
 
