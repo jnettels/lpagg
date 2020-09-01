@@ -9,14 +9,21 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
-        python-version: [3.7]
+        python-version: [3.7, 3.8]
 
     steps:
     - name: Checkout
       uses: actions/checkout@v1  # use the latest code commit
 
     - name: Setup conda with python ${{ matrix.python-version }}
-      uses: s-weigand/setup-conda@v1.0.1
+      uses: s-weigand/setup-conda@v1
+      with:
+        update-conda: true
+        python-version: ${{ matrix.python-version }}
+
+    - name: Initialize powershell for conda (Windows only)
+      if: runner.os == 'Windows'
+      run: conda init powershell
 
     - name: Install dependencies with conda
       run: |
@@ -29,8 +36,10 @@ jobs:
         conda install lpagg --use-local -c conda-forge
 
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
-      if: runner.os == 'Windows'  # Only applies to windows
+      # if: runner.os == 'Windows'  # Only applies to windows
+      if: false  # Skip this step until cx_Freeze can be updated to 6.3
       run: |
+        conda activate base  # Activate conda environment
         python setup_exe.py bdist_msi
 
     - name: Lint with flake8
