@@ -1,22 +1,19 @@
-# -*- coding: utf-8 -*-
-'''
-**LPagg: Load profile aggregator for building simulations**
+# Copyright (C) 2020 Joris Zimmermann
 
-Copyright (C) 2019 Joris Nettelstroth
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# You should have received a copy of the GNU General Public License
+# along with this program. If not, see https://www.gnu.org/licenses/.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
-
+"""LPagg: Load profile aggregator for building simulations.
 
 LPagg
 =====
@@ -43,7 +40,7 @@ Troubleshooting
 
 https://stackoverflow.com/questions/52376313/converting-py-file-to-exe-cannot-find-existing-pyqt5-plugin-directories
 
-'''
+"""
 
 from setuptools_scm import get_version
 from cx_Freeze import setup, Executable

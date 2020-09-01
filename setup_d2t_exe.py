@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program. If not, see https://www.gnu.org/licenses/.
 
-"""dwd2trnsys: Convert DWD weather data to TRNSYS.
+r"""dwd2trnsys: Convert DWD weather data to TRNSYS.
 
 dwd2trnsys
 ==========
@@ -42,6 +42,7 @@ With cx_Freeze 6.1, an error appeared about not beeing able to find
 the generated exe file at the path ``build/exe.win-amd64-3.7/dwd2trnsys.exe``.
 Following the error trace and replacing ``exe.targetName`` with
 ``os.path.abspath(exe.targetName)`` solved the issue.
+(site-packages\cx_Freeze\freezer.py line 205)
 
 """
 
