@@ -60,7 +60,7 @@ settings:
     ### Universal Time) and apply the VDI 4655 and BDEW profiles directly.
     ### However, during summer these profiles should be applied to the local
     ### time including daylight saving time in the summer "Central European
-    ### Time (CET)". Effectively, this settings shifts the profiles +1 hour
+    ### Time (CET)". Effectively, this settings shifts the profiles -1 hour
     ### during summer.
     # apply_DST: True
 
