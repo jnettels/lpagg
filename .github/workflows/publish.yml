@@ -36,9 +36,7 @@ jobs:
     - name: Build & upload with conda
       run: |
         # Login to anaconda
-        anaconda login --username ${{ secrets.ANACONDA_USERNAME }} \
-        --password ${{ secrets.ANACONDA_PASSWORD }} \
-        --hostname "GitHub ${{ matrix.os }} ${{ matrix.python-version }}"
+        anaconda login --username ${{ secrets.ANACONDA_USERNAME }} --password ${{ secrets.ANACONDA_PASSWORD }} --hostname "GitHub_${{ matrix.os }}_${{ matrix.python-version }}"
         # Enable automatic upload to anaconda.org
         conda config --set anaconda_upload yes
         # Run build process
