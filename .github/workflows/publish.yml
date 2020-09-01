@@ -17,12 +17,6 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v1  # use the latest code commit
 
-    - uses: secrethub/actions/env-export@v0.1.0
-      env:
-        SECRETHUB_CREDENTIAL: ${{ secrets.SECRETHUB_CREDENTIAL }}
-        ANACONDA_USERNAME: secrethub://jzimmer/personal/anaconda/username
-        ANACONDA_PASSWORD: secrethub://jzimmer/personal/anaconda/password
-
     - name: Setup conda with python ${{ matrix.python-version }}
       uses: s-weigand/setup-conda@v1
       with:
@@ -42,7 +36,7 @@ jobs:
     - name: Build & upload with conda
       run: |
         # login to anaconda
-        anaconda login --username "$ANACONDA_USERNAME" --password "$ANACONDA_PASSWORD"
+        anaconda login --username ${{ secrets.ANACONDA_USERNAME }} --password ${{ secrets.ANACONDA_PASSWORD }}
         # Set automatic upload to anaconda.org
         conda config --set anaconda_upload yes
         # Run build process
