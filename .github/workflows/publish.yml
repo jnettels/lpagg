@@ -7,7 +7,7 @@ on:
 jobs:
   publish:
     runs-on: ${{ matrix.os }}
-    name: Build
+    name: Publish
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
@@ -35,9 +35,11 @@ jobs:
 
     - name: Build & upload with conda
       run: |
-        # login to anaconda
-        anaconda login --username ${{ secrets.ANACONDA_USERNAME }} --password ${{ secrets.ANACONDA_PASSWORD }}
-        # Set automatic upload to anaconda.org
+        # Login to anaconda
+        anaconda login --username ${{ secrets.ANACONDA_USERNAME }} \
+        --password ${{ secrets.ANACONDA_PASSWORD }} \
+        --hostname "GitHub ${{ matrix.os }} ${{ matrix.python-version }}"
+        # Enable automatic upload to anaconda.org
         conda config --set anaconda_upload yes
         # Run build process
         conda build conda.recipe -c conda-forge
