@@ -9,7 +9,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-latest, ubuntu-latest]
-        python-version: [3.7, 3.8]
+        python-version: [3.7, 3.8, 3.9]
 
     steps:
     - name: Checkout
@@ -37,8 +37,8 @@ jobs:
         conda install lpagg --use-local -c conda-forge
 
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
-      # if: runner.os == 'Windows'  # Only applies to windows
-      if: false  # Skip this step until cx_Freeze can be updated to 6.3
+      if: runner.os == 'Windows'  # Only applies to windows
+      # if: false  # Skip this step until cx_Freeze can be updated to 6.3
       run: |
         conda activate base  # Activate conda environment
         python setup_exe.py bdist_msi
