@@ -1,4 +1,4 @@
-# Copyright (C) 2019 Joris Nettelstroth
+# Copyright (C) 2020 Joris Zimmermann
 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -113,15 +113,18 @@ shortcut_table = [
      ),
      ]
 
+author = 'Joris Zimmermann'
+description = 'Convert DWD weather data to TRNSYS'
+
 # The setup function
 setup(
     name='dwd2trnsys',
     version=version,
-    description='Convert DWD weather data to TRNSYS',
+    description=description,
     long_description=open('README.md').read(),
     license='GPL-3.0',
-    author='Joris Nettelstroth',
-    author_email='joris.nettelstroth@stw.de',
+    author=author,
+    author_email='joris.zimmermann@stw.de',
     url='https://github.com/jnettels/lpagg',
 
     # Options for building the Windows .exe
@@ -137,6 +140,8 @@ setup(
                                         'idna',
                                         'idna.idnadata',
                                         ],
+                           'zip_include_packages': ['*'],  # reduze file size
+                           'zip_exclude_packages': ['pandas'],
                            'includes': [],
                            'excludes': ['adodbapi',
                                         'alabaster'
@@ -155,7 +160,7 @@ setup(
                                         'cloudpickle',
                                         'colorama',
                                         # 'collections',
-                                        'concurrent',
+                                        # 'concurrent',
                                         'cryptography',
                                         # 'ctypes',
                                         'curses',
@@ -185,9 +190,11 @@ setup(
                                         'nose',
                                         'notebook',
                                         'numexpr',
+                                        'numpy.random._examples',
                                         # 'openpyxl',
                                         'OpenSSL',
-                                        'PIL',
+                                        'pandas.tests',
+                                        # 'PIL',
                                         'pkg_resources',
                                         'prompt_toolkit',
                                         'pycparser',
@@ -228,6 +235,9 @@ setup(
                                ]
                            },
              'bdist_msi': {'data': {"Shortcut": shortcut_table},
+                           'summary_data': {'author': author,
+                                            'comments': description},
+                           'install_icon': r'./res/icon_d2t.ico',
                            'upgrade_code':
                                '{eaedb2b8-f535-439a-af23-4797a64c53c5}',
                            },
@@ -237,7 +247,6 @@ setup(
 # Remove some more specific folders:
 remove_folders = [
         r'.\build\exe.win-amd64-3.7\mpl-data',
-        r'.\build\exe.win-amd64-3.7\lib\pandas\tests',
         r'.\build\exe.win-amd64-3.7\lib\lpagg\resources_weather',
         ]
 for folder in remove_folders:

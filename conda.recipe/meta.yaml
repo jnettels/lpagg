@@ -33,6 +33,7 @@ requirements:
         - scipy
         - requests
         - xlrd
+        - xlsxwriter
         - geopy
         - holidays
 
@@ -47,5 +48,5 @@ about:
     description: 'Load profile aggregator for building simulations'
     license: 'GPL3'
     license_file: LICENSE.txt
-    author: 'Joris Nettelstroth'
-    author_email: 'joris.nettelstroth@stw.de'
+    author: 'Joris Zimmermann'
+    author_email: 'joris.zimmermann@stw.de'

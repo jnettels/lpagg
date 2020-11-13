@@ -29,7 +29,7 @@ jobs:
       run: |
         conda install numpy
         conda install conda-build setuptools setuptools_scm pandas pyqt
-        conda install -c conda-forge cx_freeze -y
+        conda install -c conda-forge cx_freeze>=6.3 -y
 
     - name: Build & install lpagg with conda
       run: |
@@ -37,8 +37,7 @@ jobs:
         conda install lpagg --use-local -c conda-forge
 
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
-      # if: runner.os == 'Windows'  # Only applies to windows
-      if: false  # Skip this step until cx_Freeze can be updated to 6.3
+      if: runner.os == 'Windows'  # Only applies to windows
       run: |
         conda activate base  # Activate conda environment
         python setup_exe.py bdist_msi

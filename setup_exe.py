@@ -82,9 +82,9 @@ if not os.path.exists(os.path.dirname(target)):
 shutil.copy2(os.path.join(mkl_dlls, '../plugins/platforms/qwindows.dll'),
              target)
 
-base = None
+base = None  # None for cmd-line
 if sys.platform == 'win32':
-    base = 'Win32GUI'
+    base = 'Win32GUI'  # If only a GUI should be shown
 
 # http://msdn.microsoft.com/en-us/library/windows/desktop/aa371847(v=vs.85).aspx
 shortcut_table = [
@@ -116,15 +116,18 @@ shortcut_table = [
      ),
      ]
 
+author = 'Joris Zimmermann'
+description = 'Load profile aggregator for building simulations'
+
 # The setup function
 setup(
     name='Gleichzeitigkeit',
     version=version,
-    description='Load profile aggregator for building simulations',
+    description=description,
     long_description=open('README.md').read(),
     license='GPL-3.0',
-    author='Joris Nettelstroth',
-    author_email='joris.nettelstroth@stw.de',
+    author=author,
+    author_email='joris.zimmermann@stw.de',
     url='https://github.com/jnettels/lpagg',
 
     # Options for building the Windows .exe
@@ -135,6 +138,9 @@ setup(
                             shortcutDir="ProgramMenuFolder",
                             )],
     options={'build_exe': {'packages': ['numpy', 'asyncio'],
+                           # 'namespace_packages': ['mpl_toolkits'],
+                           'zip_include_packages': ['*'],  # reduze file size
+                           'zip_exclude_packages': ['pandas', 'PyQt5'],
                            'includes': [],
                            'excludes': ['adodbapi',
                                         'alabaster'
@@ -176,6 +182,7 @@ setup(
                                         'lxml',
                                         'markupsafe',
                                         # 'matplotlib',
+                                        'matplotlib.tests',
                                         'msgpack',
                                         'nbconvert',
                                         'nbformat',
@@ -183,9 +190,10 @@ setup(
                                         'nose',
                                         'notebook',
                                         'numexpr',
+                                        'numpy.random._examples',
                                         'openpyxl',
                                         'OpenSSL',
-                                        'PIL',
+                                        # 'PIL',
                                         'pkg_resources',
                                         'prompt_toolkit',
                                         'pycparser',
@@ -225,6 +233,9 @@ setup(
                                ]
                            },
              'bdist_msi': {'data': {"Shortcut": shortcut_table},
+                           'summary_data': {'author': author,
+                                            'comments': description},
+                           'install_icon': r'./res/icon.ico',
                            'upgrade_code':
                                '{4d27fdce-eca0-4f0a-bdf7-a06bd383351e}',
                            },
