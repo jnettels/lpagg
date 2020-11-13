@@ -425,7 +425,12 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
                     load_curve_houses[house_name] = df_new.values
 
     if sigma_used and logger.isEnabledFor(logging.DEBUG):
-        debug_plot_normal_histogram('Gebäude gesamt', randoms_all, cfg)
+        language = cfg.get('settings', {}).get('language', 'de')
+        if language == 'en':
+            txt_title = 'buildings'
+        else:
+            txt_title = 'Gebäude gesamt'
+        debug_plot_normal_histogram(txt_title, randoms_all, cfg)
 
     # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
     calc_GLF(load_curve_houses, load_curve_houses_ref, cfg)
@@ -456,6 +461,22 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
     """
     import matplotlib.dates as mdates
 
+    language = cfg['settings'].get('language', 'de')
+    if language == 'en':
+        txt_P_th = 'thermal power in [kW]'
+        txt_P_el = 'electrical power in [kW]'
+        txt_shift = 'shift'
+        txt_ref = 'reference'
+        txt_shift_max = 'max(shift)'
+        txt_ref_max = 'max(reference)'
+    else:
+        txt_P_th = 'thermische Leistung in [kW]'
+        txt_P_el = 'elektrische Leistung in [kW]'
+        txt_shift = 'Shift'
+        txt_ref = 'Referenz'
+        txt_shift_max = 'max(Shift)'
+        txt_ref_max = 'max(Referenz)'
+
     # Group by energy to sum up all classes and houses
     # and convert from kWh to kW
     hours = cfg['settings']['interpolation_freq'].seconds / 3600.0  # h
@@ -472,17 +493,17 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
     for load_shift, load_ref, ylabel in zip(
             [load_th_shift, load_el_shift],
             [load_th_ref, load_el_ref],
-            ['thermische Leistung in [kW]', 'elektrische Leistung in [kW]']
+            [txt_P_th, txt_P_el]
             ):
 
         fig = plt.figure()
         ax = fig.gca()
-        plt.plot(load_shift, label='Shift')
-        plt.plot(load_ref, '--', label='Referenz')
+        plt.plot(load_shift, label=txt_shift)
+        plt.plot(load_ref, '--', label=txt_ref)
         plt.axhline(load_shift.max(), linestyle='-.',
-                    label='max(Shift)', color='#e8d654')
+                    label=txt_shift_max, color='#e8d654')
         plt.axhline(load_ref.max(), linestyle='-.',
-                    label='max(Referenz)', color='#5eccf3')
+                    label=txt_ref_max, color='#5eccf3')
         plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, 1.0))
         plt.ylabel(ylabel)
         ax.yaxis.grid(True)  # Activate grid on horizontal axis
@@ -490,6 +511,12 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
         ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
         plt.tight_layout()  # Fit plot within figure cleanly
         plt.show(block=False)  # Show plot without blocking the script
+
+        # Save raw data
+        df_excel = pd.concat([load_shift, load_ref], axis='columns',
+                              keys=[txt_shift, txt_ref])
+        df_excel.to_excel(os.path.join(cfg['print_folder'],
+                                        ylabel+'.xlsx'))
 
 
 def debug_plot_normal_histogram(house_name, randoms_int, cfg):
@@ -500,7 +527,7 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
     """
     settings = cfg['settings']
     save_folder = cfg['print_folder']
-    plot_normal_histogram(house_name, randoms_int, save_folder,
+    plot_normal_histogram(house_name, randoms_int, save_folder, cfg=cfg,
                           set_hist=dict({'PNG': True, 'PDF': True}))
 
     if settings.get('show_plot', False) is True:
@@ -508,8 +535,18 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
 
 
 def plot_normal_histogram(house_name, randoms_int, save_folder=None,
-                          set_hist=dict()):
+                          set_hist=dict(), cfg=dict()):
     """Save a histogram of the values in ``randoms_int`` to a .png file."""
+
+    language = cfg.get('settings', {}).get('language', 'de')
+    if language == 'en':
+        txt_xlabel = 'time steps'
+        txt_ylabel = 'frequency'
+    else:
+        txt_xlabel = 'Zeitschritte'
+        txt_ylabel = 'Häufigkeit'
+
+
     logger.debug('Interval shifts applied to ' + str(house_name) + ':')
     logger.debug(randoms_int)
     mu = np.mean(randoms_int)
@@ -529,8 +566,8 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
     n, bins, patches = plt.hist(randoms_int, bins, align='left',
                                 rwidth=0.9)
     plt.title(str(len(randoms_int))+' '+str(house_name)+' ('+title_mu_std+')')
-    plt.xlabel('Zeitschritte')
-    plt.ylabel('Häufigkeit')
+    plt.xlabel(txt_xlabel)
+    plt.ylabel(txt_ylabel)
 
     if save_folder is not None:
         # Make sure the save path exists
@@ -545,6 +582,10 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
             plt.savefig(os.path.join(save_folder,
                                      'histogram_'+str(house_name)+'.pdf'),
                         bbox_inches='tight')
+
+        # Store randoms_int
+        # pd.DataFrame(randoms_int).to_excel(
+        #     os.path.join(save_folder, 'histogram_'+str(house_name)+'.xlsx'))
 
     # Reset settings
     plt.rcParams.update({'font.size': default_font})
