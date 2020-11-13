@@ -218,34 +218,8 @@ def aggregator_run(cfg):
     # Debugging: Show the daily sum of each energy demand type:
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
 
-    if logger.isEnabledFor(logging.DEBUG):
-        load_curve_houses.sort_index(axis=1, inplace=True)
-
-        logger.info('Printing *_houses.dat file')
-        print(load_curve_houses.head())
-        load_curve_houses.to_csv(
-                os.path.join(cfg['print_folder'],
-                             os.path.splitext(settings['print_file'])[0]
-                             + '_houses.dat'))
-
-    if settings.get('print_houses_xlsx', False):
-        logger.info('Printing *_houses.xlsx file')
-        df_H = load_curve_houses
-        df_D = df_H.resample('D', label='left', closed='right').sum()
-        df_W = df_D.resample('W', label='right', closed='right').sum()
-        df_M = df_D.resample('M', label='right', closed='right').sum()
-        df_A = df_M.resample('A', label='right', closed='right').sum()
-        print(df_M)
-
-        # Be careful, can create huge file sizes
-        df_to_excel(df=[df_H, df_D, df_W, df_M, df_A],
-                    sheet_names=['Hour', 'Day', 'Week', 'Month', 'Year'],
-                    path=os.path.join(
-                        cfg['print_folder'],
-                        os.path.splitext(settings['print_file'])[0]
-                        + '_houses.xlsx'),
-                    merge_cells=True,
-                    )
+    # Save some intermediate result files
+    intermediate_printing(load_curve_houses, cfg)
 
     # Sum up the energy demands of all houses, store result in weather_data
     logger.info('Sum up the energy demands of all houses')
@@ -451,6 +425,68 @@ def add_external_profiles(load_curve_houses, cfg):
 #    print(load_curve_houses)
 
     return load_curve_houses
+
+
+def intermediate_printing(load_curve_houses, cfg):
+    """Perform some intermediate printing tasks."""
+    settings = cfg['settings']
+
+    # TODO: The following line should be removed someday. See Pandas issue:
+    # https://github.com/pandas-dev/pandas/issues/24671
+    load_curve_houses.fillna(0, axis=1, inplace=True)
+
+    # Print load profile for each house (creates large file sizes!)
+    load_curve_houses_tmp = (load_curve_houses
+                             .groupby(level=['house', 'energy'], axis=1)
+                             .sum()
+                             .sort_index(axis=1))
+
+    if logger.isEnabledFor(logging.DEBUG):
+        logger.info('Printing *_houses.dat file')
+        print(load_curve_houses_tmp.head())
+        load_curve_houses_tmp.to_csv(
+                os.path.join(cfg['print_folder'],
+                             os.path.splitext(settings['print_file'])[0]
+                             + '_houses.dat'))
+
+    if settings.get('print_houses_xlsx', False):
+        logger.info('Printing *_houses.xlsx file')
+        df_H = load_curve_houses_tmp
+        df_D = df_H.resample('D', label='left', closed='right').sum()
+        df_W = df_D.resample('W', label='right', closed='right').sum()
+        df_M = df_D.resample('M', label='right', closed='right').sum()
+        df_A = df_M.resample('A', label='right', closed='right').sum()
+        print(df_M)
+
+        # Be careful, can create huge file sizes
+        df_to_excel(df=[df_H, df_D, df_W, df_M, df_A],
+                    sheet_names=['Hour', 'Day', 'Week', 'Month', 'Year'],
+                    path=os.path.join(
+                        cfg['print_folder'],
+                        os.path.splitext(settings['print_file'])[0]
+                        + '_houses.xlsx'),
+                    merge_cells=True,
+                    )
+
+    # Print peak power
+    hours = settings['interpolation_freq'].seconds / 3600.0        # h
+    P_max_houses = (load_curve_houses
+                    .groupby(level=['house', 'energy'], axis=1).sum()
+                    .max(axis=0)
+                    .unstack()
+                    .sort_index()
+                    .rename(columns={'Q_Heiz_TT': 'P_th_RH',
+                                     'Q_TWW_TT': 'P_th_TWE',
+                                     'W_TT': 'P_el'})
+                    )
+    P_max_houses['P_th'] = P_max_houses['P_th_RH'] + P_max_houses['P_th_TWE']
+    P_max_houses = P_max_houses / hours  # Convert kWh to kW
+    logger.info('Printing *_P_max.dat and .xlsx files')
+    P_max_houses.to_csv(os.path.join(cfg['print_folder'], os.path.splitext(
+        settings['print_file'])[0] + '_P_max.dat'))
+    df_to_excel(df=[P_max_houses], sheet_names=['P_max (kW)'],
+                path=os.path.join(cfg['print_folder'], os.path.splitext(
+                    settings['print_file'])[0] + '_P_max.xlsx'))
 
 
 def sum_up_all_houses(load_curve_houses, weather_data, cfg):
