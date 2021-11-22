@@ -45,7 +45,7 @@ import lpagg.simultaneity
 logger = logging.getLogger(__name__)
 
 
-def perform_configuration(config_file, ignore_errors=False):
+def perform_configuration(config_file='', cfg=None, ignore_errors=False):
     """Import the cfg dictionary from the YAML config_file and set defaults.
 
     Certain tasks must be performed, or else the program will not run
@@ -53,14 +53,34 @@ def perform_configuration(config_file, ignore_errors=False):
     tasks manually. If 'ignore_errors' is true, this is possible.
     Example: The dict 'houses' is not defined in the cfg and is constructed
     from a different source instead.
+
+
+    Parameters
+    ----------
+    config_file : String, optional
+        Path to a YAML configuration file. The default is ''.
+    cfg : dict, optional
+        A dictionary, to be used instead of a YAML file. The default is None.
+    ignore_errors : bool, optional
+        Ignore errors on some preperation steps. The default is False.
+
+    Returns
+    -------
+    cfg : dict
+        Configuration dictionary.
+
     """
     logger.info('Using configuration file ' + config_file)
 
-    with open(config_file, 'r') as file:
-        cfg = yaml.load(file, Loader=yaml.UnsafeLoader)
+    if cfg is None:
+        with open(config_file, 'r') as file:
+            cfg = yaml.load(file, Loader=yaml.UnsafeLoader)
 
     # Read settings from the cfg
     settings = cfg['settings']
+
+    settings.setdefault('print_file', 'lpagg_load.dat')
+    settings.setdefault('intervall', '1 hours')
 
     # Set logging level
     log_level = settings.get('log_level', 'WARNING').upper()
@@ -193,7 +213,7 @@ def aggregator_run(cfg):
                                   axis=1, sort=False,
                                   keys=['HH', 'GHD'], names=['class'])
 
-    if settings.get('apply_DST', False):
+    if settings.get('apply_DST', True):
         # Shift the profiles according to daylight saving time
         # (Optional, not part of VDI 4655)
         load_curve_houses = apply_DST(load_curve_houses)
@@ -214,6 +234,13 @@ def aggregator_run(cfg):
     # -------------------------------------------------------------------------
     load_curve_houses = lpagg.simultaneity.copy_and_randomize_houses(
             load_curve_houses, houses_dict, cfg)
+
+    # TODO temporary solution!!!
+    # load_curve_houses, df_ref = lpagg.simultaneity.create_simultaneity(
+    #     load_curve_houses,
+    #     sigma=settings['sigma'],
+    #     copies=0,
+    #     seed=4)
 
     # Debugging: Show the daily sum of each energy demand type:
 #    print(load_curve_houses.resample('D', label='left', closed='right').sum())
@@ -385,7 +412,7 @@ def add_external_profiles(load_curve_houses, cfg):
             except KeyError:
                 logging.error('Key "'+str(key)+'" not found in external '
                               'profile '+str(filepath))
-                raise
+                continue
 
         # Rename to VDI 4655 standards
         df.rename(columns=rename_dict, inplace=True)
@@ -468,25 +495,26 @@ def intermediate_printing(load_curve_houses, cfg):
                     merge_cells=True,
                     )
 
-    # Print peak power
-    hours = settings['interpolation_freq'].seconds / 3600.0        # h
-    P_max_houses = (load_curve_houses
-                    .groupby(level=['house', 'energy'], axis=1).sum()
-                    .max(axis=0)
-                    .unstack()
-                    .sort_index()
-                    .rename(columns={'Q_Heiz_TT': 'P_th_RH',
-                                     'Q_TWW_TT': 'P_th_TWE',
-                                     'W_TT': 'P_el'})
-                    )
-    P_max_houses['P_th'] = P_max_houses['P_th_RH'] + P_max_houses['P_th_TWE']
-    P_max_houses = P_max_houses / hours  # Convert kWh to kW
-    logger.info('Printing *_P_max.dat and .xlsx files')
-    P_max_houses.to_csv(os.path.join(cfg['print_folder'], os.path.splitext(
-        settings['print_file'])[0] + '_P_max.dat'))
-    df_to_excel(df=[P_max_houses], sheet_names=['P_max (kW)'],
-                path=os.path.join(cfg['print_folder'], os.path.splitext(
-                    settings['print_file'])[0] + '_P_max.xlsx'))
+    if settings.get('print_P_max', False):
+        # Print peak power
+        hours = settings['interpolation_freq'].seconds / 3600.0        # h
+        P_max_houses = (load_curve_houses
+                        .groupby(level=['house', 'energy'], axis=1).sum()
+                        .max(axis=0)
+                        .unstack()
+                        .sort_index()
+                        .rename(columns={'Q_Heiz_TT': 'P_th_RH',
+                                         'Q_TWW_TT': 'P_th_TWE',
+                                         'W_TT': 'P_el'})
+                        )
+        P_max_houses['P_th'] = P_max_houses['P_th_RH']+P_max_houses['P_th_TWE']
+        P_max_houses = P_max_houses / hours  # Convert kWh to kW
+        logger.info('Printing *_P_max.dat and .xlsx files')
+        P_max_houses.to_csv(os.path.join(cfg['print_folder'], os.path.splitext(
+            settings['print_file'])[0] + '_P_max.dat'))
+        df_to_excel(df=[P_max_houses], sheet_names=['P_max (kW)'],
+                    path=os.path.join(cfg['print_folder'], os.path.splitext(
+                        settings['print_file'])[0] + '_P_max.xlsx'))
 
 
 def sum_up_all_houses(load_curve_houses, weather_data, cfg):
@@ -846,7 +874,6 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
     """
     from collections.abc import Sequence
     import time
-    import xlsxwriter
 
     if check_permission:
         try:
@@ -855,7 +882,7 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
                         merge_cells=merge_cells, check_permission=False,
                         **kwargs)
             return  # Do not run the rest of the function
-        except xlsxwriter.exceptions.FileCreateError as e:
+        except Exception as e:
             # If a PermissionError occurs, run the whole function again, but
             # with another file path (with appended time stamp)
             logger.critical(e)
@@ -904,14 +931,14 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
         df.to_excel(path, merge_cells=merge_cells, **kwargs)
 
 
-def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET'):
+def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET', normalize=True):
     """Apply daylight saving time to a DataFrame.
 
     Assumes that the values in the given DataFrame are meant to be in timezone
     tz_DST, while the current index is formated as timezone tz_default.
     After fitting the data to an index with tz_DST, the timezone is converted
-    tz_default before returning it. Effectively, this shifts the profiles
-    +1 hour during summer.
+    to tz_default before returning it. Effectively, this shifts the profiles
+    -1 hour during summer.
 
     See https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 
@@ -939,7 +966,7 @@ def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET'):
                                 nonexistent='NaT')
     # Convert from local timezone (with DST) to default (without DST)
     df_DST = df_DST.tz_convert(tz_default)
-    # Drop the empty time stamp(s) from March (where hour we skipped in DST
+    # Drop the empty time stamp(s) from March (where the hour we skipped in DST
     # was deleted).
     df_DST = df_DST[df_DST.index.notnull()]
     # In October, the repeated DST-hour is not in the index yet.
@@ -951,10 +978,11 @@ def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET'):
 
     # Shifting the time steps in this manner slightly alters the yearly sums.
     # They have to stay constant, since they are normalized to a certain sum.
-    for column in df_default.columns:
-        sum_default = df_default[column].sum()
-        sum_DST = df_DST[column].sum()
-        if sum_DST != 0:  # Would produce NaN otherwise
-            df_DST[column] = df_DST[column]/sum_DST * sum_default
+    if normalize:
+        for column in df_default.columns:
+            sum_default = df_default[column].sum()
+            sum_DST = df_DST[column].sum()
+            if sum_DST != 0:  # Would produce NaN otherwise
+                df_DST[column] = df_DST[column]/sum_DST * sum_default
 
     return df_DST
