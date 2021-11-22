@@ -70,8 +70,8 @@ class TestMethods(unittest.TestCase):
     """Defines tests."""
 
     def test(self):
-        """Run test."""
-        self.assertAlmostEqual(main_test(), 7675164.026327237)
+        """Test the calculated total energy demand in kWh."""
+        self.assertAlmostEqual(main_test(), 7674902.833019385)
 
 
 if __name__ == '__main__':
