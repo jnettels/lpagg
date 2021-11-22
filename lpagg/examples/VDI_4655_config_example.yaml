@@ -62,7 +62,7 @@ settings:
     ### time including daylight saving time in the summer "Central European
     ### Time (CET)". Effectively, this settings shifts the profiles -1 hour
     ### during summer.
-    # apply_DST: True
+    apply_DST: True
 
     ### Instead of the VDI's temperature dependent method to determine the
     ### season, you have the option to use the BDEW method with fixed dates:
@@ -90,6 +90,8 @@ settings:
     ### Print *_houses.xlsx file (in addition to .dat, which is always saved).
     ### Be careful, can create large file sizes that take long to save!
     # print_houses_xlsx: True
+    # print_P_max: True  # Print peak thermal power to separate file
+    # print_GLF_stats: True
 
 ### This section is not part of VDI 4655:
 ### In this section you can define the relevant input for the 'Heizkurve'.
