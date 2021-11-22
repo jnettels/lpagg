@@ -22,18 +22,16 @@ requirements:
         - python
         - setuptools
         - setuptools_scm
-        - pandas >=0.24.1
+        - pandas >=1.2.1
 
     run:
         - python
-        - pandas >=0.24.1
+        - pandas >=1.2.1
         - openpyxl >=3.0.3
         - pyyaml >=5.1
         - matplotlib
         - scipy
         - requests
-        - xlrd
-        - xlsxwriter
         - geopy
         - holidays
 
