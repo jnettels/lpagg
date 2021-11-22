@@ -164,7 +164,8 @@ def run_OptionParser():
     return args
 
 
-def create_simultaneity(df, sigma, copies, seed, save_folder, set_hist):
+def create_simultaneity(df, sigma, copies, seed, save_folder=None,
+                        set_hist=dict()):
     """Apply the simultaneity effect to the columns in a given DataFrame.
 
     This function is called by ``main()`` in the standalone script mode.
@@ -224,7 +225,7 @@ def create_simultaneity(df, sigma, copies, seed, save_folder, set_hist):
 
 
 def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
-                       copy, b_print=False):
+                       copy, b_print=False, keep_reference=True):
     """Apply the simultaneity effect to a column in a given DataFrame.
 
     Args:
@@ -249,13 +250,16 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
     """
     copy_name = str(house_name) + '_c' + str(copy)
     if b_print and logger.isEnabledFor(logging.DEBUG):
-        print('\rCopy (and randomize) house', copy_name, end='\r')  # status
+        print('\r Copy (and randomize) house', copy_name, '   ', end='\r')
     # Select the data of the house we want to copy
     df_new = load_curve_houses[house_name]
     # Rename the multiindex with the name of the copy
     df_new = pd.concat([df_new], keys=[copy_name], names=['house'],
                        axis=1)
-    df_ref = df_new.copy()
+    if keep_reference:
+        df_ref = df_new.copy()
+    else:  # This saves on used memory, but both returns will be the same
+        df_ref = df_new
 
     if sigma:  # Optional: Shift the rows
         shift_step = randoms_int[copy]
@@ -281,11 +285,13 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
             pass
 
     if b_print:
-        print('\r ', end='\r')  # overwrite last status with empty line
+        # overwrite last status with empty line
+        print('\r', end='\r')
     return df_new, df_ref
 
 
-def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
+def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg,
+                              memory_threshold_MB=99999):
     """Create copies of houses where needed.
 
     Apply a normal distribution to the copies, if a standard deviation
@@ -325,8 +331,26 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
 
     logger.info('Create (randomized) copies of the houses')
 
+    memory = load_curve_houses.memory_usage().sum() / 10**6  # MB
+    logger.debug('Memory usage: {} MB'.format(memory))
+
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
-    load_curve_houses_ref = load_curve_houses.copy()  # Reference (no random)
+
+    if memory > memory_threshold_MB:  # MB
+        # When we do not copy any houses (but just shift each original profile)
+        # and also have a huge amount of houses to deal with, we need to
+        # save on RAM and skip saving the reference load profiles
+        load_curve_houses_ref = load_curve_houses
+        logger.critical('Due to the large number of {} houses and memory '
+                        'usage ({} MB), the reference '
+                        'load profiles are discarded and only the randomized '
+                        'profiles are kept. Therefore an implausible '
+                        'simultaneity factor = 1 will be calculated.'
+                        .format(len(houses_dict), memory))
+    else:  # The default behaviour
+        # Store reference load profiles (without simultaneity)
+        load_curve_houses_ref = load_curve_houses.copy()
+
     # Fix the 'randomness' (every run of the script generates the same results)
     np.random.seed(4)
     randoms_all = []
@@ -415,7 +439,9 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
                 df_new, df_ref = copy_and_randomize(load_curve_houses,
                                                     house_name,
                                                     randoms_int, sigma,
-                                                    0, b_print=True)
+                                                    copy=0, b_print=True,
+                                                    # keep_reference=False,
+                                                    )
                 try:
                     load_curve_houses.loc[:, house_name] = df_new.values
                 except ValueError:  # TODO
@@ -546,7 +572,6 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
         txt_xlabel = 'Zeitschritte'
         txt_ylabel = 'Häufigkeit'
 
-
     logger.debug('Interval shifts applied to ' + str(house_name) + ':')
     logger.debug(randoms_int)
     mu = np.mean(randoms_int)
@@ -602,13 +627,13 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
     # Some GHD energies may be split into different columns
     load_curve_houses.sort_index(axis=1, inplace=True)
 
-    load_curve_houses_ran = load_curve_houses.copy()
     try:
-        load_ran = load_curve_houses_ran.groupby(level='energy', axis=1).sum()
+        load_ran = load_curve_houses.groupby(level='energy', axis=1).sum()
         load_ref = load_curve_houses_ref.groupby(level='energy', axis=1).sum()
     except KeyError:
         # TODO: This error appeared first in pandas 0.25.0
         # Swapping the levels before grouping seems to fix it, though.
+        load_curve_houses_ran = load_curve_houses.copy()
         load_curve_houses_ran = load_curve_houses_ran.swaplevel(
                 i='energy', j='house', axis=1)
         load_curve_houses_ref = load_curve_houses_ref.swaplevel(
@@ -658,16 +683,43 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
     if logger.isEnabledFor(logging.INFO):
         logger.info('Simultaneity factors (Gleichzeitigkeitsfaktoren):')
         print(sf_df)
-    # Make sure the save path exists and save the DataFrame
-    save_folder = cfg['print_folder']
-    if not os.path.exists(save_folder):
-        os.makedirs(save_folder)
-    writer = pd.ExcelWriter(os.path.join(save_folder, 'GLF.xlsx'))
-    sf_df.to_excel(writer, sheet_name='GLF')
-    DIN4708_df.to_excel(writer, sheet_name='DIN4708')
-    writer.save()  # Save the actual Excel file
+
+    if settings.get('print_GLF_stats', False):
+        # Make sure the save path exists and save the DataFrame
+        save_folder = cfg['print_folder']
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+        writer = pd.ExcelWriter(os.path.join(save_folder, 'GLF.xlsx'))
+        sf_df.to_excel(writer, sheet_name='GLF')
+        DIN4708_df.to_excel(writer, sheet_name='DIN4708')
+        writer.save()  # Save the actual Excel file
 
     return None
+
+
+def run_simul_lpagg_post(cfg):
+    """Run simultaneity in postprocessing to LPagg."""
+    csv_file = os.path.join(
+        cfg['print_folder'],
+        os.path.splitext(cfg['settings']['print_file'])[0] + '_houses.dat')
+
+    load_curve_houses = pd.read_csv(csv_file,
+                                    low_memory=False,
+                                    header=[0, 1],
+                                    index_col=0)
+
+    df, df_ref = create_simultaneity(load_curve_houses,
+                                     sigma=8,
+                                     copies=0,
+                                     seed=4,
+                                     save_folder=cfg['print_folder'],
+                                     set_hist=dict(PNG=True, PDF=False))
+
+    logger.info('Printing *_houses_GLF.dat file')
+    df.to_csv(os.path.join(cfg['print_folder'],
+                           os.path.splitext(cfg['settings']['print_file'])[0]
+                           + '_houses.dat'))
+    return df
 
 
 if __name__ == '__main__':
