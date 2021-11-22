@@ -40,6 +40,8 @@ Troubleshooting
 
 https://stackoverflow.com/questions/52376313/converting-py-file-to-exe-cannot-find-existing-pyqt5-plugin-directories
 
+Last tested with cx_freeze 6.8.2
+
 """
 
 from setuptools_scm import get_version
@@ -76,11 +78,11 @@ os.environ['TK_LIBRARY'] = os.path.join(sys.exec_prefix, r'tcl\tk8.6')
 mkl_dlls = os.path.join(sys.exec_prefix, r'Library\bin')
 
 # We need to include a dll for Qt
-target = r'.\build\exe.win-amd64-3.7\platforms\qwindows.dll'
-if not os.path.exists(os.path.dirname(target)):
-    os.makedirs(os.path.dirname(target))
-shutil.copy2(os.path.join(mkl_dlls, '../plugins/platforms/qwindows.dll'),
-             target)
+# target = r'.\build\exe.win-amd64-3.7\platforms\qwindows.dll'
+# if not os.path.exists(os.path.dirname(target)):
+#     os.makedirs(os.path.dirname(target))
+# shutil.copy2(os.path.join(mkl_dlls, '../plugins/platforms/qwindows.dll'),
+#              target)
 
 base = None  # None for cmd-line
 if sys.platform == 'win32':
@@ -127,7 +129,7 @@ setup(
     long_description=open('README.md').read(),
     license='GPL-3.0',
     author=author,
-    author_email='joris.zimmermann@stw.de',
+    author_email='joris.zimmermann@siz-energieplus.de',
     url='https://github.com/jnettels/lpagg',
 
     # Options for building the Windows .exe
@@ -137,11 +139,17 @@ setup(
                             shortcutName="Gleichzeitigkeit",
                             shortcutDir="ProgramMenuFolder",
                             )],
-    options={'build_exe': {'packages': ['numpy', 'asyncio'],
+    options={'build_exe': {'packages': ['numpy', 'asyncio',
+                                        'pandas.plotting._matplotlib',
+                                        ],
                            # 'namespace_packages': ['mpl_toolkits'],
                            'zip_include_packages': ['*'],  # reduze file size
-                           'zip_exclude_packages': ['pandas', 'PyQt5'],
-                           'includes': [],
+                           'zip_exclude_packages': [
+                               # 'pandas', 'PyQt5',
+                               # 'matplotlib'
+                               ],
+                           'includes': ['openpyxl',
+                                        ],
                            'excludes': ['adodbapi',
                                         'alabaster'
                                         'asn1crypto',
@@ -166,10 +174,10 @@ setup(
                                         'Cython',
                                         'cytoolz',
                                         'dask',
-                                        'et_xmlfile',
+                                        # 'et_xmlfile',  # for openpyxl
                                         'h5netcdf',
                                         'h5py',
-                                        'html',
+                                        # 'html',
                                         'html5lib',
                                         'ipykernel',
                                         'IPython',
@@ -183,6 +191,7 @@ setup(
                                         'markupsafe',
                                         # 'matplotlib',
                                         'matplotlib.tests',
+                                        'matplotlib.mpl-data',
                                         'msgpack',
                                         'nbconvert',
                                         'nbformat',
@@ -191,10 +200,11 @@ setup(
                                         'notebook',
                                         'numexpr',
                                         'numpy.random._examples',
-                                        'openpyxl',
+                                        # 'openpyxl',
                                         'OpenSSL',
+                                        'pandas.tests',
                                         # 'PIL',
-                                        'pkg_resources',
+                                        # 'pkg_resources',
                                         'prompt_toolkit',
                                         'pycparser',
                                         'pydoc_data',
@@ -224,13 +234,15 @@ setup(
                                         '_pytest',
                                         ],
                            'include_files': [
-                               os.path.join(mkl_dlls, 'libiomp5md.dll'),
-                               os.path.join(mkl_dlls, 'mkl_core.dll'),
-                               os.path.join(mkl_dlls, 'mkl_def.dll'),
-                               os.path.join(mkl_dlls, 'mkl_intel_thread.dll'),
+                               # os.path.join(mkl_dlls, 'libiomp5md.dll'),
+                               # os.path.join(mkl_dlls, 'mkl_core.dll'),
+                               # os.path.join(mkl_dlls, 'mkl_def.dll'),
+                               # os.path.join(mkl_dlls, 'mkl_intel_thread.dll'),
                                r'./lpagg/lpagg.mplstyle',
                                r'./res/icon.png',
+                               r'./README.md',
                                ]
+
                            },
              'bdist_msi': {'data': {"Shortcut": shortcut_table},
                            'summary_data': {'author': author,
@@ -243,15 +255,15 @@ setup(
 )
 
 # Remove some more specific folders:
-remove_folders = [
-        r'.\build\exe.win-amd64-3.7\mpl-data',
-        r'.\build\exe.win-amd64-3.7\tk',
-        r'.\build\exe.win-amd64-3.7\tcl',
-        r'.\build\exe.win-amd64-3.7\lib\pandas\tests',
-        r'.\build\exe.win-amd64-3.7\lib\lpagg\resources_weather',
-        ]
-for folder in remove_folders:
-    shutil.rmtree(folder, ignore_errors=True)
+# remove_folders = [
+#         # r'.\build\exe.win-amd64-3.7\mpl-data',
+#         # r'.\build\exe.win-amd64-3.7\tk',
+#         # r'.\build\exe.win-amd64-3.7\tcl',
+#         # r'.\build\exe.win-amd64-3.7\lib\pandas\tests',
+#         r'.\build\exe.win-amd64-3.7\lib\lpagg\resources_weather',
+#         ]
+# for folder in remove_folders:
+#     shutil.rmtree(folder, ignore_errors=True)
 
 # Copy the README.md file to the build folder, changing extension to .txt
-shutil.copy2(r'.\README.md', r'.\build\exe.win-amd64-3.7\README.txt')
+# shutil.copy2(r'.\README.md', r'.\build\exe.win-amd64-3.7\README.txt')
