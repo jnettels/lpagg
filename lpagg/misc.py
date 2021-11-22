@@ -242,3 +242,15 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
 
         # Save one DataFrame to one Excel file
         df.to_excel(path, merge_cells=merge_cells, **kwargs)
+
+
+def get_TRY_polygons_GeoDataFrame():
+    """Return a GeoDataFrame with the 15 TRY regions.
+
+    Can be used to test to which region a certain place belongs.
+    """
+    import geopandas as gpd
+    filedir = os.path.dirname(__file__)
+    TRY_polygons = gpd.read_file(
+        os.path.join(filedir, 'resources_weather', 'TRY_polygons.geojson'))
+    return TRY_polygons
