@@ -400,7 +400,10 @@ def load_profile_factors(weather_data, cfg):
     # to dt.datetime by adding an arbitrary datetime.date object
     datetime_column = []
     for row, time_obj in enumerate(typtage_df['Zeit']):
-        datetime_obj = dt.datetime.combine(dt.datetime(2017, 1, 1), time_obj)
+        day = dt.datetime(2017, 1, 1)
+        if type(time_obj) == type(day):
+            time_obj = time_obj.time()
+        datetime_obj = dt.datetime.combine(day, time_obj)
         datetime_column.append(datetime_obj)
     typtage_df['Zeit'] = datetime_column
     # Now the column 'Zeit' can be added to the multiindex
@@ -797,6 +800,10 @@ def get_energy_demand_values_day(weather_data, houses_list, houses_dict,
                                                    energy_demand_type), typtag]
 #                print(load_curve_houses.loc[start:end])
         start = end
+
+    if logger.isEnabledFor(logging.INFO):
+        # overwrite last status with empty line
+        print('\r', end='\r')
 
     return load_curve_houses
 
