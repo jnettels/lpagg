@@ -79,7 +79,7 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
 
     weather_daily = weather_data.resample('D', label='right',
                                           closed='right').mean()
-#    print(weather_daily)
+    # print(weather_daily)
 
     houses_list = settings['houses_list_BDEW']
     multiindex = pd.MultiIndex.from_product([houses_list, [energy_type]],
@@ -159,7 +159,8 @@ def load_BDEW_profiles(weather_data, cfg, houses_dict):
     for column in BDEW_profiles.columns:
         W_a = houses_dict[column[0]]['W_a']
         yearly_sum = BDEW_profiles[column].sum()
-        BDEW_profiles[column] = BDEW_profiles[column]/yearly_sum * W_a
+        if W_a >= 0:  # Only rescale if W_a has a meaningful value
+            BDEW_profiles[column] = BDEW_profiles[column]/yearly_sum * W_a
 
     return BDEW_profiles
 
