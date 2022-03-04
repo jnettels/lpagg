@@ -44,7 +44,7 @@ about:
     home: https://github.com/jnettels/lpagg
     summary: 'Load profile aggregator for building simulations'
     description: 'Load profile aggregator for building simulations'
-    license: 'GPL3'
+    license: 'MIT'
     license_file: LICENSE.txt
     author: 'Joris Zimmermann'
     author_email: 'joris.zimmermann@stw.de'

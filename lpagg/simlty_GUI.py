@@ -1,22 +1,26 @@
-# -*- coding: utf-8 -*-
-'''
-**LPagg: Load profile aggregator for building simulations**
+# MIT License
 
-Copyright (C) 2019 Joris Nettelstroth
+# Copyright (c) 2022 Joris Zimmermann
 
-This program is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to
+# deal in the Software without restriction, including without limitation the
+# rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+# sell copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
 
-This program is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
 
-You should have received a copy of the GNU General Public License
-along with this program. If not, see https://www.gnu.org/licenses/.
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+# DEALINGS IN THE SOFTWARE.
 
+"""LPagg: Load profile aggregator for building simulations.
 
 LPagg
 =====
@@ -27,7 +31,8 @@ of buildings from different sources.
 Module simultaneity GUI
 -----------------------
 Graphical user interface for the standalone ``simulataneity`` module.
-'''
+"""
+
 import numpy as np
 import os
 import sys
@@ -48,11 +53,14 @@ logger = logging.getLogger(__name__)
 
 
 class MainClassAsGUI(QtWidgets.QMainWindow):
-    '''Main GUI Window.
+    """Main GUI Window.
+
     CentralWidget consists of a splitter, to show the settings on the left
     and a figure on the right.
-    '''
+    """
+
     def __init__(self):
+        """Initialize the object."""
         super().__init__()
 
         self.splitter = QtWidgets.QSplitter()
@@ -81,6 +89,7 @@ class MainClassAsGUI(QtWidgets.QMainWindow):
         Menu_help.addAction(Act_help)
 
     def show_help_message(self):
+        """Show the help message."""
         help_text = (
             'Programm zur Erzeugung von Gleichzeitigkeitseffekten in '
             'Zeitreihen. \n\n'
@@ -102,11 +111,13 @@ class MainClassAsGUI(QtWidgets.QMainWindow):
 
 
 class MyMplCanvas(FigureCanvasQTAgg):
-    '''Canvas to draw Matplotlib figures on.
+    """Create canvas to draw Matplotlib figures on.
+
     Is used for both the embedded histogram plot and the line plot.
-    '''
+    """
 
     def __init__(self, width=5, height=4, dpi=100):
+        """Initialize the object."""
         # Define style settings for the plots
         try:  # Try to load personalized matplotlib style file
             if getattr(sys, 'frozen', False):  # If frozen with cx_Freeze
@@ -123,7 +134,7 @@ class MyMplCanvas(FigureCanvasQTAgg):
         self.axes = self.fig.add_subplot(111)
 
     def update_histogram(self, sigma, copies, seed):
-        '''Create or update a histogram plot'''
+        """Create or update a histogram plot."""
         np.random.seed(seed)  # Fixing the seed makes the results persistent
 
         # Create a list of random values for all copies of the current column
@@ -148,8 +159,7 @@ class MyMplCanvas(FigureCanvasQTAgg):
         self.draw()
 
     def update_lineplot(self, df):
-        '''Create or update a line plot with specific columns from the
-        resulting DataFrame'''
+        """Create or update line plot with specific columns from DataFrame."""
         self.axes.cla()  # Clear axis
         self.axes.plot(df['Shift'], label='Shift')
         self.axes.plot(df['Reference'], '--', label='Referenz')
@@ -163,9 +173,10 @@ class MyMplCanvas(FigureCanvasQTAgg):
 
 
 class PlotWindow(QtWidgets.QWidget):
-    '''New window for plot figures.
-    '''
+    """New window for plot figures."""
+
     def __init__(self):
+        """Initialize the object."""
         super().__init__()
         self.plot_layout = QtWidgets.QVBoxLayout(self)
         self.plot_canvas = MyMplCanvas(width=10, height=4, dpi=100)
@@ -174,16 +185,20 @@ class PlotWindow(QtWidgets.QWidget):
         self.plot_layout.addWidget(self.plot_canvas)  # the matplotlib canvas
 
     def update_lineplot(self, df):
+        """Update the lineplot window."""
         self.setWindowTitle('Zeitreihen')
         self.plot_canvas.update_lineplot(df)
 
 
 class SettingsGUI(QtWidgets.QWidget):
-    '''The left part of the splitter in the MainWindow. All input boxes and
-    buttons are created here. This part is devided into several tabs.
+    """The left part of the splitter in the MainWindow.
 
-    '''
+    All input boxes and buttons are created here. This part is devided into
+    several tabs.
+    """
+
     def __init__(self, plotWidget, statusBar):
+        """Initialize the object."""
         super().__init__()  # Exec parent's init function
 
         self.statusBar = statusBar
@@ -220,8 +235,7 @@ class SettingsGUI(QtWidgets.QWidget):
         self.callback_lineEdits()  # Draw the first histogram
 
     def tab1UI(self):
-        '''Tab with the main settings.
-        '''
+        """Tab with the main settings."""
         for i in range(self.tab1Layout.count()):
             self.tab1Layout.itemAt(i).widget().close()
 
@@ -237,8 +251,7 @@ class SettingsGUI(QtWidgets.QWidget):
             n += 1
 
     def tab2UI(self):
-        '''Tab with other settings (for histogram plots)
-        '''
+        """Tab with other settings (for histogram plots)."""
         n = 0
         label = QtWidgets.QLabel('Die Ausgabe erfolgt als Excel Datei, mit '
                                  'den Einstellungen für "copies" und "sigma" '
@@ -269,9 +282,10 @@ class SettingsGUI(QtWidgets.QWidget):
         n += 1
 
     def callback_lineEdits(self):
-        '''This callback is called when any of the lineEdit widgets are
-        edited. It updates the histogram with the new settings
-        '''
+        """Update the histogram with the new settings.
+
+        This callback is called when any of the lineEdit widgets are edited.
+        """
         for i, key in enumerate(self.settings):
             settings_copy = self.settings[key]
             try:
@@ -287,28 +301,33 @@ class SettingsGUI(QtWidgets.QWidget):
                                                QtWidgets.QMessageBox.Ok)
 
     def callback_cbs(self, state):
-        '''This callback is called when any of the checkbox widgets are
-        changed. It stores the user input.
-        '''
+        """Store the user input.
+
+        This callback is called when any of the checkbox widgets are changed.
+        """
         for i, key in enumerate(self.set_hist):
             self.set_hist[key] = self.cb_list[i].isChecked()
 
     def callback_cb_ts(self, state):
-        '''This callback is called when the timeseries checkbox widget is
-        changed. It stores the user input.
-        '''
+        """Store the user input.
+
+        This is called when the timeseries checkbox widget is changed.
+        """
         self.plot_timeseries = state
 
     def perform_time_shift(self):
-        '''Callback for the button that starts the simultaneity calculation.
+        """Perform the time shift simulataneity calculation.
+
+        Callback for the button that starts the simultaneity calculation.
+
         To prevent the GUI from becoming unresponsive, an extra object for
         the task is created and moved to a thread of its own. Several
         connections for starting and finishing the tasks need to be made.
-        '''
+        """
         load_dir = './'
-#        if getattr(sys, 'frozen', False):  # If frozen with cx_Freeze
-#            logger.debug(os.getcwd())
-#            load_dir = os.path.expanduser('~user')
+        # if getattr(sys, 'frozen', False):  # If frozen with cx_Freeze
+        #     logger.debug(os.getcwd())
+        #     load_dir = os.path.expanduser('~user')
 
         self.file = QtWidgets.QFileDialog.getOpenFileName(
                 self, 'Bitte Exceldatei mit Zeitreihe auswählen',
@@ -345,11 +364,12 @@ class SettingsGUI(QtWidgets.QWidget):
             pass
 
     def done(self, result):
-        '''Function which is connected to the ``finished`` signal from
-        ``simultaneity_obj``. Reads the returned result object and updates the
-        status information.
-        Also creates a line plot of the time series in a new window.
-        '''
+        """Read the returned result object and updates the status information.
+
+        This function is connected to the ``finished`` signal from
+        ``simultaneity_obj``. It also creates a line plot of the time
+        series in a new window.
+        """
         output_file = result['output']
         GLF = result['GLF']
         Qt.QApplication.restoreOverrideCursor()
@@ -371,9 +391,11 @@ class SettingsGUI(QtWidgets.QWidget):
                                                QtWidgets.QMessageBox.Ok)
 
     def fail(self, error):
-        '''Function which is connected to the ``failed`` signal from
+        """Show an error message.
+
+        This function is connected to the ``failed`` signal from
         ``simultaneity_obj``. Is called if an exception occurs.
-        '''
+        """
         Qt.QApplication.restoreOverrideCursor()
 
         msg = QtWidgets.QMessageBox()
@@ -391,27 +413,32 @@ class SettingsGUI(QtWidgets.QWidget):
         self.statusBar().showMessage('')
 
     class simultaneity_obj(QtCore.QObject):
-        '''We want to perform the simultaneity calculation, which can take
+        """Create seperate object for long running simultaneity task.
+
+        We want to perform the simultaneity calculation, which can take
         several seconds, in a seperate thread. This prevents the GUI from
         locking up or becoming unresponsive. In order for this to work,
         the long running task is performed by a seperate object, which this
         class defines.
-        '''
+        """
+
         finished = QtCore.pyqtSignal('PyQt_PyObject')  # for emitting results
         failed = QtCore.pyqtSignal('PyQt_PyObject')  # for emitting results
 
         def __init__(self, settings, file, set_hist):
+            """Initialize the object."""
             super().__init__()
             self.settings = settings
             self.file = file
             self.set_hist = set_hist
 
         def __del__(self):
+            """Implement a debug messeage for the delete operation."""
             logger.debug('simultaneity object deleted')
 
         @QtCore.pyqtSlot()
         def run(self):
-            # Perform the time shift with the given settings
+            """Perform the time shift with the given settings."""
             try:
                 result = lpagg.simultaneity.run(self.settings['sigma'],
                                                 int(self.settings['copies']),
@@ -427,6 +454,7 @@ class SettingsGUI(QtWidgets.QWidget):
 
 
 def main():
+    """Show the graphical user interface for the simultaineity calculation."""
     log_level = 'error'
     logger.setLevel(level=log_level.upper())  # Logger for this module
     logging.basicConfig(format='%(asctime)-15s %(message)s')
