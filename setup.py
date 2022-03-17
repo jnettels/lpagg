@@ -30,12 +30,13 @@ of buildings from different sources.
 Setup script
 ------------
 
-Run the following command to install into your Python environment:
+Run one of the following commands to install into your Python environment:
 
 .. code:: sh
 
     python setup.py install
 
+    pip install -e <path to this folder>
 
 """
 from setuptools import setup
@@ -61,8 +62,20 @@ setup(
     author='Joris Zimmermann',
     author_email='joris.zimmermann@siz-energieplus.de',
     url='https://github.com/jnettels/lpagg',
-    install_requires=['pandas>=0.24.1', ],
     python_requires='>=3.7',
+    install_requires=[
+        'pandas >= 1.2.1',
+        'openpyxl >=3.0.3',
+        'pyyaml >=5.1',
+        'matplotlib',
+        'scipy',
+        'requests',
+        'geopy',
+        'holidays',
+    ],
+    extras_require={
+        'simlty_GUI': ['PyQt5'],
+    },
     packages=['lpagg', 'lpagg/examples', 'lpagg/resources_load',
               'lpagg/resources_weather'],
     package_data={'lpagg/examples': ['*.yaml'],
