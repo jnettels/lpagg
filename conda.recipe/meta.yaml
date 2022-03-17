@@ -1,5 +1,14 @@
 {% set data = load_setup_py_data() %}
 
+# Run this build with conda-forge channel, due to dependencies:
+# conda build conda.recipe -c conda-forge
+
+# Fix for possible issue:
+# ModuleNotFoundError: No module named 'conda._vendor.auxlib'
+# https://github.com/conda/conda-build/issues/4334?msclkid=7c989ae0a5d011ec9517ca4705291180
+# conda update -n base conda
+# conda install conda-build
+
 package:
   name: lpagg
   version: {{ data['version'] }}
@@ -9,6 +18,8 @@ source:
 
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
+
+  # noarch: python
 
   entry_points:
     # Put any entry points (scripts to be generated automatically) here.

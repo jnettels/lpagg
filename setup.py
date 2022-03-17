@@ -80,7 +80,7 @@ setup(
               'lpagg/resources_weather'],
     package_data={'lpagg/examples': ['*.yaml'],
                   'lpagg/resources_load': ['*.xlsx'],
-                  'lpagg/resources_weather': ['*_Jahr.dat'],
+                  'lpagg/resources_weather': ['*_Jahr.dat', '*.geojson'],
                   'lpagg': ['lpagg.mplstyle'],
                   },
     entry_points={
