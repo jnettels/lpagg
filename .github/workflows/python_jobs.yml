@@ -42,6 +42,13 @@ jobs:
         conda activate base  # Activate conda environment
         python setup_exe.py bdist_msi
 
+    - name: Upload windows msi installer artifact
+      if: runner.os == 'Windows'  # Only applies to windows
+      uses: actions/upload-artifact@v3
+      with:
+        name: gleichzeitigkeit-msi-python${{ matrix.python-version }}
+        path: dist/*.msi
+
     - name: Lint with flake8
       if: runner.os == 'Linux'  # Only needs to run once
       run: |
