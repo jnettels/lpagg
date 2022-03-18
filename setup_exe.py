@@ -45,7 +45,11 @@ To create a standalone installer:
 
 Troubleshooting
 
-https://stackoverflow.com/questions/52376313/converting-py-file-to-exe-cannot-find-existing-pyqt5-plugin-directories
+- Trouble with PyQt5?
+  https://stackoverflow.com/questions/52376313/converting-py-file-to-exe-cannot-find-existing-pyqt5-plugin-directories
+
+- When I click the exe-file, nothing happens...
+    - "mkl_intel_thread.1.dll" was missing from "include_files"
 
 Last tested with cx_freeze 6.8.2
 
@@ -80,16 +84,9 @@ if 'g' in version:  # 'Dirty' version, does not fit to Windows' version scheme
 print('Building with version tag: ' + version)
 
 # These settings solved an error (set to folders in python directory)
-os.environ['TCL_LIBRARY'] = os.path.join(sys.exec_prefix, r'tcl\tcl8.6')
-os.environ['TK_LIBRARY'] = os.path.join(sys.exec_prefix, r'tcl\tk8.6')
-mkl_dlls = os.path.join(sys.exec_prefix, r'Library\bin')
-
-# We need to include a dll for Qt
-# target = r'.\build\exe.win-amd64-3.7\platforms\qwindows.dll'
-# if not os.path.exists(os.path.dirname(target)):
-#     os.makedirs(os.path.dirname(target))
-# shutil.copy2(os.path.join(mkl_dlls, '../plugins/platforms/qwindows.dll'),
-#              target)
+# os.environ['TCL_LIBRARY'] = os.path.join(sys.exec_prefix, r'tcl\tcl8.6')
+# os.environ['TK_LIBRARY'] = os.path.join(sys.exec_prefix, r'tcl\tk8.6')
+mkl = os.path.join(sys.exec_prefix, r'Library\bin')
 
 base = None  # None for cmd-line
 if sys.platform == 'win32':
@@ -152,6 +149,7 @@ setup(
                            # 'namespace_packages': ['mpl_toolkits'],
                            'zip_include_packages': ['*'],  # reduze file size
                            'zip_exclude_packages': [
+                               'lpagg',
                                # 'pandas', 'PyQt5',
                                # 'matplotlib'
                                ],
@@ -242,9 +240,9 @@ setup(
                                         ],
                            'include_files': [
                                # os.path.join(mkl_dlls, 'libiomp5md.dll'),
-                               # os.path.join(mkl_dlls, 'mkl_core.dll'),
-                               # os.path.join(mkl_dlls, 'mkl_def.dll'),
-                               # os.path.join(mkl_dlls, 'mkl_intel_thread.dll'),
+                               # os.path.join(mkl, 'mkl_core.1.dll'),
+                               # os.path.join(mkl, 'mkl_def.1.dll'),
+                               os.path.join(mkl, 'mkl_intel_thread.1.dll'),
                                r'./lpagg/lpagg.mplstyle',
                                r'./res/icon.png',
                                r'./README.md',
