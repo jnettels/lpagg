@@ -24,7 +24,11 @@ Installation with Anaconda
 LPagg is a Python package. The recommended way to install the latest release
 is by using [Anaconda](https://www.anaconda.com/distribution/):
 ```
-conda install -c jnettels lpagg
+conda install lpagg -c jnettels
+```
+In case of package conflicts, this might work instead:
+```
+conda install lpagg -c jnettels -c conda-forge
 ```
 
 Installation from source
