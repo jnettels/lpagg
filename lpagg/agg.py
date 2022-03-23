@@ -780,7 +780,7 @@ def plot_and_print(weather_data, cfg):
                 sum_list_el.append(column)
 
     # Set the number of decimal points for the following terminal output
-    pd.set_option('precision', 2)
+    pd.set_option('display.precision', 2)
 
     weather_daily_sum = weather_data[sum_list].resample('D', label='left',
                                                         closed='right').sum()
@@ -804,7 +804,7 @@ def plot_and_print(weather_data, cfg):
             weather_annual_sum.sum(axis=1).sum()))
         print()
 
-    pd.reset_option('precision')  # ...and reset the setting from above
+    pd.reset_option('display.precision')  # ...and reset the setting from above
 
     # Display a plot on screen for the user
     if settings.get('show_plot', False) is True:
@@ -909,17 +909,16 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
 
     if isinstance(df, Sequence) and not isinstance(df, str):
         # Save a list of DataFrame objects into a single Excel file
-        writer = pd.ExcelWriter(path)
-        for i, df_ in enumerate(df):
-            try:  # Use given sheet name, or just an enumeration
-                sheet = sheet_names[i]
-            except IndexError:
-                sheet = str(i)
-            # Add current sheet to the ExcelWriter by calling this
-            # function recursively
-            df_to_excel(df=df_, path=writer, sheet_name=sheet,
-                        merge_cells=merge_cells, **kwargs)
-        writer.save()  # Save the actual Excel file
+        with pd.ExcelWriter(path) as writer:
+            for i, df_ in enumerate(df):
+                try:  # Use given sheet name, or just an enumeration
+                    sheet = sheet_names[i]
+                except IndexError:
+                    sheet = str(i)
+                # Add current sheet to the ExcelWriter by calling this
+                # function recursively
+                df_to_excel(df=df_, path=writer, sheet_name=sheet,
+                            merge_cells=merge_cells, **kwargs)
 
     else:
         # Per default, the sheet cells are frozen to keep the index visible

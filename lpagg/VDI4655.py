@@ -266,11 +266,11 @@ def get_typical_days(weather_data, cfg):
                  str(season_list.count('U')/steps_per_day))
 
     # Use https://pypi.org/project/holidays/ for holiday-detection
-    available_holidays = []
+    used_holidays = []
     if settings.get('holidays'):
         country = settings['holidays'].get('country', 'DE')
         province = settings['holidays'].get('province', None)
-        available_holidays = holidays.CountryHoliday(country, prov=province)
+        used_holidays = holidays.country_holidays(country, subdiv=province)
 
     # Read through list of days line by line and see what kind of day they are.
     # Problem: In the weather data, the bins are labeled on the 'right'
@@ -285,7 +285,7 @@ def get_typical_days(weather_data, cfg):
         if date_obj.dayofweek == 6:  # 6 equals Sunday
             weekdays_list.append('S')
             weekdays_list_BDEW.append('Sonntag')
-        elif date_obj in available_holidays:
+        elif date_obj in used_holidays:
             weekdays_list.append('S')
             weekdays_list_BDEW.append('Sonntag')
             flag_holidays_found = True

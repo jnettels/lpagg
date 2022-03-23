@@ -103,7 +103,8 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
                            'profile sources: '+str(source_df.keys()))
             continue
 
-        profile_year = pd.Series()  # Yearly profile for the current house
+        # Create the yearly profile for the current house
+        profile_year = pd.Series(dtype='object')
         for date in weather_daily.index:
             weekday = weather_data.loc[date]['weekday_BDEW']
             season = weather_data.loc[date]['season_BDEW']
@@ -231,7 +232,7 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
     # Finish aligning the calendar days
     overlap = futureSolar_df[-(shift_steps + 1):]
     overlap.index = overlap.index - pd.Timedelta('365 days')
-    futureSolar_df = overlap.append(futureSolar_df)
+    futureSolar_df = pd.concat([overlap, futureSolar_df])
 
     for house_name in houses_list:
         house_type = houses_dict[house_name]['house_type']

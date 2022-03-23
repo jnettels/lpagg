@@ -278,7 +278,7 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
             df_shifted = df_new.shift(shift_step)
             df_shifted.dropna(inplace=True, how='all')
             overlap.index = df_new[:shift_step].index
-            df_new = overlap.append(df_shifted)
+            df_new = pd.concat([overlap, df_shifted])
         elif shift_step < 0:
             # Retrieve overlap from the beginning of the df, shift
             # backwards in time, paste overlap at end of the df
@@ -286,7 +286,7 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
             df_shifted = df_new.shift(shift_step)
             df_shifted.dropna(inplace=True, how='all')
             overlap.index = df_new[shift_step:].index
-            df_new = df_shifted.append(overlap)
+            df_new = pd.concat([overlap, df_shifted])
         elif shift_step == 0:
             # No action required
             pass
@@ -416,7 +416,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg,
             load_curve_houses_ref = pd.concat([load_curve_houses_ref]
                                               + df_list_ref,
                                               axis=1, sort=False)
-            if sigma and logger.isEnabledFor(logging.DEBUG):
+            if sigma and cfg.get('settings', {}).get('print_GLF_stats', False):
                 debug_plot_normal_histogram(house_name, randoms_int, cfg)
         elif len(work_list) > 0:
             # Implementation in serial
@@ -432,7 +432,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg,
                 load_curve_houses_ref = pd.concat([load_curve_houses_ref,
                                                    df_ref],
                                                   axis=1, sort=False)
-            if sigma and logger.isEnabledFor(logging.DEBUG):
+            if sigma and cfg.get('settings', {}).get('print_GLF_stats', False):
                 debug_plot_normal_histogram(house_name, randoms_int, cfg)
         else:
             # The building exists only once. Here we do not add new copies,
@@ -457,7 +457,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg,
                     # seems to work just fine:
                     load_curve_houses[house_name] = df_new.values
 
-    if sigma_used and logger.isEnabledFor(logging.DEBUG):
+    if sigma_used and cfg.get('settings', {}).get('print_GLF_stats', False):
         language = cfg.get('settings', {}).get('language', 'de')
         if language == 'en':
             txt_title = 'buildings'
@@ -565,6 +565,8 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
 
     if settings.get('show_plot', False) is True:
         plt.show(block=False)  # Show plot without blocking the script
+    else:
+        plt.close()
 
 
 def plot_normal_histogram(house_name, randoms_int, save_folder=None,
@@ -695,10 +697,9 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
         save_folder = cfg['print_folder']
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
-        writer = pd.ExcelWriter(os.path.join(save_folder, 'GLF.xlsx'))
-        sf_df.to_excel(writer, sheet_name='GLF')
-        DIN4708_df.to_excel(writer, sheet_name='DIN4708')
-        writer.save()  # Save the actual Excel file
+        with pd.ExcelWriter(os.path.join(save_folder, 'GLF.xlsx')) as writer:
+            sf_df.to_excel(writer, sheet_name='GLF')
+            DIN4708_df.to_excel(writer, sheet_name='DIN4708')
 
     return None
 
