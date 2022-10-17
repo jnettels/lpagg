@@ -93,11 +93,13 @@ class MainClassAsGUI(QtWidgets.QMainWindow):
         help_text = (
             'Programm zur Erzeugung von Gleichzeitigkeitseffekten in '
             'Zeitreihen. \n\n'
+            'Die Eingabe "copies" definiert die Gesamtzahl der Kopien jeder '
+            'Wertespalte in der Eingabedatei.\n'
             'Die Standardabweichung sigma steuert die Streuung der '
             'zeitlichen Verschiebung der Kopien. "Seed" kontrolliert '
             'den Ausgangspunkt des Zufallsgenerators und ermöglicht '
             'reproduzierbare Zufallsziehungen. \n'
-            'Mit der Schaltfläche "Zeitverschiebung" kann eine '
+            'Mit der Schaltfläche "Datei auswählen" kann eine '
             'Exceldatei geladen werden. Diese muss als erste Spalte '
             'Zeitstempel enthalten und in allen weiteren Spalten '
             'die zu kopierenden Zeitreihen. Die erste Zeile '
@@ -138,8 +140,9 @@ class MyMplCanvas(FigureCanvasQTAgg):
         np.random.seed(seed)  # Fixing the seed makes the results persistent
 
         # Create a list of random values for all copies of the current column
-        if copies == 0:  # No copies (instead original profile is shifted)
-            randoms = np.random.normal(0, sigma, 1)
+        if copies <= 0:  # No copies (instead original profile is shifted)
+            # randoms = np.random.normal(0, sigma, 0)
+            raise ValueError("Die Anzahl der Kopien muss größer Null sein.")
         else:  # Normal usage: Only copies are shifted
             randoms = np.random.normal(0, sigma, copies)
         randoms_int = [int(value) for value in np.round(randoms, 0)]
@@ -203,7 +206,7 @@ class SettingsGUI(QtWidgets.QWidget):
 
         self.statusBar = statusBar
         self.settings = dict(sigma=1, copies=10, seed=4)
-        self.set_hist = dict(PNG=True, PDF=False)
+        self.set_hist = dict(PNG=True, SVG=False, PDF=False)
         self.plot_timeseries = True
         self.file_in = None
         self.file_out = None
@@ -224,7 +227,7 @@ class SettingsGUI(QtWidgets.QWidget):
         self.tab1UI()
         self.tab2UI()
 
-        self.start_button = QtWidgets.QPushButton('Zeitverschiebung')
+        self.start_button = QtWidgets.QPushButton('Datei auswählen...')
         self.start_button.clicked.connect(self.perform_time_shift)
 
         self.mainLayout.addWidget(self.tabsWidget, 0, 0)
@@ -258,8 +261,8 @@ class SettingsGUI(QtWidgets.QWidget):
                                  'im Dateinamen: '
                                  'Beispieldatei_c10_s5.xlsx. '
                                  'Darüber hinaus können die '
-                                 'Histogramme der Zufallsziehungen '
-                                 'als .png oder .pdf abgespeichert werden.')
+                                 'Histogramme der Zufallsziehungen als .png, '
+                                 '.svg oder .pdf abgespeichert werden.')
         label.setWordWrap(True)
         self.tab2Layout.addWidget(label, n, 0)
         n += 1

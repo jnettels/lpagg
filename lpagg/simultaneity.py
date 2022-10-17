@@ -196,39 +196,116 @@ def create_simultaneity(df, sigma, copies, seed, save_folder=None,
         df (Pandas DataFrame): The input data, combined with the new data
     """
     np.random.seed(seed)  # Fixing the seed makes the results persistent
-    df_refs = df.copy()
 
+    shift_list = []
     for col in df.columns:
         # Create a list of random values for all copies of the current column
         randoms = np.random.normal(0, sigma, copies)  # Array of random values
         randoms_int = [int(value) for value in np.round(randoms, 0)]
-
-        for copy in range(copies):
-            # Create all copies of the current column
-            df_new, df_ref = copy_and_randomize(df, col, randoms_int,
-                                                sigma, copy)
-            # Combine the existing DataFrame and the last copy
-            df = pd.concat([df, df_new], axis=1, sort=False,
-                           verify_integrity=True)
-            df_refs = pd.concat([df_refs, df_ref], axis=1, sort=False,
-                                verify_integrity=True)
-            df.sort_index(axis=1, inplace=True)  # Sort the column names
-            df_refs.sort_index(axis=1, inplace=True)  # Sort the column names
-
-        if copies == 0:
-            # No copies are requested. Here we do not add new copies,
-            # but instead overwrite the original profile
-            randoms = np.random.normal(0, sigma, 1)  # Array of randoms
-            randoms_int = [int(value) for value in np.round(randoms, 0)]
-            df_new, df_ref = copy_and_randomize(df, col, randoms_int,
-                                                sigma, copy=0)
-            df.loc[:, col] = df_new.values
-            df_refs.loc[:, col] = df_ref.values
+        shift_list += randoms_int
 
         # Save a histogram plot
         plot_normal_histogram(col, randoms_int, save_folder, set_hist)
 
+    # Each column gets same number of copies
+    copies_list = [copies] * len(df.columns)
+    # Create the copied columns
+    df = copy_df_columns(df, copies_list)
+    # Store a reference that will not be randomized
+    df_refs = df.copy()
+    # Shift all the columns
+    df = shift_columns(df, shift_list)
+
     return df, df_refs
+
+
+def copy_df_columns(df, copies_list, level=None):
+    """Copy each column in df the number of times given in copies_list.
+
+    If name of a multiindex level is given, the resulting groups are copied.
+    Make sure the order in copies_list actually fits the DataFrame columns.
+    """
+    if (pd.Series(copies_list) <= 1).all():
+        return df  # If all columns need one copy, just return the original
+
+    if level is None:
+        columns = df.columns
+    else:
+        columns = df.columns.unique(level=level)
+
+    df_new = pd.DataFrame()
+    for col, copies in zip(columns, copies_list):
+        for copy in range(0, copies):
+            copy_name = str(col) + '_c{0:0{width}}'.format(
+                copy, width=len(str(copies)))
+
+            if level is None:
+                df_tmp = df[[col]].rename(columns={col: copy_name})
+            else:
+                df_tmp = pd.concat([df[col]], keys=[copy_name],
+                                   names=[level], axis=1)
+            df_new = pd.concat([df_new, df_tmp], axis='columns')
+    return df_new
+
+
+def shift_columns(df, shift_list, level=None, sort_shifts=True):
+    """Shift each column in df by the value in shift_list.
+
+    Elements that are shifted beyond the end are added at the beginning.
+
+    df (DataFrame): The DataFrame with columns to shift along the index axis.
+
+    shift_list (list): A list of integers defining the number of rows each
+    column in df is shifted. Make sure the order in shift_list actually fits
+    the DataFrame columns.
+
+    level (str): If name of a multiindex level is given, the unique columns
+    in that level are treated as groups with one shift
+
+    sort_shifts (bool): If True, all columns with equal shift value are
+    shifted together, which increases the speed significantly.
+    """
+    if level is None:
+        columns = df.columns
+    else:
+        columns = df.columns.unique(level=level)
+
+    if sort_shifts:
+        df_shifts = pd.DataFrame(data=zip(columns, shift_list),
+                                 columns=['name', 'shift'])
+        for shift in df_shifts['shift'].unique():
+            # For each unique shift, get all columns and shift them together
+            shift_cols = df_shifts[df_shifts['shift'] == shift]['name']
+            df.loc[:, pd.IndexSlice[shift_cols]] = (
+                dataframe_roll(df.loc[:, pd.IndexSlice[shift_cols]], shift))
+    else:  # Only kept for debugging purposes. Should be slower in most cases
+        for col, shift in zip(columns, shift_list):
+            if shift != 0:
+                df[col] = dataframe_roll(df[col], shift)
+
+    return df
+
+
+def dataframe_roll(df, steps):
+    """Roll DataFrame (or Series) values by the given number of steps.
+
+    Elements that roll beyond the last position are re-introduced at the first.
+    This is a wrapper around numpy.roll().
+
+    df (DataFrame): The DataFrame (or Series) to shift.
+
+    steps (int): Positive or negative number of steps to shift df.
+    """
+    if isinstance(df, pd.DataFrame):
+        df_new = pd.DataFrame(index=df.index, columns=df.columns,
+                              data=np.roll(df.to_numpy(), steps, axis=0))
+    elif isinstance(df, pd.Series):
+        df_new = pd.Series(index=df.index,
+                           data=np.roll(df.to_numpy(), steps, axis=0))
+    else:
+        raise ValueError("Input must be DataFrame or Series")
+
+    return df_new
 
 
 def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
@@ -261,8 +338,8 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
     # Select the data of the house we want to copy
     df_new = load_curve_houses[house_name]
     # Rename the multiindex with the name of the copy
-    df_new = pd.concat([df_new], keys=[copy_name], names=['house'],
-                       axis=1)
+    df_new = pd.concat([df_new], keys=[copy_name], names=['house'], axis=1)
+
     if keep_reference:
         df_ref = df_new.copy()
     else:  # This saves on used memory, but both returns will be the same
@@ -270,26 +347,10 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
 
     if sigma:  # Optional: Shift the rows
         shift_step = randoms_int[copy]
-        if shift_step > 0:
-            # Shifting forward in time pushes the last entries out of
-            # the df and leaves the first entries empty. We take that
-            # overlap and insert it at the beginning
-            overlap = df_new[-shift_step:]
-            df_shifted = df_new.shift(shift_step)
-            df_shifted.dropna(inplace=True, how='all')
-            overlap.index = df_new[:shift_step].index
-            df_new = pd.concat([overlap, df_shifted])
-        elif shift_step < 0:
-            # Retrieve overlap from the beginning of the df, shift
-            # backwards in time, paste overlap at end of the df
-            overlap = df_new[:abs(shift_step)]
-            df_shifted = df_new.shift(shift_step)
-            df_shifted.dropna(inplace=True, how='all')
-            overlap.index = df_new[shift_step:].index
-            df_new = pd.concat([overlap, df_shifted])
-        elif shift_step == 0:
-            # No action required
-            pass
+        df_new = pd.DataFrame(
+            index=df_new.index,
+            columns=df_new.columns,
+            data=np.roll(df_new.to_numpy(), shift_step, axis=0))
 
     if b_print:
         # overwrite last status with empty line
@@ -297,11 +358,10 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
     return df_new, df_ref
 
 
-def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg,
-                              memory_threshold_MB=99999):
-    """Create copies of houses where needed.
+def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
+    """Create copies of houses and randomize load where needed.
 
-    Apply a normal distribution to the copies, if a standard deviation
+    Apply a normal distribution to the houses, if a standard deviation
     ``sigma`` is given in the config. This function is an internal part
     of the load profile aggregator program.
 
@@ -341,129 +401,71 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg,
     memory = load_curve_houses.memory_usage().sum() / 10**6  # MB
     logger.debug('Memory usage: {} MB'.format(memory))
 
+    # Code requires house as the top column level
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
-
-    if memory > memory_threshold_MB:  # MB
-        # When we do not copy any houses (but just shift each original profile)
-        # and also have a huge amount of houses to deal with, we need to
-        # save on RAM and skip saving the reference load profiles
-        load_curve_houses_ref = load_curve_houses
-        logger.critical('Due to the large number of {} houses and memory '
-                        'usage ({} MB), the reference '
-                        'load profiles are discarded and only the randomized '
-                        'profiles are kept. Therefore an implausible '
-                        'simultaneity factor = 1 will be calculated.'
-                        .format(len(houses_dict), memory))
-    else:  # The default behaviour
-        # Store reference load profiles (without simultaneity)
-        load_curve_houses_ref = load_curve_houses.copy()
 
     # Fix the 'randomness' (every run of the script generates the same results)
     np.random.seed(4)
-    randoms_all = []
-    sigma_used = False  # Was a sigma > 0 used for any building?
+    sigma_used = False  # Take note if a sigma > 0 used for any building
 
     # Create a temporary dict with all the info needed for randomizer
     randomizer_dict = dict()
     for house_name in settings['houses_list']:
-        copies = houses_dict[house_name].get('copies', 0)
+        copies = houses_dict[house_name].get('copies', 1)
         # Get standard deviation (spread or “width”) of the distribution:
         sigma = houses_dict[house_name].get('sigma', False)
+        randomizer_dict[house_name] = dict({'copies': copies, 'sigma': sigma})
         if sigma > 0:
             sigma_used = True
-
-        randomizer_dict[house_name] = dict({'copies': copies,
-                                            'sigma': sigma})
 
     external_profiles = cfg.get('external_profiles', dict())
     for house_name in external_profiles:
-        copies = external_profiles[house_name].get('copies', 0)
+        copies = external_profiles[house_name].get('copies', 1)
         # Get standard deviation (spread or “width”) of the distribution:
         sigma = external_profiles[house_name].get('sigma', False)
+        randomizer_dict[house_name] = dict({'copies': copies, 'sigma': sigma})
         if sigma > 0:
             sigma_used = True
 
-        randomizer_dict[house_name] = dict({'copies': copies,
-                                            'sigma': sigma})
-
-    # Create copies for every house
-    for i, house_name in enumerate(randomizer_dict):
-        fraction = (i+1) / len(randomizer_dict)
-        if logger.isEnabledFor(logging.INFO):  # print progress
-            print('\r{:5.1f}% done'.format(fraction*100), end='\r')
-
+    # Draw random numbers for each house. Needs to use the same order as
+    # the columns in load_curve_houses
+    shift_list = []  # Is ordered like load_curve_houses.columns
+    copies_list = []  # Is ordered like load_curve_houses.columns
+    houses = load_curve_houses.columns.unique(level='house')
+    for house_name in houses:
         copies = randomizer_dict[house_name]['copies']
         sigma = randomizer_dict[house_name]['sigma']
         randoms = np.random.normal(0, sigma, copies)  # Array of random values
         randoms_int = [int(value) for value in np.round(randoms, 0)]
+        randomizer_dict[house_name]['shifts'] = randoms_int
+        shift_list += randoms_int
+        copies_list.append(copies)
 
-        work_list = list(range(0, copies))
-        if len(work_list) > 100 and settings.get('run_in_parallel', False):
-            randoms_all += randoms_int
-            # Use multiprocessing to increase the speed
-            f_help = functools.partial(copy_and_randomize,
-                                       load_curve_houses, house_name,
-                                       randoms_int, sigma)
-            return_list = lpagg.misc.multiprocessing_job(f_help, work_list)
-            # Merge the existing and new dataframes
-            df_list_tuples = return_list.get()
+    # Create copies for every house
+    logger.debug('Copy houses')
+    load_curve_houses = copy_df_columns(
+        load_curve_houses, copies_list, level='house')
+    # load_curve_houses = copy_houses(load_curve_houses, randomizer_dict)
+    # Store a reference that will not be randomized
+    load_curve_houses_ref = load_curve_houses.copy()
+    # Randomize all the houses
+    logger.debug('Randomize houses')
+    # randomize_houses(load_curve_houses, randomizer_dict)
+    shift_columns(load_curve_houses, shift_list, level='house')
 
-            df_list = [x[0] for x in df_list_tuples]
-            df_list_ref = [x[1] for x in df_list_tuples]
-
-            load_curve_houses = pd.concat([load_curve_houses]+df_list,
-                                          axis=1, sort=False)
-            load_curve_houses_ref = pd.concat([load_curve_houses_ref]
-                                              + df_list_ref,
-                                              axis=1, sort=False)
-            if sigma and cfg.get('settings', {}).get('print_GLF_stats', False):
-                debug_plot_normal_histogram(house_name, randoms_int, cfg)
-        elif len(work_list) > 0:
-            # Implementation in serial
-            randoms_all += randoms_int
-            for copy in range(0, copies):
-                df_new, df_ref = copy_and_randomize(load_curve_houses,
-                                                    house_name,
-                                                    randoms_int, sigma,
-                                                    copy, b_print=True)
-                # Merge the existing and new dataframes
-                load_curve_houses = pd.concat([load_curve_houses, df_new],
-                                              axis=1, sort=False)
-                load_curve_houses_ref = pd.concat([load_curve_houses_ref,
-                                                   df_ref],
-                                                  axis=1, sort=False)
-            if sigma and cfg.get('settings', {}).get('print_GLF_stats', False):
-                debug_plot_normal_histogram(house_name, randoms_int, cfg)
-        else:
-            # The building exists only once. Here we do not add new copies,
-            # but instead overwrite the reference profile
-            if sigma is not False:
-                randoms = np.random.normal(0, sigma, 1)  # Array of randoms
-                randoms_int = [int(value) for value in np.round(randoms, 0)]
-                randoms_all += randoms_int
-                if randoms_int[0] == 0:
-                    continue
-                df_new, df_ref = copy_and_randomize(load_curve_houses,
-                                                    house_name,
-                                                    randoms_int, sigma,
-                                                    copy=0, b_print=True,
-                                                    # keep_reference=False,
-                                                    )
-                try:
-                    load_curve_houses.loc[:, house_name] = df_new.values
-                except ValueError:  # TODO
-                    # This used to work all the time, then for some random
-                    # cases it does not anymore. However, the easier approach
-                    # seems to work just fine:
-                    load_curve_houses[house_name] = df_new.values
-
+    # Plot histograms of all buildings and each building individually
     if sigma_used and cfg.get('settings', {}).get('print_GLF_stats', False):
+        for house_name in houses:
+            randoms_int = randomizer_dict[house_name]['shifts']
+            if len(randoms_int) > 1:
+                debug_plot_normal_histogram(house_name, randoms_int, cfg)
+
         language = cfg.get('settings', {}).get('language', 'de')
         if language == 'en':
             txt_title = 'buildings'
         else:
             txt_title = 'Gebäude gesamt'
-        debug_plot_normal_histogram(txt_title, randoms_all, cfg)
+        debug_plot_normal_histogram(txt_title, shift_list, cfg)
 
     # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
     calc_GLF(load_curve_houses, load_curve_houses_ref, cfg)
@@ -473,6 +475,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg,
         plot_shifted_lineplots(load_curve_houses, load_curve_houses_ref, cfg)
 
     load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
+
     return load_curve_houses
 
 
@@ -611,6 +614,10 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
             plt.savefig(os.path.join(save_folder,
                                      'histogram_'+str(house_name)+'.png'),
                         bbox_inches='tight', dpi=200)
+        if set_hist.get('SVG', False):
+            plt.savefig(os.path.join(save_folder,
+                                     'histogram_'+str(house_name)+'.svg'),
+                        bbox_inches='tight')
         if set_hist.get('PDF', False):
             plt.savefig(os.path.join(save_folder,
                                      'histogram_'+str(house_name)+'.pdf'),
@@ -717,7 +724,7 @@ def run_simul_lpagg_post(cfg):
 
     df, df_ref = create_simultaneity(load_curve_houses,
                                      sigma=8,
-                                     copies=0,
+                                     copies=1,
                                      seed=4,
                                      save_folder=cfg['print_folder'],
                                      set_hist=dict(PNG=True, PDF=False))

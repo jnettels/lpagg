@@ -89,9 +89,9 @@ settings:
 
     ### Print *_houses.xlsx file (in addition to .dat, which is always saved).
     ### Be careful, can create large file sizes that take long to save!
-    # print_houses_xlsx: True
+    print_houses_xlsx: True
     # print_P_max: True  # Print peak thermal power to separate file
-    # print_GLF_stats: True
+    print_GLF_stats: True
 
 ### This section is not part of VDI 4655:
 ### In this section you can define the relevant input for the 'Heizkurve'.
@@ -128,7 +128,8 @@ Verteilnetz:
 
 ### In this section of the configuration file, you must define at least one (or
 ### as many more as you like) houses to calculate the energy demand for.
-### The 'copies' key can create additinal copies of that house.
+### The 'copies' key can create additinal copies of that house. Not defining
+### this key implies a single copy.
 ### The 'sigma' key can apply a time shift to the original energy profile,
 ### where the given integer describes the standard deviation of the normal
 ### distribution. Its unit is 'time steps'. Example: With an 'interval' of
@@ -152,8 +153,8 @@ houses:
         house_type:     EFH
         N_Pers:         3       # Anzahl Personen
         N_WE:           1       # Anzahl Wohneinheiten
-        copies:         24      # Added Copies. Can be randomized with 'sigma'
-        sigma:          4     # Standard deviation of normal distribution
+        copies:         25      # Total copies. Can be randomized with 'sigma'
+        sigma:          4       # Standard deviation of normal distribution
 
     MFH:
         Q_Heiz_a:       60000   # kWh, Jährlicher Heizenergieverbrauch
@@ -163,8 +164,8 @@ houses:
         house_type:     MFH
         N_Pers:         45      # Anzahl Personen
         N_WE:           15      # Anzahl Wohneinheiten
-        copies:         24      # Added Copies. Can be randomized with 'sigma'
-        sigma:          2     # Standard deviation of normal distribution
+        copies:         25      # Total copies. Can be randomized with 'sigma'
+        sigma:          2       # Standard deviation of normal distribution
 
     Buero:
         Q_Heiz_a:       50000   # kWh, Jährlicher Heizenergieverbrauch
@@ -174,7 +175,7 @@ houses:
         house_type:     G1G
         N_Pers:         0      # Anzahl Personen
         N_WE:           0      # Anzahl Wohneinheiten
-        copies:         4
+        copies:         5
         sigma:          1
     Handel:
         Q_Heiz_a:       100000  # kWh, Jährlicher Heizenergieverbrauch
@@ -184,7 +185,7 @@ houses:
         house_type:     G4G
         N_Pers:         0      # Anzahl Personen
         N_WE:           0      # Anzahl Wohneinheiten
-        copies:         9
+        copies:         10
         sigma:          1
 
 
