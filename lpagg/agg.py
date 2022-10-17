@@ -510,16 +510,21 @@ def intermediate_printing(load_curve_houses, cfg):
     if settings.get('print_P_max', False):
         # Print peak power
         hours = settings['interpolation_freq'].seconds / 3600.0        # h
-        P_max_houses = (load_curve_houses
+        P_max_houses = load_curve_houses.copy()
+        P_max_houses = P_max_houses.stack(["class", "house"])
+        P_max_houses["Q_th"] = (P_max_houses["Q_Heiz_TT"]
+                                + P_max_houses["Q_TWW_TT"])
+        P_max_houses = P_max_houses.unstack(["class", "house"])
+        P_max_houses = (P_max_houses
                         .groupby(level=['house', 'energy'], axis=1).sum()
                         .max(axis=0)
                         .unstack()
                         .sort_index()
                         .rename(columns={'Q_Heiz_TT': 'P_th_RH',
                                          'Q_TWW_TT': 'P_th_TWE',
-                                         'W_TT': 'P_el'})
+                                         'W_TT': 'P_el',
+                                         'Q_th': 'P_th'})
                         )
-        P_max_houses['P_th'] = P_max_houses['P_th_RH']+P_max_houses['P_th_TWE']
         P_max_houses = P_max_houses / hours  # Convert kWh to kW
         logger.info('Printing *_P_max.dat and .xlsx files')
         P_max_houses.to_csv(os.path.join(cfg['print_folder'], os.path.splitext(
