@@ -989,11 +989,12 @@ def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET', normalize=True):
 
     # Shifting the time steps in this manner slightly alters the yearly sums.
     # They have to stay constant, since they are normalized to a certain sum.
+    # TODO: Optimize speed, if possible
     if normalize:
-        for column in df_default.columns:
-            sum_default = df_default[column].sum()
-            sum_DST = df_DST[column].sum()
-            if sum_DST != 0:  # Would produce NaN otherwise
-                df_DST[column] = df_DST[column]/sum_DST * sum_default
+        logger.debug('Normalize after applying DST')
+        # df_DST = df_DST / df_DST.sum() * df_default.sum()
+        df_DST = df_DST.div(df_DST.sum().replace(0, pd.NA)).mul(df_default.sum())
+        # Columns with a sum of zero produce NaN, so we fill these
+        df_DST.fillna(0, inplace=True)
 
     return df_DST
