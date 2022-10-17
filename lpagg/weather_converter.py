@@ -582,15 +582,16 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file,
     wd_sum2['IGLOB_H'] = wd_sum2['IBEAM_H'] + wd_sum2['IDIFF_H']
     w_stats_monthly = pd.concat([wd_sum, wd_mean, wd_sum2], axis=1)
     w_stats_monthly.dropna(inplace=True)
-    w_stats_monthly = w_stats_monthly.append(
-            pd.DataFrame(data={'G20/15': [G_sum], 'Heating days': [d_heat_sum],
-                               'TAMB': [tamb_avg],
-                               'IBEAM_H': [IBEAM_H_sum],
-                               'IDIFF_H': [IDIFF_H_sum],
-                               'IGLOB_H': [IGLOB_H_sum]
-                               },
-                         index=['Sum']),
-            )
+    w_stats_monthly = pd.concat([
+        w_stats_monthly,
+        pd.DataFrame(data={'G20/15': [G_sum], 'Heating days': [d_heat_sum],
+                           'TAMB': [tamb_avg],
+                           'IBEAM_H': [IBEAM_H_sum],
+                           'IDIFF_H': [IDIFF_H_sum],
+                           'IGLOB_H': [IGLOB_H_sum]
+                           },
+                     index=['Sum']),
+        ])
     w_stats_monthly.rename(columns={'G20/15': 'G20/15 [K*d]',
                                     'Heating days': 'Heating days [d]',
                                     'TAMB': 'TAMB [°C]',
