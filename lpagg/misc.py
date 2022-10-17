@@ -211,14 +211,14 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
             ts = time.strftime('%Y-%m-%d_%H-%M-%S', ts)
             path_time = (os.path.splitext(path)[0] + '_' +
                          ts + os.path.splitext(path)[1])
-            logger.critical('Writing instead to:  '+path_time)
+            logger.critical('Writing instead to: %s', path_time)
             df_to_excel(df, path_time, sheet_names=sheet_names,
                         merge_cells=merge_cells, **kwargs)
             return  # Do not run the rest of the function
 
     # Here the 'actual' function content starts:
     if not os.path.exists(os.path.dirname(path)):
-        logging.debug('Create directory ' + os.path.dirname(path))
+        logger.debug('Create directory %s', os.path.dirname(path))
         os.makedirs(os.path.dirname(path))
 
     if isinstance(df, Sequence) and not isinstance(df, str):

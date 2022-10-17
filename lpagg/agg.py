@@ -127,6 +127,9 @@ def perform_configuration(config_file='', cfg=None, ignore_errors=False):
                                 cfg['settings'].get('result_folder',
                                                     'Result')))
 
+    weather_file = os.path.join(cfg['base_folder'], settings['weather_file'])
+    cfg['settings']['weather_file'] = os.path.abspath(weather_file)
+
     # Certain tasks must be performed, or else the program will not run
     try:
         cfg = get_houses_from_table_file(cfg)
@@ -214,8 +217,10 @@ def aggregator_run(cfg):
 
     # For the GHD building sector, combine profiles from various sources:
     # (not part of VDI 4655)
+    logger.debug('Load commercial profiles')
     GHD_profiles = lpagg.BDEW.get_GHD_profiles(weather_data, cfg, houses_dict)
 
+    logger.debug('Combine residential and commercial profiles')
     load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
                                   axis=1, sort=False,
                                   keys=['HH', 'GHD'], names=['class'])
@@ -223,13 +228,14 @@ def aggregator_run(cfg):
     if settings.get('apply_DST', True):
         # Shift the profiles according to daylight saving time
         # (Optional, not part of VDI 4655)
+        logger.debug('Apply daylight saving time')
         load_curve_houses = apply_DST(load_curve_houses)
 
     # Flatten domestic hot water profile to a daily mean value
     # (Optional, not part of VDI 4655)
     # -------------------------------------------------------------------------
     load_curve_houses = flatten_daily_TWE(load_curve_houses, settings)
-#    print(load_curve_houses.head())
+    # print(load_curve_houses.head())
 
     # Add external (complete) profiles
     # (Optional, not part of VDI 4655)
@@ -250,7 +256,7 @@ def aggregator_run(cfg):
     #     seed=4)
 
     # Debugging: Show the daily sum of each energy demand type:
-#    print(load_curve_houses.resample('D', label='left', closed='right').sum())
+    # print(load_curve_houses.resample('D', label='left', closed='right').sum())
 
     # Save some intermediate result files
     intermediate_printing(load_curve_houses, cfg)
@@ -258,7 +264,7 @@ def aggregator_run(cfg):
     # Sum up the energy demands of all houses, store result in weather_data
     logger.info('Sum up the energy demands of all houses')
     weather_data = sum_up_all_houses(load_curve_houses, weather_data, cfg)
-#    print(weather_data)
+    # print(weather_data)
 
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     #       Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
@@ -278,8 +284,7 @@ def aggregator_run(cfg):
 def load_weather_file(cfg):
     """Read and interpolate weather data files."""
     settings = cfg['settings']
-    weather_file = os.path.join(cfg['base_folder'], settings['weather_file'])
-    weather_file = os.path.abspath(weather_file)
+    weather_file = settings['weather_file']
 
     weather_data_type = settings['weather_data_type']
     datetime_start = datetime.datetime(*settings['start'])  # * read as args
