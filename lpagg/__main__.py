@@ -78,7 +78,7 @@ def main():
     if settings.get('show_plot', False) is True:
         plt.show()  # Script is blocked until the user closes the plot window
 
-    input('\nPress the enter key to exit.')
+    return args
 
 
 def run_OptionParser():
@@ -92,6 +92,10 @@ def run_OptionParser():
 
     parser.add_argument('-f', '--file', dest='file', help='Path to a YAML '
                         'configuration file.', type=str, default=None)
+    parser.add_argument('-b', '--block', dest='block', help='If true, '
+                        'require a user key press to finish the script.',
+                        action=argparse.BooleanOptionalAction,
+                        default=False)
 
     args = parser.parse_args()
 
@@ -102,7 +106,6 @@ def run_OptionParser():
         if args.file is None:
             logger.info('Empty selection. Show help and exit program...')
             parser.print_help()
-            input('\nPress the enter key to exit.')
             raise SystemExit
 
     return args
@@ -112,7 +115,10 @@ if __name__ == '__main__':
     """This part is executed when the script is started directly with
     Python, not when it is loaded as a module."""
     try:  # Wrap everything in a try-except to show exceptions with the logger
-        main()
+        args = main()
     except Exception as e:
         logger.exception(e)
-        input('\nPress the enter key to exit.')  # Prevent console from closing
+
+    if args.block:
+        # Prevent console from closing
+        input('\nPress the enter key to exit.')
