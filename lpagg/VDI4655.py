@@ -86,6 +86,68 @@ import lpagg.misc
 logger = logging.getLogger(__name__)
 
 
+def run_demandlib(weather_data, cfg):
+    """Get the VDI4655 profiles from the libary demandlib.
+
+    This replaces the function ``run()``. The implementation of VDI4655
+    was transfered to the library demandlib, to make it available to a
+    broader audience.
+
+    https://github.com/oemof/demandlib
+    """
+    from demandlib import vdi
+
+    settings = cfg['settings']
+
+    holidays_list = []
+    if settings.get('holidays'):
+        country = settings['holidays'].get('country', 'DE')
+        province = settings['holidays'].get('province', None)
+        holidays_list = holidays.country_holidays(country, subdiv=province)
+
+    houses_dict = get_annual_energy_demand(cfg)
+    my_houses = []
+    for key, value in houses_dict.items():
+        value['name'] = key
+        my_houses.append(value)
+
+    df_empty = pd.DataFrame(
+        index=["house_type", "N_We", "N_Pers", "Q_Heiz_a", "Q_TWW_a", "W_a"])
+    df_empty.columns.set_names('name', inplace=True)
+
+    try:
+        year = settings['start'].year
+    except KeyError:
+        year = settings['start'][0]
+
+    # Define the region
+    my_region = vdi.Region(
+        year,
+        holidays=holidays_list,
+        try_region=my_houses[0]['TRY'],
+        houses=my_houses,
+        resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
+        file_weather=settings['weather_file'],
+    )
+
+    # Calculate load profiles
+    logger.info('Calculate load profiles with demandlib')
+    lc = my_region.get_load_curve_houses()
+
+    # Demandlib uses a different time step notation then lpagg
+    lc = lc.shift(periods=1, freq="infer").droplevel('house_type', axis='columns')
+
+    lc.columns.set_names(['house', 'energy'], inplace=True)
+    lc.index.set_names(['Time'], inplace=True)
+
+    # This has nothing to do with demandlib, but for BDEW we currently need
+    # more information added to weather_data
+    # TODO: Move this to lpagg.BDEW
+    get_typical_days(weather_data, cfg)
+
+    return lc, houses_dict
+
+
 def run(weather_data, cfg):
     """Run the VDI 4655 Implementation."""
     # -------------------------------------------------------------------------
@@ -415,12 +477,14 @@ def load_profile_factors(weather_data, cfg):
     typtage_df['Zeit'] = datetime_column
     # Now the column 'Zeit' can be added to the multiindex
     typtage_df.set_index('Zeit', drop=True, append=True, inplace=True)
+    typtage_df.columns.name = 'energy'
+    typtage_df.index.set_names({'Haus': 'house'}, inplace=True)
 
     # EFH come in resolution of 1 min, MFH in 15 min. We need to get MFH down
     # to 1 min.
     # Unstack, so that only the time index remains. This creates NaNs for the
     # missing time stamps in MFH columns
-    typtage_df = typtage_df.unstack(['Haus', 'typtag'])
+    typtage_df = typtage_df.unstack(['house', 'typtag'])
     # Fill those NaN values with 'forward fill' method
     typtage_df.fillna(method='ffill', inplace=True)
     # Divide by factor 15 to keep the total energy demand constant
@@ -431,8 +495,8 @@ def load_profile_factors(weather_data, cfg):
     # (each time stamp now describes the data in the interval before)
     typtage_df = typtage_df.resample(rule=interpolation_freq, level='Zeit',
                                      label='right', closed='left').sum()
-    typtage_df = typtage_df.stack(['Haus', 'typtag'])
-    typtage_df = typtage_df.reorder_levels(['Haus', 'typtag', 'Zeit'])
+    typtage_df = typtage_df.stack(['house', 'typtag'])
+    typtage_df = typtage_df.reorder_levels(['house', 'typtag', 'Zeit'])
     typtage_df = typtage_df.sort_index()
 
     # Create a new DataFrame with the load profile for the chosen time period,
@@ -445,6 +509,7 @@ def load_profile_factors(weather_data, cfg):
                                             names=['energy', 'house'])
     load_profile_df = pd.DataFrame(index=weather_data.index,
                                    columns=multiindex)
+    load_profile_df.fillna(0, inplace=True)
 
     # Fill the load profile's time steps with the matching energy factors
     # Iterate over time slices of full days
@@ -465,6 +530,17 @@ def load_profile_factors(weather_data, cfg):
                 load_profile_df.loc[start:end, (energy, house_type)] = \
                     typtage_df.loc[house_type, typtag,
                                    start_tt:end_tt][energy].values
+
+        # pd.merge(left=load_profile_df.loc[start:end],
+        #          right=typtage_df.unstack('house').xs(typtag, level='typtag'),
+        #          how='left',
+        #          left_index=True)
+
+        # load_profile_df.columns
+        # typtage_df.unstack('house').columns
+        # test = load_profile_df.copy()
+        # test.loc[start:end] += typtage_df.unstack('house').xs(typtag, level='typtag')
+        # test2 = load_profile_df - test
 
         start = end + interpolation_freq
 

@@ -213,7 +213,11 @@ def aggregator_run(cfg):
     weather_data = load_weather_file(cfg)
 
     # For households, use the VDI 4655
-    load_curve_houses, houses_dict = lpagg.VDI4655.run(weather_data, cfg)
+    try:
+        load_curve_houses, houses_dict = lpagg.VDI4655.run_demandlib(
+            weather_data, cfg)
+    except ImportError:
+        load_curve_houses, houses_dict = lpagg.VDI4655.run(weather_data, cfg)
 
     # For the GHD building sector, combine profiles from various sources:
     # (not part of VDI 4655)
