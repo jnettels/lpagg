@@ -27,8 +27,8 @@ jobs:
 
     - name: Install dependencies with conda
       run: |
-        conda install numpy
-        conda install conda-build setuptools setuptools_scm pandas pyqt
+        conda install numpy -y
+        conda install conda-build setuptools setuptools_scm pandas pyqt openpyxl -y
         conda install -c conda-forge cx_freeze>=6.3 -y
 
     - name: Build & install lpagg with conda
@@ -42,12 +42,26 @@ jobs:
         conda activate base  # Activate conda environment
         python setup_exe.py bdist_msi
 
-    - name: Upload windows msi installer artifact
+    - name: Build MSI installer for 'dwd2trnsys' GUI version (Windows only)
+      if: runner.os == 'Windows'  # Only applies to windows
+      run: |
+        conda activate base  # Activate conda environment
+        conda install geopy -y
+        python setup_d2t_exe.py bdist_msi
+
+    - name: Upload 'simultaneity' windows msi installer artifact
       if: runner.os == 'Windows'  # Only applies to windows
       uses: actions/upload-artifact@v3
       with:
         name: gleichzeitigkeit-msi-python${{ matrix.python-version }}
-        path: dist/*.msi
+        path: dist/Gleichzeitigkeit*.msi
+
+    - name: Upload 'dwd2trnsys' windows msi installer artifact
+      if: runner.os == 'Windows'  # Only applies to windows
+      uses: actions/upload-artifact@v3
+      with:
+        name: dwd2trnsys-msi-python${{ matrix.python-version }}
+        path: dist/dwd2trnsys*.msi
 
     - name: Lint with flake8
       if: runner.os == 'Linux'  # Only needs to run once
