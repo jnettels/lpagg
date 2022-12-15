@@ -84,7 +84,7 @@ print('Building with version tag: ' + version)
 # These settings solved an error (set to folders in python directory)
 os.environ['TCL_LIBRARY'] = os.path.join(sys.exec_prefix, r'tcl\tcl8.6')
 os.environ['TK_LIBRARY'] = os.path.join(sys.exec_prefix, r'tcl\tk8.6')
-mkl_dlls = os.path.join(sys.exec_prefix, r'Library\bin')
+dlls = os.path.join(sys.exec_prefix, r'Library\bin')
 
 base = None
 if sys.platform == 'win32':
@@ -148,8 +148,12 @@ setup(
                                         'idna.idnadata',
                                         ],
                            'zip_include_packages': ['*'],  # reduze file size
-                           'zip_exclude_packages': ['pandas'],
-                           'includes': [],
+                           'zip_exclude_packages': [
+                               'PIL',
+                               'pandas',
+                               ],
+                           'includes': ['geopy',
+                                        ],
                            'excludes': ['adodbapi',
                                         'alabaster'
                                         'asn1crypto',
@@ -177,7 +181,7 @@ setup(
                                         # 'et_xmlfile',
                                         'h5netcdf',
                                         'h5py',
-                                        'html',
+                                        # 'html',
                                         'html5lib',
                                         'ipykernel',
                                         'IPython',
@@ -232,13 +236,19 @@ setup(
                                         '_pytest',
                                         ],
                            'include_files': [
-                               os.path.join(mkl_dlls, 'libiomp5md.dll'),
-                               os.path.join(mkl_dlls, 'mkl_core.dll'),
-                               os.path.join(mkl_dlls, 'mkl_def.dll'),
-                               os.path.join(mkl_dlls, 'mkl_vml_avx2.dll'),
-                               os.path.join(mkl_dlls, 'mkl_vml_def.dll'),
-                               os.path.join(mkl_dlls, 'mkl_intel_thread.dll'),
+                               os.path.join(dlls, 'libiomp5md.dll'),
+                               os.path.join(dlls, 'mkl_core.1.dll'),
+                               os.path.join(dlls, 'mkl_def.1.dll'),
+                               os.path.join(dlls, 'mkl_vml_avx2.1.dll'),
+                               os.path.join(dlls, 'mkl_vml_def.1.dll'),
+                               os.path.join(dlls, 'mkl_intel_thread.1.dll'),
+                               os.path.join(dlls, 'mkl_avx2.1.dll'),
+                               os.path.join(dlls, 'mkl_sequential.1.dll'),
+                               # os.path.join(dlls, 'vcruntime140_1.dll'),
+                               os.path.join(dlls, 'msvcp140_1.dll'),
+                               os.path.join(dlls, 'freetype.dll'),
                                r'./res/icon_d2t.png',
+                               r'./README.md',
                                ]
                            },
              'bdist_msi': {'data': {"Shortcut": shortcut_table},
@@ -260,4 +270,4 @@ for folder in remove_folders:
     shutil.rmtree(folder, ignore_errors=True)
 
 # Copy the README.md file to the build folder, changing extension to .txt
-shutil.copy2(r'.\README.md', r'.\build\exe.win-amd64-3.7\README.txt')
+# shutil.copy2(r'.\README.md', r'.\build\exe.win-amd64-3.7\README.txt')
