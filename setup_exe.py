@@ -154,8 +154,10 @@ setup(
                             shortcut_name="Gleichzeitigkeit",
                             shortcut_dir="ProgramMenuFolder",
                             )],
-    options={'build_exe': {'packages': ['numpy', 'asyncio',
+    options={'build_exe': {'packages': ['numpy',
+                                        'asyncio',
                                         'pandas.plotting._matplotlib',
+                                        'openpyxl',
                                         ],
                            # 'namespace_packages': ['mpl_toolkits'],
                            'zip_include_packages': ['*'],  # reduze file size

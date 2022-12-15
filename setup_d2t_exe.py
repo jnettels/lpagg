@@ -146,6 +146,7 @@ setup(
                                         'asyncio',
                                         'idna',
                                         'idna.idnadata',
+                                        'openpyxl',
                                         ],
                            'zip_include_packages': ['*'],  # reduze file size
                            'zip_exclude_packages': [
@@ -153,6 +154,7 @@ setup(
                                'pandas',
                                ],
                            'includes': ['geopy',
+                                        'openpyxl',
                                         ],
                            'excludes': ['adodbapi',
                                         'alabaster'
@@ -194,6 +196,8 @@ setup(
                                         'lxml',
                                         'markupsafe',
                                         # 'matplotlib',
+                                        'matplotlib.tests',
+                                        'matplotlib.mpl-data',
                                         'msgpack',
                                         'nbconvert',
                                         'nbformat',
@@ -206,7 +210,7 @@ setup(
                                         'OpenSSL',
                                         'pandas.tests',
                                         # 'PIL',
-                                        'pkg_resources',
+                                        # 'pkg_resources',
                                         'prompt_toolkit',
                                         'pycparser',
                                         'pydoc_data',
