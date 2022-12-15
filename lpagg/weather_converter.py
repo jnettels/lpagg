@@ -261,14 +261,25 @@ def read_DWD_weather_file(weather_file_path):
         exit()
 
     # Read the file and store it in a DataFrame
-    weather_data = pd.read_csv(
-        weather_file_path,
-        delim_whitespace=True,
-        skiprows=header_row-1,
-        index_col=['MM', 'DD', 'HH'],
-        usecols=['MM', 'DD', 'HH', 'B', 'D', 't', 'WG', 'RF', 'WR', 'N', 'p'],
-        comment='*',
-        )
+    try:
+        weather_data = pd.read_csv(
+            weather_file_path,
+            delim_whitespace=True,
+            skiprows=header_row-1,
+            index_col=['MM', 'DD', 'HH'],
+            usecols=['MM', 'DD', 'HH', 'B', 'D', 't', 'WG', 'RF', 'WR', 'N', 'p'],
+            comment='*',
+            )
+    except UnicodeDecodeError:
+        weather_data = pd.read_csv(
+            weather_file_path,
+            delim_whitespace=True,
+            skiprows=header_row-1,
+            index_col=['MM', 'DD', 'HH'],
+            usecols=['MM', 'DD', 'HH', 'B', 'D', 't', 'WG', 'RF', 'WR', 'N', 'p'],
+            comment='*',
+            encoding='cp1252'
+            )
 
     # Rename the columns to the TRNSYS standard:
     weather_data.rename(columns={'B': 'IBEAM_H',
@@ -310,16 +321,39 @@ def get_TRNSYS_coordinates(weather_file_path):
         TRNcoords (dict): Dictionary with longitude and latitude
     """
     TRNcoords = dict()
+    dict_match = None
 
     with open(weather_file_path, 'r') as weather_file:
+        txt = weather_file.read()
         regex = r'Rechtswert\s*:\s(?P<x>\d*).*\nHochwert\s*:\s(?P<y>\d*)'
-        match = re.search(regex, weather_file.read())
+        match = re.search(regex, txt)
+        if match is not None:
+            dict_match = match.groupdict()
+            url = 'http://epsg.io/trans?s_srs=3034&t_srs=4326'
 
-    if match:  # Matches of the regular expression were found
-        url = 'http://epsg.io/trans?s_srs=3034&t_srs=4326'
+        else:
+            # Use the DWD TRY 2010 format instead
+            regex = r'Lage:\s(?P<y>.+)N.*\s(?P<x>.+)O'
+            match = re.search(regex, txt)
+
+            if match:
+                dict_match = match.groupdict()
+                for key, val in match.groupdict().items():
+                    deg, minutes, seconds =  re.split('[°\']', val)
+                    coord = float(deg) + float(minutes)/60
+                    dict_match[key] = coord
+                url = 'http://epsg.io/trans?s_srs=4326&t_srs=4326'
+
+        if match is None:
+            logger.error("Coordinates for 'Rechtswert' and 'Hochwert' not "
+                         "found in input file, so cannot proceed. Are you "
+                         "sure the input file has the right format? "
+                         "(DWD ortsgenaues Testreferenzjahr)")
+
+    if dict_match is not None:  # Matches of the regular expression were found
 
         try:
-            response = requests.get(url, params=match.groupdict())
+            response = requests.get(url, params=dict_match)
             coords = response.json()  # Create dict from json object
             TRNcoords['longitude'] = float(coords['x'])*-1  # negative
             TRNcoords['latitude'] = float(coords['y'])
@@ -339,7 +373,6 @@ def get_TRNSYS_coordinates(weather_file_path):
 
 def get_type99_header(weather_file_path, interpolation_freq):
     """Create the header for Type99 weather files."""
-    import geopy
 
     type99_header = '''<userdefined>
 <longitude>   -0.000  ! east of greenwich: negative
@@ -364,15 +397,22 @@ def get_type99_header(weather_file_path, interpolation_freq):
     replace_dict['gmt'] = 1  # currently fixed
 
     try:
+        import geopy
         geolocator = geopy.geocoders.Nominatim(user_agent='weather_converter')
         location = geolocator.reverse((replace_dict['latitude'],
                                        replace_dict['longitude']*-1))
-    except ValueError:
+    except ImportError:
+        logger.info("Install 'geopy' to add location details to output")
+        location = ''
+    except ValueError and KeyError:
         logger.error('Module GeoPy failed to find location details for '
                      'given coordinates, most likely due to missing '
                      'internet connection.')
-    else:
-        type99_header = re.sub('<location_str>', str(location), type99_header)
+        location = "You need to fill in the coordinates manually!"
+        logger.critical(location)
+        input("Press Enter to confirm that you read this message...")
+
+    type99_header = re.sub('<location_str>', str(location), type99_header)
 
     for key, value in replace_dict.items():
         re_find = r'<'+key+r'>\s*(.*)\s!'
