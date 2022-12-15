@@ -158,6 +158,7 @@ setup(
                                         'asyncio',
                                         'pandas.plotting._matplotlib',
                                         'openpyxl',
+                                        'xlsxwriter',
                                         ],
                            # 'namespace_packages': ['mpl_toolkits'],
                            'zip_include_packages': ['*'],  # reduze file size
@@ -168,6 +169,7 @@ setup(
                                # 'pandas', 'PyQt5',
                                ],
                            'includes': ['openpyxl',
+                                        'xlsxwriter',
                                         ],
                             'excludes': ['adodbapi',
                                           'alabaster'

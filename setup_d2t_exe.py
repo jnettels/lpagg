@@ -147,6 +147,7 @@ setup(
                                         'idna',
                                         'idna.idnadata',
                                         'openpyxl',
+                                        'xlsxwriter',
                                         ],
                            'zip_include_packages': ['*'],  # reduze file size
                            'zip_exclude_packages': [
@@ -155,6 +156,7 @@ setup(
                                ],
                            'includes': ['geopy',
                                         'openpyxl',
+                                        'xlsxwriter',
                                         ],
                            'excludes': ['adodbapi',
                                         'alabaster'

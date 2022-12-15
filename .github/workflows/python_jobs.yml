@@ -28,7 +28,7 @@ jobs:
     - name: Install dependencies with conda
       run: |
         conda install numpy -y
-        conda install conda-build setuptools setuptools_scm pandas pyqt openpyxl -y
+        conda install conda-build setuptools setuptools_scm pandas pyqt xlsxwriter openpyxl -y
         conda install -c conda-forge cx_freeze>=6.3 -y
 
     - name: Build & install lpagg with conda
