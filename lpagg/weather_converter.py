@@ -460,7 +460,7 @@ def interpolate_weather_file(weather_file_path,
                                          unit='h') + newyear
 
     # Infer the time frequency of the original data
-    original_freq = pd.infer_freq(weather_data.index, warn=True)
+    original_freq = pd.infer_freq(weather_data.index)
     original_freq = pd.to_timedelta(1, unit=original_freq)
 #    logger.debug('Inferred freqency = '+str(original_freq))
 

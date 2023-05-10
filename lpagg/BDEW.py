@@ -140,7 +140,7 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
             profile_year = pd.concat([profile_year, profile_daily])
 
         # Convert unit from 'W' to 'kWh'
-        freq = pd.infer_freq(profile_year.index, warn=True)
+        freq = pd.infer_freq(profile_year.index)
         freq = pd.to_timedelta(to_offset(freq))
         profile_year *= freq / (pd.Timedelta('1 hours') * 1000)  # W to kWh
 

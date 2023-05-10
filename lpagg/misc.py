@@ -136,7 +136,7 @@ def resample_energy(df, freq):
     """
     from pandas.tseries.frequencies import to_offset
 
-    freq_orig = pd.infer_freq(df.index, warn=True)
+    freq_orig = pd.infer_freq(df.index)
     freq_orig = pd.to_timedelta(to_offset(freq_orig))
     f_freq = freq/freq_orig
     if f_freq < 1:

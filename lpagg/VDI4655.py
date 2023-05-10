@@ -442,7 +442,7 @@ def load_profile_factors(weather_data, cfg):
         except Exception:
             pass
         else:
-            loaded_freq = pd.infer_freq(load_profile_df.index, warn=True)
+            loaded_freq = pd.infer_freq(load_profile_df.index)
             delta = pd.Timedelta(pd.tseries.frequencies.to_offset(loaded_freq))
             if delta == interpolation_freq:
                 logger.info('Pickle: Loaded existing load_profile_df '
