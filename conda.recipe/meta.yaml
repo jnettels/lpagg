@@ -19,7 +19,7 @@ source:
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
 
-  # noarch: python
+  noarch: python
 
   entry_points:
     # Put any entry points (scripts to be generated automatically) here.
