@@ -44,12 +44,17 @@ requirements:
         - scipy
         - requests
         - geopy
-        - holidays
+        - holidays >=0.13
 
 test:
   source_files:
     - lpagg/examples/VDI_4655_config_example.yaml
     - lpagg/resources_weather/TRY2010_04_Jahr.dat
+    - lpagg/resources_load/BDEW Profile.xlsx
+    - lpagg/resources_load/DOE Profile TWE.xlsx
+    - lpagg/resources_load/futureSolar Profile.xlsx
+    - lpagg/resources_load/VDI 4655 Typtage.xlsx
+    - lpagg/resources_load/VDI 4655 Typtag-Faktoren.xlsx
 
 about:
     home: https://github.com/jnettels/lpagg
