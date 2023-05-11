@@ -82,9 +82,8 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
                               skiprows=[0], header=[0, 1], index_col=[0],
                               skipfooter=1,
                               )
-
-    weather_daily = weather_data.resample('D', label='right',
-                                          closed='right').mean()
+    weather_daily = (weather_data.resample('D', label='right', closed='right')
+                     .mean(numeric_only=True))
     # print(weather_daily)
 
     houses_list = settings['houses_list_BDEW']
