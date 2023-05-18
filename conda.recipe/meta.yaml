@@ -19,14 +19,18 @@ source:
 build:
   number: {{ GIT_DESCRIBE_NUMBER }}
 
+  script: pip install .
+
   noarch: python
+
+  preserve_egg_dir: True
 
   entry_points:
     # Put any entry points (scripts to be generated automatically) here.
     - lpagg = lpagg.__main__:main
-    - simultaneity = lpagg.simultaneity:main
+    # - simultaneity = lpagg.simultaneity:main
     - simlty_GUI = lpagg.simlty_GUI:main
-    - dwd2trnsys = lpagg.dwd2trnsys:main
+    # - dwd2trnsys = lpagg.dwd2trnsys:main
 
 requirements:
     build:
@@ -41,6 +45,7 @@ requirements:
         - openpyxl >=3.0.3
         - pyyaml >=5.1
         - matplotlib
+        - numpy >=1.20
         - scipy
         - requests
         - geopy
@@ -50,11 +55,6 @@ test:
   source_files:
     - lpagg/examples/VDI_4655_config_example.yaml
     - lpagg/resources_weather/TRY2010_04_Jahr.dat
-    - lpagg/resources_load/BDEW Profile.xlsx
-    - lpagg/resources_load/DOE Profile TWE.xlsx
-    - lpagg/resources_load/futureSolar Profile.xlsx
-    - lpagg/resources_load/VDI 4655 Typtage.xlsx
-    - lpagg/resources_load/VDI 4655 Typtag-Faktoren.xlsx
 
 about:
     home: https://github.com/jnettels/lpagg
