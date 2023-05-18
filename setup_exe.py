@@ -165,7 +165,7 @@ setup(
                            'zip_exclude_packages': [
                                'lpagg',
                                'PIL',
-                               # 'matplotlib',
+                               'matplotlib',
                                # 'pandas', 'PyQt5',
                                ],
                            'includes': ['openpyxl',
@@ -256,19 +256,19 @@ setup(
                                           ],
                            'include_files': [
                                # os.path.join(dlls, 'libiomp5md.dll'),
-                               # os.path.join(dlls, 'mkl_core.1.dll'),
-                               # os.path.join(dlls, 'mkl_def.1.dll'),
-                               os.path.join(dlls, 'mkl_avx2.1.dll'),
-                               os.path.join(dlls, 'mkl_intel_thread.1.dll'),
-                               os.path.join(dlls, 'mkl_sequential.1.dll'),
-                               # os.path.join(dlls, 'vcruntime140_1.dll'),
+                               # os.path.join(dlls, 'mkl_core.2.dll'),
+                               # os.path.join(dlls, 'mkl_def.2.dll'),
+                               os.path.join(dlls, 'mkl_avx2.2.dll'),
+                               os.path.join(dlls, 'mkl_intel_thread.2.dll'),
+                               os.path.join(dlls, 'mkl_sequential.2.dll'),
+                               os.path.join(dlls, 'vcruntime140.dll'),
                                os.path.join(dlls, 'msvcp140_1.dll'),
                                os.path.join(dlls, 'freetype.dll'),
                                r'./lpagg/lpagg.mplstyle',
                                r'./res/icon.png',
                                r'./README.md',
                                ],
-                           # 'include_msvcr': True,  # Microsoft Visual C++
+                            'include_msvcr': True,  # Microsoft Visual C++
 
                            },
              'bdist_msi': {'data': {"Shortcut": shortcut_table},

@@ -71,7 +71,7 @@ setup(
         'scipy',
         'requests',
         'geopy',
-        'holidays',
+        'holidays >=0.13',
     ],
     extras_require={
         'simlty_GUI': ['PyQt5'],
@@ -81,7 +81,12 @@ setup(
     package_data={'lpagg/examples': ['*.yaml'],
                   'lpagg/resources_load': ['*.xlsx'],
                   'lpagg/resources_weather': ['*_Jahr.dat', '*.geojson'],
-                  'lpagg': ['lpagg.mplstyle'],
+                  'lpagg': ['lpagg.mplstyle', 
+                            'examples/*.yaml',
+                            'resources_load/*.xlsx'
+                            'resources_weather/*.dat',
+                            'resources_weather/*.geojson',
+                            ],
                   },
     entry_points={
         'console_scripts': ['lpagg = lpagg.__main__:main'],
