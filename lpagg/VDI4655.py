@@ -77,6 +77,7 @@ import logging
 import pickle
 import datetime as dt
 import holidays
+import pkg_resources
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
@@ -456,9 +457,12 @@ def load_profile_factors(weather_data, cfg):
     # They are labeled 'left', while the IGS-Weatherdata is labeled 'right'!
 
     # Read the excel workbook, which will return a dict of the sheets
-    typtage_sheets_dict = pd.read_excel(cfg['data']['typtage'],
-                                        sheet_name=None,
-                                        index_col=[0, 1])
+    # For the 'noarch' conda build, access the file as pkg resource object
+    with pkg_resources.resource_stream('lpagg', cfg['data']['typtage']
+                                       ) as resource:
+        typtage_sheets_dict = pd.read_excel(resource,
+                                            sheet_name=None,
+                                            index_col=[0, 1])
     # The DataFrame within every dict entry is combined to one large DataFrame
     typtage_df = pd.DataFrame()  # create a new DataFrame that is empty
     for sheet in typtage_sheets_dict:
@@ -674,9 +678,12 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
     # Load the file containing the energy factors of the different typical
     # radiation year (TRY) regions, house types and 'typtage'. In VDI 4655,
     # these are the tables 10 to 24.
-    energy_factors_df = pd.read_excel(cfg['data']['energy_factors'],
-                                      sheet_name='Faktoren',
-                                      index_col=[0, 1, 2])
+    # For the 'noarch' conda build, access the file as pkg resource object
+    with pkg_resources.resource_stream('lpagg', cfg['data']['energy_factors']
+                                       ) as resource:
+        energy_factors_df = pd.read_excel(resource,
+                                          sheet_name='Faktoren',
+                                          index_col=[0, 1, 2])
 
     if settings.get('zero_summer_heat_demand', None) is not None:
         # Reduze the value of 'F_Heiz_TT' to zero.

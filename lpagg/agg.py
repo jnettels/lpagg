@@ -41,7 +41,6 @@ import yaml                      # Read YAML configuration files
 from scipy import optimize
 import logging
 import datetime
-import pkg_resources  # requires setuptools
 
 # Import local modules from load profile aggregator project
 import lpagg.weather_converter   # Script for interpolation of weather files
@@ -105,30 +104,21 @@ def perform_configuration(config_file='', cfg=None, ignore_errors=False):
 
     # Define the file paths
     cfg.setdefault('data', dict())
-    # For the 'noarch' conda build, the following files have to be accessed
-    # not from regular file paths, but as pkg resources objects
-    cfg['data'].setdefault(
-        'energy_factors',
-        pkg_resources.resource_stream(
-            'lpagg', os.path.join('resources_load',
-                                  'VDI 4655 Typtag-Faktoren.xlsx')))
-    cfg['data'].setdefault(
-        'typtage',
-        pkg_resources.resource_stream(
-            'lpagg', os.path.join('resources_load', 'VDI 4655 Typtage.xlsx')))
-    cfg['data'].setdefault(
-        'BDEW',
-        pkg_resources.resource_stream(
-            'lpagg', os.path.join('resources_load', 'BDEW Profile.xlsx')))
-    cfg['data'].setdefault(
-        'DOE',
-        pkg_resources.resource_stream(
-            'lpagg', os.path.join('resources_load', 'DOE Profile TWE.xlsx')))
-    cfg['data'].setdefault(
-        'futureSolar',
-        pkg_resources.resource_stream(
-            'lpagg', os.path.join('resources_load',
-                                  'futureSolar Profile.xlsx')))
+    cfg['data'].setdefault('energy_factors',
+                           os.path.join('resources_load',
+                                        'VDI 4655 Typtag-Faktoren.xlsx'))
+    cfg['data'].setdefault('typtage',
+                           os.path.join('resources_load',
+                                        'VDI 4655 Typtage.xlsx'))
+    cfg['data'].setdefault('BDEW',
+                           os.path.join('resources_load',
+                                        'BDEW Profile.xlsx'))
+    cfg['data'].setdefault('DOE',
+                           os.path.join('resources_load',
+                                        'DOE Profile TWE.xlsx'))
+    cfg['data'].setdefault('futureSolar',
+                           os.path.join('resources_load',
+                                        'futureSolar Profile.xlsx'))
 
     # Derive additional settings from user input
     cfg['base_folder'] = os.path.dirname(config_file)

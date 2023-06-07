@@ -37,6 +37,7 @@ sources.
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
 import logging
+import pkg_resources
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
@@ -78,10 +79,12 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
 
     """
     settings = cfg['settings']
-    source_df = pd.read_excel(source_file, sheet_name=None,
-                              skiprows=[0], header=[0, 1], index_col=[0],
-                              skipfooter=1,
-                              )
+    # For the 'noarch' conda build, access the file as pkg resource object
+    with pkg_resources.resource_stream('lpagg', source_file) as resource:
+        source_df = pd.read_excel(resource, sheet_name=None,
+                                  skiprows=[0], header=[0, 1], index_col=[0],
+                                  skipfooter=1,
+                                  )
     weather_daily = (weather_data.resample('D', label='right', closed='right')
                      .mean(numeric_only=True))
     # print(weather_daily)
@@ -202,10 +205,12 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
     """
     settings = cfg['settings']
     houses_list = settings['houses_list_BDEW']
-
-    futureSolar_df = pd.read_excel(cfg['data']['futureSolar'],
-                                   index_col=[0],
-                                   sheet_name='Profile', header=[0, 1])
+    # For the 'noarch' conda build, access the file as pkg resource object
+    with pkg_resources.resource_stream('lpagg', cfg['data']['futureSolar']
+                                       ) as resource:
+        futureSolar_df = pd.read_excel(resource,
+                                       index_col=[0],
+                                       sheet_name='Profile', header=[0, 1])
     futureSolar_df.index = pd.to_timedelta(futureSolar_df.index, unit='h')
 
     energy_types = ['Q_Heiz_TT', 'Q_Kalt_TT']
