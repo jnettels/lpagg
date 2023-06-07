@@ -138,9 +138,9 @@ setup(
     executables=[Executable(r'lpagg/dwd2trnsys.py',
                             # base=base,  # Removes the console (use GUI only)
                             icon=r'./res/icon_d2t.ico',
-                            targetName='dwd2trnsys.exe',
-                            shortcutName="dwd2trnsys",
-                            shortcutDir="ProgramMenuFolder",
+                            target_name='dwd2trnsys.exe',
+                            shortcut_name="dwd2trnsys",
+                            shortcut_dir="ProgramMenuFolder",
                             )],
     options={'build_exe': {'packages': ['numpy',
                                         'asyncio',
