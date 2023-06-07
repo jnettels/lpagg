@@ -291,8 +291,13 @@ def load_weather_file(cfg):
     weather_file = settings['weather_file']
 
     weather_data_type = settings['weather_data_type']
-    datetime_start = datetime.datetime(*settings['start'])  # * read as args
-    datetime_end = datetime.datetime(*settings['end'])
+    try:
+        # * read as args, when defined in yaml file
+        datetime_start = datetime.datetime(*settings['start'])
+        datetime_end = datetime.datetime(*settings['end'])
+    except TypeError:  # Read as Timestamp objects otherwise
+        datetime_start = settings['start']
+        datetime_end = settings['end']
 #    datetime_start = datetime.datetime(2017,1,1,00,00,00) # Example
 #    datetime_end = datetime.datetime(2018,1,1,00,00,00)
     interpolation_freq = pd.Timedelta(settings['intervall'])

@@ -117,9 +117,9 @@ def run_demandlib(weather_data, cfg):
     df_empty.columns.set_names('name', inplace=True)
 
     try:
-        year = settings['start'].year
-    except KeyError:
-        year = settings['start'][0]
+        year = settings['start'].year  # A datetime object
+    except (KeyError, AttributeError):
+        year = settings['start'][0]  # A list, starting with the year
 
     # Define the region
     my_region = vdi.Region(
