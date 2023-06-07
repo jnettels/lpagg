@@ -371,6 +371,34 @@ def get_TRNSYS_coordinates(weather_file_path):
     return TRNcoords
 
 
+def get_coordinates_from_type99_file(file):
+    """Retrieve the coordinates stored in a TRNSYS Type99 weather file.
+
+    Args:
+        file (str): Path to a weather file. Its header is checked for
+        longitude and latitude information
+
+    Returns:
+        coordinates (dict): Dictionary with longitude and latitude
+
+    """
+    with open(file, 'r') as weather_file:
+        txt = weather_file.read()
+        regex = (r'<longitude>\s*(?P<longitude>\S*).*\n'
+                 r'<latitude>\s*(?P<latitude>\S*).*\n'
+                 )
+        match = re.search(regex, txt)
+
+        if match is not None:
+            coordinates = match.groupdict()
+            coordinates['latitude'] = float(coordinates['latitude'])
+            coordinates['longitude'] = float(coordinates['longitude']) * -1
+        else:
+            raise ValueError("No coordinates found in file {}".format(file))
+
+    return coordinates
+
+
 def get_type99_header(weather_file_path, interpolation_freq):
     """Create the header for Type99 weather files."""
 
