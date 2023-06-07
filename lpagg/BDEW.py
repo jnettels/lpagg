@@ -98,6 +98,11 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
         return ret_profiles
 
     for house_name in houses_list:
+        if pd.isna(houses_dict[house_name]['W_a']):
+            continue
+        elif houses_dict[house_name]['W_a'] == 0:
+            continue
+
         house_type = houses_dict[house_name]['house_type']
         if house_type not in source_df.keys():
             # Only use 'H0G', 'G0G', 'G1G', ...
@@ -170,6 +175,8 @@ def load_BDEW_profiles(weather_data, cfg, houses_dict):
         yearly_sum = BDEW_profiles[column].sum()
         if W_a >= 0:  # Only rescale if W_a has a meaningful value
             BDEW_profiles[column] = BDEW_profiles[column]/yearly_sum * W_a
+        elif pd.isna(W_a):
+            BDEW_profiles[column] = pd.NA
 
     return BDEW_profiles
 
@@ -188,6 +195,8 @@ def load_DOE_profiles(weather_data, cfg, houses_dict):
         yearly_sum = DOE_profiles[column].sum()
         if yearly_sum > 0:
             DOE_profiles[column] = DOE_profiles[column]/yearly_sum * Q_TWW_a
+        elif pd.isna(Q_TWW_a):
+            DOE_profiles[column] = pd.NA
 
     return DOE_profiles
 
