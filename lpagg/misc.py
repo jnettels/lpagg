@@ -252,7 +252,7 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
         df.to_excel(path, merge_cells=merge_cells, **kwargs)
 
 
-def get_TRY_polygons_GeoDataFrame():
+def get_TRY_polygons_GeoDataFrame(col_try="TRY_code"):
     """Return a GeoDataFrame with the 15 TRY regions.
 
     Can be used to test to which region a certain place belongs.
@@ -261,4 +261,5 @@ def get_TRY_polygons_GeoDataFrame():
     filedir = os.path.dirname(__file__)
     TRY_polygons = gpd.read_file(
         os.path.join(filedir, 'resources_weather', 'TRY_polygons.geojson'))
+    TRY_polygons.rename(columns={"TRY_code": col_try}, inplace=True)
     return TRY_polygons
