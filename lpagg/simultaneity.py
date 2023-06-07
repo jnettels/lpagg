@@ -536,12 +536,12 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
 
         fig = plt.figure()
         ax = fig.gca()
-        plt.plot(load_shift, label=txt_shift)
         plt.plot(load_ref, '--', label=txt_ref)
-        plt.axhline(load_shift.max(), linestyle='-.',
-                    label=txt_shift_max, color='#e8d654')
+        plt.plot(load_shift, label=txt_shift)
         plt.axhline(load_ref.max(), linestyle='-.',
                     label=txt_ref_max, color='#5eccf3')
+        plt.axhline(load_shift.max(), linestyle='-.',
+                    label=txt_shift_max, color='#e8d654')
         plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, 1.0))
         plt.ylabel(ylabel)
         ax.yaxis.grid(True)  # Activate grid on horizontal axis
