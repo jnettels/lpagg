@@ -274,6 +274,8 @@ def shift_columns(df, shift_list, level=None, sort_shifts=True):
         df_shifts = pd.DataFrame(data=zip(columns, shift_list),
                                  columns=['name', 'shift'])
         for shift in df_shifts['shift'].unique():
+            if shift == 0:
+                continue
             # For each unique shift, get all columns and shift them together
             shift_cols = df_shifts[df_shifts['shift'] == shift]['name']
             df.loc[:, pd.IndexSlice[shift_cols]] = (
