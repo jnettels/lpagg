@@ -65,7 +65,8 @@ def main():
     logger.setLevel(level=settings.get('log_level', 'INFO').upper())
 
     # Aggregate load profiles
-    weather_data = lpagg.agg.aggregator_run(cfg)
+    agg_dict = lpagg.agg.aggregator_run(cfg)
+    weather_data = agg_dict['weather_data']
     # print(weather_data)
 
     # Plot & Print

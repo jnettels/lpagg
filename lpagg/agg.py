@@ -208,15 +208,31 @@ def houses_sort(cfg):
 
 
 def aggregator_run(cfg):
-    """Run the aggregator to create the load profiles."""
+    """Run the aggregator to create the load profiles.
+
+    Args:
+        cfg (dict): A dictionary containing the dicts 'settings' and 'houses'.
+
+    Returns:
+        result_dict (dict): A dictionary containing the resulting DataFrames.
+        ``weather_data`` contains the input weather data combined with the
+        aggregated load profiles. ``load_curve_houses`` contains all individual
+        profiles of the houses. ``P_max_houses`` contains the peak power
+        of each house.
+
+    """
     settings = cfg['settings']
     weather_data = load_weather_file(cfg)
 
     # For households, use the VDI 4655
-    try:
+    # If the python package 'demandlib' is installed, it can be used
+    # for the VDI4655 calculation with improved performance. It might fail,
+    # since that implementation is currently in progress.
+    # https://github.com/oemof/demandlib
+    if cfg['settings'].get('use_demandlib', False):
         load_curve_houses, houses_dict = lpagg.VDI4655.run_demandlib(
             weather_data, cfg)
-    except ImportError:
+    else:
         load_curve_houses, houses_dict = lpagg.VDI4655.run(weather_data, cfg)
 
     # For the GHD building sector, combine profiles from various sources:
@@ -263,7 +279,7 @@ def aggregator_run(cfg):
     # print(load_curve_houses.resample('D', label='left', closed='right').sum())
 
     # Save some intermediate result files
-    intermediate_printing(load_curve_houses, cfg)
+    P_max_houses = intermediate_printing(load_curve_houses, cfg)
 
     # Sum up the energy demands of all houses, store result in weather_data
     logger.info('Sum up the energy demands of all houses')
@@ -282,7 +298,12 @@ def aggregator_run(cfg):
     # \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
     normalize_energy(weather_data, cfg)  # Optional
 
-    return weather_data
+    result_dict = {'weather_data': weather_data,
+                   'load_curve_houses': load_curve_houses,
+                   'P_max_houses': P_max_houses,
+                   }
+
+    return result_dict
 
 
 def load_weather_file(cfg):
@@ -516,31 +537,33 @@ def intermediate_printing(load_curve_houses, cfg):
                     merge_cells=True,
                     )
 
+    # Print peak power
+    hours = settings['interpolation_freq'].seconds / 3600.0        # h
+    P_max_houses = load_curve_houses.copy()
+    P_max_houses = P_max_houses.stack(["class", "house"])
+    P_max_houses["Q_th"] = (P_max_houses["Q_Heiz_TT"]
+                            + P_max_houses["Q_TWW_TT"])
+    P_max_houses = P_max_houses.unstack(["class", "house"])
+    P_max_houses = (P_max_houses
+                    .groupby(level=['house', 'energy'], axis=1).sum()
+                    .max(axis=0)
+                    .unstack()
+                    .sort_index()
+                    .rename(columns={'Q_Heiz_TT': 'P_th_RH',
+                                     'Q_TWW_TT': 'P_th_TWE',
+                                     'W_TT': 'P_el',
+                                     'Q_th': 'P_th'})
+                    )
+    P_max_houses = P_max_houses / hours  # Convert kWh to kW
     if settings.get('print_P_max', False):
-        # Print peak power
-        hours = settings['interpolation_freq'].seconds / 3600.0        # h
-        P_max_houses = load_curve_houses.copy()
-        P_max_houses = P_max_houses.stack(["class", "house"])
-        P_max_houses["Q_th"] = (P_max_houses["Q_Heiz_TT"]
-                                + P_max_houses["Q_TWW_TT"])
-        P_max_houses = P_max_houses.unstack(["class", "house"])
-        P_max_houses = (P_max_houses
-                        .groupby(level=['house', 'energy'], axis=1).sum()
-                        .max(axis=0)
-                        .unstack()
-                        .sort_index()
-                        .rename(columns={'Q_Heiz_TT': 'P_th_RH',
-                                         'Q_TWW_TT': 'P_th_TWE',
-                                         'W_TT': 'P_el',
-                                         'Q_th': 'P_th'})
-                        )
-        P_max_houses = P_max_houses / hours  # Convert kWh to kW
         logger.info('Printing *_P_max.dat and .xlsx files')
         P_max_houses.to_csv(os.path.join(cfg['print_folder'], os.path.splitext(
             settings['print_file'])[0] + '_P_max.dat'))
         df_to_excel(df=[P_max_houses], sheet_names=['P_max (kW)'],
                     path=os.path.join(cfg['print_folder'], os.path.splitext(
                         settings['print_file'])[0] + '_P_max.xlsx'))
+
+    return P_max_houses
 
 
 def sum_up_all_houses(load_curve_houses, weather_data, cfg):

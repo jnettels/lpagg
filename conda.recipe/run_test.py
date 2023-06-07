@@ -37,9 +37,12 @@ def main_test():
     """Run test function."""
     lpagg.misc.setup()
 
-    #  Get user input
+    # Get example user input. Directory is different in conda test environment
     file = os.path.join(os.path.dirname(__file__),
                         r'./lpagg/examples/VDI_4655_config_example.yaml')
+    if not os.path.exists(file):
+        file = os.path.join(os.path.dirname(__file__),
+                            r'../lpagg/examples/VDI_4655_config_example.yaml')
 
     # Import the config YAML file and add the default settings
     cfg = lpagg.agg.perform_configuration(file)
@@ -52,7 +55,8 @@ def main_test():
     logging.getLogger('lpagg.simultaneity').setLevel(level=log_level)
 
     # Aggregate load profiles
-    weather_data = lpagg.agg.aggregator_run(cfg)
+    agg_dict = lpagg.agg.aggregator_run(cfg)
+    weather_data = agg_dict['weather_data']
 
     # Evalute results
     cols = [x for x in weather_data.columns if 'E_' in x]
