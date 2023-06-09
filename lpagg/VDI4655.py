@@ -581,12 +581,12 @@ def get_annual_energy_demand(cfg):
         N_WE = houses_dict[house_name].get('N_WE', None)
 
         # Assign defaults if values are not defined
-        if pd.isna(N_Pers):
+        if house_type == 'EFH' and pd.isna(N_Pers):
             N_Pers = 3
             houses_dict[house_name]['N_Pers'] = N_Pers
             logger.warning('N_Pers not defined for ' + str(house_name)
                            + '. Using default ' + str(N_Pers))
-        if pd.isna(N_WE):
+        if house_type == 'MFH' and pd.isna(N_WE):
             N_WE = 2
             houses_dict[house_name]['N_WE'] = N_WE
             logger.warning('N_WE not defined for ' + str(house_name)
