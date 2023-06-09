@@ -78,6 +78,9 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
         not have any effect (since they are normalized anyway).
 
     """
+    energy_types_annual = {'Q_TWW_TT': 'Q_TWW_a', 'W_TT': 'W_a'}
+    energy_type_annual_str = energy_types_annual[energy_type]
+
     settings = cfg['settings']
     # For the 'noarch' conda build, access the file as pkg resource object
     with pkg_resources.resource_stream('lpagg', source_file) as resource:
@@ -98,9 +101,9 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
         return ret_profiles
 
     for house_name in houses_list:
-        if pd.isna(houses_dict[house_name]['W_a']):
+        if pd.isna(houses_dict[house_name][energy_type_annual_str]):
             continue
-        elif houses_dict[house_name]['W_a'] == 0:
+        elif houses_dict[house_name][energy_type_annual_str] == 0:
             continue
 
         house_type = houses_dict[house_name]['house_type']
