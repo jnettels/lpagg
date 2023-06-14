@@ -29,7 +29,7 @@ jobs:
       run: |
         conda install numpy -y
         conda install conda-build setuptools setuptools_scm pandas pyqt xlsxwriter openpyxl -y
-        conda install -c conda-forge cx_freeze>=6.12 -y
+        conda install -c conda-forge cx_freeze<6.15 -y
 
     - name: Build & install lpagg with conda
       run: |
