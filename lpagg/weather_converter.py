@@ -339,7 +339,9 @@ def get_TRNSYS_coordinates(weather_file_path):
             if match:
                 dict_match = match.groupdict()
                 for key, val in match.groupdict().items():
-                    deg, minutes, seconds =  re.split('[°\']', val)
+                    # When the file is loaded with a wrong enconding,
+                    # a string like val="53°32'" may become val="53Â°32'"
+                    deg, minutes, seconds = re.split('Â?°|\'', val)
                     coord = float(deg) + float(minutes)/60
                     dict_match[key] = coord
                 url = 'http://epsg.io/trans?s_srs=4326&t_srs=4326'
