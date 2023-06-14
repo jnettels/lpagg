@@ -29,7 +29,9 @@ jobs:
       run: |
         conda install numpy -y
         conda install conda-build setuptools setuptools_scm pandas pyqt xlsxwriter openpyxl -y
-        conda install -c conda-forge cx_freeze>=6.12 -y
+        # Limit cx_freeze to a functioning version. Each new release
+        # seems to cause issues with the dlls for mkl and numpy
+        conda install -c conda-forge "cx_freeze>=6.14,<6.15" -y
 
     - name: Build & install lpagg with conda
       run: |
