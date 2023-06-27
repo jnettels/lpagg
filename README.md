@@ -116,6 +116,16 @@ changes are noted on the
 
 Literature
 ==========
+
+|     |     | lpagg            | lpagg + demandlib    | demandlib            |
+| --- | --- | ---------------- | -------------------- | -------------------- |
+| HH  | RH  | VDI 4655 (lapgg) | VDI 4655 (demandlib) | VDI 4655 (demandlib) |
+|     | TWE | VDI 4655 (lapgg) | VDI 4655 (demandlib) | VDI 4655 (demandlib) |
+|     | EL  | VDI 4655 (lapgg) | VDI 4655 (demandlib) | VDI 4655 (demandlib) |
+| GHD | RH  | futuresolar      | futuresolar          | BDEW-Formel          |
+|     | TWE | DOE              | DOE                  | \-                   |
+|     | EL  | BDEW-TT          | BDEW-TT              | BDEW-TT              |
+
 <b id="f1">1</b> VDI 4655, 2008: Referenzlastprofile von Ein- und
 Mehrfamilienhäusern für den Einsatz von KWK-Anlagen. [↩](#a1)
 
