@@ -125,20 +125,20 @@ def main():
     # Alternative: Create weather_file_list from regular expression
     bool_regex = False
     if bool_regex:
-        # folder_regex = 'TRY_2016_(?P<region>.+)\\TRY(?P<year>.+)_\d{14}_Jahr\.dat'
-        # folder_regex = '.+(?P<aname>TRY_2016)_(?P<bregion>\d{2})\\\\TRY2015_\d{14}_Jahr\.dat'
-        # folder_regex = '.+TRY_2016_(?P<bregion>\d{2})\\\\(?P<aname>TRY2015)_(?P<ccoor>\d{14})_(?P<dtyp>Jahr)\.dat'
-        # folder_regex = '.+(?P<aname>TRY_2016)_(?P<bregion>01)\\\\TRY2015_\d{14}_Jahr\.dat'
-        # folder_regex = '.+TRY_2016_01\\\\TRY2015_\d{14}_Jahr\.dat'
-        # folder_regex = '.+TRY_2016_(?P<bregion>..)\\\\(?P<a>TRY2045)_(?P<c>\d{14})_(?P<dYtype>Jahr)\.dat'
-        folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(01|39095002965500)(_Jahr|)\.dat'
-        # folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(03|40005002975500)(_Jahr|)\.dat'
-        #folder_regex = '.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|x2015|xReferenzklimaregion)_(07|39625002724500)(_Jahr|)\.dat'
+        # folder_regex = r'TRY_2016_(?P<region>.+)\\TRY(?P<year>.+)_\d{14}_Jahr\.dat'
+        # folder_regex = r'.+(?P<aname>TRY_2016)_(?P<bregion>\d{2})\\\\TRY2015_\d{14}_Jahr\.dat'
+        # folder_regex = r'.+TRY_2016_(?P<bregion>\d{2})\\\\(?P<aname>TRY2015)_(?P<ccoor>\d{14})_(?P<dtyp>Jahr)\.dat'
+        # folder_regex = r'.+(?P<aname>TRY_2016)_(?P<bregion>01)\\\\TRY2015_\d{14}_Jahr\.dat'
+        # folder_regex = r'.+TRY_2016_01\\\\TRY2015_\d{14}_Jahr\.dat'
+        # folder_regex = r'.+TRY_2016_(?P<bregion>..)\\\\(?P<a>TRY2045)_(?P<c>\d{14})_(?P<dYtype>Jahr)\.dat'
+        folder_regex = r'.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(01|39095002965500)(_Jahr|)\.dat'
+        # folder_regex = r'.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|2015|Referenzklimaregion)_(03|40005002975500)(_Jahr|)\.dat'
+        #folder_regex = r'.+(?P<ztype>DWD|TRNSYS|IGS).+(?P<byear>2010|x2015|xReferenzklimaregion)_(07|39625002724500)(_Jahr|)\.dat'
 
         weather_file_list = []
         matchlist = []
         for root, dirs, files in os.walk(base_folder):
-            regex_compiled = re.compile(r''+folder_regex)
+            regex_compiled = re.compile(folder_regex)
             for file in files:
                 path = os.path.join(root, file)
                 regex_match = re.match(regex_compiled, path)
@@ -220,7 +220,7 @@ def read_IGS_weather_file(weather_file_path, start_date=None):
     # Read the file and store it in a DataFrame
     weather_data = pd.read_csv(
         open(weather_file_path, 'r'),
-        delim_whitespace=True,
+        sep=r'\s+',  # whitespace
         names=['HOUR', 'IBEAM_H', 'IDIFF_H', 'TAMB', 'WSPEED',
                'RHUM', 'WDIR', 'CCOVER', 'PAMB'],
         comment='<',
@@ -264,7 +264,7 @@ def read_DWD_weather_file(weather_file_path):
     try:
         weather_data = pd.read_csv(
             weather_file_path,
-            delim_whitespace=True,
+            sep=r'\s+',  # whitespace
             skiprows=header_row-1,
             index_col=['MM', 'DD', 'HH'],
             usecols=['MM', 'DD', 'HH', 'B', 'D', 't', 'WG', 'RF', 'WR', 'N', 'p'],
@@ -273,7 +273,7 @@ def read_DWD_weather_file(weather_file_path):
     except UnicodeDecodeError:
         weather_data = pd.read_csv(
             weather_file_path,
-            delim_whitespace=True,
+            sep=r'\s+',  # whitespace
             skiprows=header_row-1,
             index_col=['MM', 'DD', 'HH'],
             usecols=['MM', 'DD', 'HH', 'B', 'D', 't', 'WG', 'RF', 'WR', 'N', 'p'],
@@ -536,7 +536,7 @@ def interpolate_weather_file(weather_file_path,
         # The interpolation will generate NaN on the lines before the first
         # original line (hours = 1). Fill those NaN 'backwards' with the last
         # valid values:
-        weather_data.fillna(method='backfill', inplace=True)
+        weather_data = weather_data.bfill()
 
         # Cloud cover is given in integers, so interpolated values need to be
         # rounded
@@ -645,9 +645,10 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file,
     logger.info(w_stats)
 
     # Print table of montly sum / mean values
-    wd_sum = weather_data_daily[['G20/15', 'Heating days']].resample('M').sum()
-    wd_mean = weather_data_daily['TAMB'].resample('M').mean()
-    wd_sum2 = weather_data[['IBEAM_H', 'IDIFF_H']].resample('M').sum()\
+    wd_sum = weather_data_daily[['G20/15', 'Heating days']
+                                ].resample('ME').sum()
+    wd_mean = weather_data_daily['TAMB'].resample('ME').mean()
+    wd_sum2 = weather_data[['IBEAM_H', 'IDIFF_H']].resample('ME').sum()\
         * hours/1000
     wd_sum2['IGLOB_H'] = wd_sum2['IBEAM_H'] + wd_sum2['IDIFF_H']
     w_stats_monthly = pd.concat([wd_sum, wd_mean, wd_sum2], axis=1)

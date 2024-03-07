@@ -62,9 +62,9 @@ def main_test():
     cols = [x for x in weather_data.columns if 'E_' in x]
     weather_daily_sum = weather_data[cols].resample('D', label='left',
                                                     closed='right').sum()
-    weather_montly_sum = weather_daily_sum.resample('M', label='right',
+    weather_montly_sum = weather_daily_sum.resample('ME', label='right',
                                                     closed='right').sum()
-    weather_annual_sum = weather_montly_sum.resample('A', label='right',
+    weather_annual_sum = weather_montly_sum.resample('YE', label='right',
                                                      closed='right').sum()
     result = weather_annual_sum.sum(axis=1).sum()
     return result

@@ -518,8 +518,8 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
     # Group by energy to sum up all classes and houses
     # and convert from kWh to kW
     hours = cfg['settings']['interpolation_freq'].seconds / 3600.0  # h
-    load_shift = df_shift.groupby(level='energy', axis=1).sum() / hours
-    load_ref = df_ref.groupby(level='energy', axis=1).sum() / hours
+    load_shift = df_shift.T.groupby(level='energy').sum().T / hours
+    load_ref = df_ref.T.groupby(level='energy').sum().T / hours
 
     # Separate the energies into thermal and electrical
     load_th_shift = load_shift[['Q_Heiz_TT', 'Q_TWW_TT']].sum(axis=1)
@@ -645,8 +645,8 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
     load_curve_houses.sort_index(axis=1, inplace=True)
 
     try:
-        load_ran = load_curve_houses.groupby(level='energy', axis=1).sum()
-        load_ref = load_curve_houses_ref.groupby(level='energy', axis=1).sum()
+        load_ran = load_curve_houses.T.groupby(level='energy').sum().T
+        load_ref = load_curve_houses_ref.T.groupby(level='energy').sum().T
     except KeyError:
         # TODO: This error appeared first in pandas 0.25.0
         # Swapping the levels before grouping seems to fix it, though.
@@ -655,12 +655,13 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
                 i='energy', j='house', axis=1)
         load_curve_houses_ref = load_curve_houses_ref.swaplevel(
                 i='energy', j='house', axis=1)
-        load_ran = load_curve_houses_ran.groupby(level='energy', axis=1).sum()
-        load_ref = load_curve_houses_ref.groupby(level='energy', axis=1).sum()
+        load_ran = load_curve_houses_ran.T.groupby(level='energy').sum().T
+        load_ref = load_curve_houses_ref.T.groupby(level='energy').sum().T
 
     hours = settings['interpolation_freq'].seconds / 3600.0        # h
     sf_df = pd.DataFrame(index=['P_max_kW', 'P_max_ref_kW', 'GLF'],
-                         columns=['th_RH', 'th_TWE', 'th', 'el'])
+                         columns=['th_RH', 'th_TWE', 'th', 'el'],
+                         dtype='float')
     sf_df.loc['P_max_kW', 'th_RH'] = load_ran['Q_Heiz_TT'].max() / hours
     sf_df.loc['P_max_kW', 'th_TWE'] = load_ran['Q_TWW_TT'].max() / hours
     sf_df.loc['P_max_kW', 'th'] = (load_ran['Q_Heiz_TT']
@@ -673,9 +674,7 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
                                        + load_ref['Q_TWW_TT']).max() / hours
     sf_df.loc['P_max_ref_kW', 'el'] = load_ref['W_TT'].max() / hours
 
-    for col in ['th_RH', 'th_TWE', 'th', 'el']:
-        sf_df.loc['GLF', [col]] = (sf_df.loc['P_max_kW', [col]]
-                                   / sf_df.loc['P_max_ref_kW', [col]])
+    sf_df.loc['GLF'] = sf_df.loc['P_max_kW'].div(sf_df.loc['P_max_ref_kW'])
 
     # Calculate a reference simultaneity factor with DIN 4708
     homes_count = 0

@@ -489,8 +489,8 @@ def add_external_profiles(load_curve_houses, cfg):
     load_curve_houses.fillna(0, axis=1, inplace=True)
 
     logger.debug('Add external profiles: Grouping...')
-    load_curve_houses = load_curve_houses.groupby(
-            level=['class', 'house', 'energy'], axis=1).sum()
+    load_curve_houses = load_curve_houses.T.groupby(
+            level=['class', 'house', 'energy']).sum().T
 #    print(load_curve_houses)
 
     return load_curve_houses
@@ -506,8 +506,7 @@ def intermediate_printing(load_curve_houses, cfg):
 
     # Print load profile for each house (creates large file sizes!)
     load_curve_houses_tmp = (load_curve_houses
-                             .groupby(level=['house', 'energy'], axis=1)
-                             .sum()
+                             .T.groupby(level=['house', 'energy']).sum().T
                              .sort_index(axis=1))
 
     if logger.isEnabledFor(logging.DEBUG):
@@ -538,14 +537,14 @@ def intermediate_printing(load_curve_houses, cfg):
                     )
 
     # Print peak power
-    hours = settings['interpolation_freq'].seconds / 3600.0        # h
+    hours = settings['interpolation_freq'].seconds / 3600.0  # h
     P_max_houses = load_curve_houses.copy()
     P_max_houses = P_max_houses.stack(["class", "house"])
     P_max_houses["Q_th"] = (P_max_houses["Q_Heiz_TT"]
                             + P_max_houses["Q_TWW_TT"])
     P_max_houses = P_max_houses.unstack(["class", "house"])
     P_max_houses = (P_max_houses
-                    .groupby(level=['house', 'energy'], axis=1).sum()
+                    .T.groupby(level=['house', 'energy']).sum().T
                     .max(axis=0)
                     .unstack()
                     .sort_index()
@@ -554,6 +553,7 @@ def intermediate_printing(load_curve_houses, cfg):
                                      'W_TT': 'P_el',
                                      'Q_th': 'P_th'})
                     )
+
     P_max_houses = P_max_houses / hours  # Convert kWh to kW
     if settings.get('print_P_max', False):
         logger.info('Printing *_P_max.dat and .xlsx files')
@@ -582,8 +582,8 @@ def sum_up_all_houses(load_curve_houses, weather_data, cfg):
     # https://github.com/pandas-dev/pandas/issues/24671
     load_curve_houses.fillna(0, axis=1, inplace=True)
 
-    load_curve_houses_sum = load_curve_houses.groupby(
-            level=['energy', 'class'], axis=1).sum()
+    load_curve_houses_sum = load_curve_houses.T.groupby(
+            level=['energy', 'class']).sum().T
 
     rename_dict = settings.get('rename_columns', dict())
     load_curve_houses_sum.rename(columns=rename_dict, inplace=True)
@@ -828,13 +828,13 @@ def plot_and_print(weather_data, cfg):
                                                         closed='right').sum()
     logger.info('Calculations completed')
     logger.info('Monthly energy sums in kWh:')
-    weather_montly_sum = weather_daily_sum.resample('M', label='right',
+    weather_montly_sum = weather_daily_sum.resample('ME', label='right',
                                                     closed='right').sum()
     if logger.isEnabledFor(logging.INFO):
         print(weather_montly_sum)
         print()
     logger.info('Annual energy sums in kWh:')
-    weather_annual_sum = weather_montly_sum.resample('A', label='right',
+    weather_annual_sum = weather_montly_sum.resample('YE', label='right',
                                                      closed='right').sum()
     if logger.isEnabledFor(logging.INFO):
         print(weather_annual_sum)
@@ -1026,11 +1026,9 @@ def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET', normalize=True):
 
     # Shifting the time steps in this manner slightly alters the yearly sums.
     # They have to stay constant, since they are normalized to a certain sum.
-    # TODO: Optimize speed, if possible
     if normalize:
         logger.debug('Normalize after applying DST')
-        # df_DST = df_DST / df_DST.sum() * df_default.sum()
-        df_DST = df_DST.div(df_DST.sum().replace(0, pd.NA)).mul(df_default.sum())
+        df_DST = df_DST.div(df_DST.sum()).mul(df_default.sum())
         # Columns with a sum of zero produce NaN, so we fill these
         df_DST.fillna(0, inplace=True)
 

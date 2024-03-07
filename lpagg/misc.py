@@ -146,7 +146,7 @@ def resample_energy(df, freq):
         df = df.reindex(pd.date_range(start=start, end=end, freq=freq))
 
         # Fill all resulting missing values
-        df.fillna(method='backfill', inplace=True)
+        df.bfill(inplace=True)
 
         # Divide by factor f_freq to keep the total energy constant
         df *= f_freq

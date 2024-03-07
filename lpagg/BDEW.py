@@ -34,6 +34,7 @@ This module combines profiles for commercial building types from different
 sources.
 """
 
+import numpy as np
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
 import logging
@@ -95,8 +96,10 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
     houses_list = settings['houses_list_BDEW']
     multiindex = pd.MultiIndex.from_product([houses_list, [energy_type]],
                                             names=['house', 'energy'])
+
     ret_profiles = pd.DataFrame(index=weather_data.index,
-                                columns=multiindex)
+                                columns=multiindex,
+                                dtype='float')
     if len(houses_list) == 0:  # Skip
         return ret_profiles
 
@@ -114,7 +117,8 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
             continue
 
         # Create the yearly profile for the current house
-        profile_year = pd.Series(dtype='object')
+        profile_year = pd.Series(dtype='float')
+        profiles_daily = []
         for date in weather_daily.index:
             weekday = weather_data.loc[date]['weekday_BDEW']
             season = weather_data.loc[date]['season_BDEW']
@@ -146,8 +150,11 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
 
             profile_daily.index = index_new
 
-            # Append to yearly profile
-            profile_year = pd.concat([profile_year, profile_daily])
+            # Append to list of dayly profiles
+            profiles_daily.append(profile_daily)
+
+        # Combine to yearly profile
+        profile_year = pd.concat(profiles_daily)
 
         # Convert unit from 'W' to 'kWh'
         freq = pd.infer_freq(profile_year.index)
@@ -179,7 +186,7 @@ def load_BDEW_profiles(weather_data, cfg, houses_dict):
         if W_a >= 0:  # Only rescale if W_a has a meaningful value
             BDEW_profiles[column] = BDEW_profiles[column]/yearly_sum * W_a
         elif pd.isna(W_a):
-            BDEW_profiles[column] = pd.NA
+            BDEW_profiles[column] = np.nan
 
     return BDEW_profiles
 
@@ -199,7 +206,7 @@ def load_DOE_profiles(weather_data, cfg, houses_dict):
         if yearly_sum > 0:
             DOE_profiles[column] = DOE_profiles[column]/yearly_sum * Q_TWW_a
         elif pd.isna(Q_TWW_a):
-            DOE_profiles[column] = pd.NA
+            DOE_profiles[column] = np.nan
 
     return DOE_profiles
 
@@ -229,7 +236,8 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
     multiindex = pd.MultiIndex.from_product([houses_list, energy_types],
                                             names=['house', 'energy'])
     futureSolar_profiles = pd.DataFrame(index=weather_data.index,
-                                        columns=multiindex)
+                                        columns=multiindex,
+                                        dtype='float')
     if len(houses_list) == 0:  # Skip
         return futureSolar_profiles
 

@@ -113,7 +113,8 @@ def run_demandlib(weather_data, cfg):
         my_houses.append(value)
 
     df_empty = pd.DataFrame(
-        index=["house_type", "N_We", "N_Pers", "Q_Heiz_a", "Q_TWW_a", "W_a"])
+        index=["house_type", "N_We", "N_Pers", "Q_Heiz_a", "Q_TWW_a", "W_a"],
+        dtype='float')
     df_empty.columns.set_names('name', inplace=True)
 
     try:
@@ -136,7 +137,8 @@ def run_demandlib(weather_data, cfg):
     lc = my_region.get_load_curve_houses()
 
     # Demandlib uses a different time step notation then lpagg
-    lc = lc.shift(periods=1, freq="infer").droplevel('house_type', axis='columns')
+    lc = lc.shift(periods=1, freq="infer").droplevel('house_type',
+                                                     axis='columns')
 
     lc.columns.set_names(['house', 'energy'], inplace=True)
     lc.index.set_names(['Time'], inplace=True)
@@ -283,7 +285,7 @@ def get_typical_days(weather_data, cfg):
 
     # Write the daily mean values to all original time steps
     tamb_avg_list = tamb_avg_list.reindex(weather_data.index)
-    tamb_avg_list.fillna(method='backfill', inplace=True)
+    tamb_avg_list = tamb_avg_list.bfill()
 
     season_list = []
 
@@ -373,7 +375,7 @@ def get_typical_days(weather_data, cfg):
     ccover_avg_list = weather_data['CCOVER'].resample('D', label='right',
                                                       closed='right').mean()
     ccover_avg_list = ccover_avg_list.reindex(weather_data.index)
-    ccover_avg_list.fillna(method='backfill', inplace=True)
+    ccover_avg_list = ccover_avg_list.bfill()
     # The interpolation to 15min may cause a slight difference of daily means
     # compared to 60min, in rare cases shifting from >5.0 to <5.0.
     # Rounding to the first decimal place may prevent this issue.
@@ -464,7 +466,7 @@ def load_profile_factors(weather_data, cfg):
                                             sheet_name=None,
                                             index_col=[0, 1])
     # The DataFrame within every dict entry is combined to one large DataFrame
-    typtage_df = pd.DataFrame()  # create a new DataFrame that is empty
+    typtage_df = pd.DataFrame(dtype='float')  # create a new empty DataFrame
     for sheet in typtage_sheets_dict:
         typtage_df_new = typtage_sheets_dict[sheet]
         typtage_df = pd.concat([typtage_df, typtage_df_new])
@@ -474,7 +476,7 @@ def load_profile_factors(weather_data, cfg):
     datetime_column = []
     for row, time_obj in enumerate(typtage_df['Zeit']):
         day = dt.datetime(2017, 1, 1)
-        if type(time_obj) == type(day):
+        if isinstance(time_obj, type(day)):
             time_obj = time_obj.time()
         datetime_obj = dt.datetime.combine(day, time_obj)
         datetime_column.append(datetime_obj)
@@ -490,7 +492,7 @@ def load_profile_factors(weather_data, cfg):
     # missing time stamps in MFH columns
     typtage_df = typtage_df.unstack(['house', 'typtag'])
     # Fill those NaN values with 'forward fill' method
-    typtage_df.fillna(method='ffill', inplace=True)
+    typtage_df = typtage_df.ffill()
     # Divide by factor 15 to keep the total energy demand constant
     typtage_df.loc[:, (slice(None), 'MFH',)] *= 1/15
 
@@ -512,7 +514,8 @@ def load_profile_factors(weather_data, cfg):
     multiindex = pd.MultiIndex.from_product(iterables,
                                             names=['energy', 'house'])
     load_profile_df = pd.DataFrame(index=weather_data.index,
-                                   columns=multiindex)
+                                   columns=multiindex,
+                                   dtype='float')
     load_profile_df.fillna(0, inplace=True)
 
     # Fill the load profile's time steps with the matching energy factors
@@ -535,24 +538,13 @@ def load_profile_factors(weather_data, cfg):
                     typtage_df.loc[house_type, typtag,
                                    start_tt:end_tt][energy].values
 
-        # pd.merge(left=load_profile_df.loc[start:end],
-        #          right=typtage_df.unstack('house').xs(typtag, level='typtag'),
-        #          how='left',
-        #          left_index=True)
-
-        # load_profile_df.columns
-        # typtage_df.unstack('house').columns
-        # test = load_profile_df.copy()
-        # test.loc[start:end] += typtage_df.unstack('house').xs(typtag, level='typtag')
-        # test2 = load_profile_df - test
-
         start = end + interpolation_freq
 
     # Debugging: The daily sum of each energy factor type must be '1':
-#    if logger.isEnabledFor(logging.DEBUG):
-#        print("The daily sum of each energy factor type must equal '1':")
-#        print(load_profile_df.resample('D', label='left',
-#                                       closed='right').sum())
+    # if logger.isEnabledFor(logging.DEBUG):
+    #     print("The daily sum of each energy factor type must equal '1':")
+    #     print(load_profile_df.resample('D', label='left',
+    #                                   closed='right').sum())
 
     if settings.get('pickle_load_profile', False):
         with open(load_profile_pickle, 'wb') as f:
@@ -701,7 +693,8 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
     multiindex = pd.MultiIndex.from_product(iterables, names=['house',
                                                               'energy'])
     daily_energy_demand_houses = pd.DataFrame(index=multiindex,
-                                              columns=typtage_combinations)
+                                              columns=typtage_combinations,
+                                              dtype='float')
 
     # Fill the DataFrame daily_energy_demand_houses
     for house_name in houses_list:
@@ -754,14 +747,14 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
                 Q_TWW_TT = Q_TWW_a * (1.0/365.0 + N_Pers_WE * 0)
 
             # Write values into DataFrame
-            daily_energy_demand_houses.loc[house_name,
-                                           'Q_Heiz_TT'][typtag] = Q_Heiz_TT
-            daily_energy_demand_houses.loc[house_name,
-                                           'W_TT'][typtag] = W_TT
-            daily_energy_demand_houses.loc[house_name,
-                                           'Q_TWW_TT'][typtag] = Q_TWW_TT
+            daily_energy_demand_houses.loc[
+                (house_name, 'Q_Heiz_TT'), typtag] = Q_Heiz_TT
+            daily_energy_demand_houses.loc[
+                (house_name, 'W_TT'), typtag] = W_TT
+            daily_energy_demand_houses.loc[
+                (house_name, 'Q_TWW_TT'), typtag] = Q_TWW_TT
 
-#    print(daily_energy_demand_houses)
+    # print(daily_energy_demand_houses)
     return daily_energy_demand_houses
 
 
@@ -779,7 +772,8 @@ def get_load_curve_houses(load_profile_df, houses_dict, weather_data, cfg,
     multiindex = pd.MultiIndex.from_product(iterables,
                                             names=['house', 'energy'])
     load_curve_houses = pd.DataFrame(index=weather_data.index,
-                                     columns=multiindex)
+                                     columns=multiindex,
+                                     dtype='float')
 
     if settings.get('run_in_parallel', False):
         # 'Partial' creates a function that only takes one argument. In our
@@ -888,7 +882,7 @@ def get_energy_demand_values_day(weather_data, houses_list, houses_dict,
                                                     house_type)] *\
                     daily_energy_demand_houses.loc[(house_name,
                                                    energy_demand_type), typtag]
-#                print(load_curve_houses.loc[start:end])
+                # print(load_curve_houses.loc[start:end])
         start = end
 
     if logger.isEnabledFor(logging.INFO):
