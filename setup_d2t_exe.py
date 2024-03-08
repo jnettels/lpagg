@@ -242,7 +242,7 @@ setup(
                                         '_pytest',
                                         ],
                            'include_files': [
-                               os.path.join(dlls, 'libiomp5md.dll'),
+                               # os.path.join(dlls, 'libiomp5md.dll'),
                                os.path.join(dlls, 'mkl_core.2.dll'),
                                os.path.join(dlls, 'mkl_def.2.dll'),
                                os.path.join(dlls, 'mkl_vml_avx2.2.dll'),
