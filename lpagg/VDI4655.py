@@ -106,11 +106,22 @@ def run_demandlib(weather_data, cfg):
         province = settings['holidays'].get('province', None)
         holidays_list = holidays.country_holidays(country, subdiv=province)
 
+    # These are global settings in lpagg, but per-house settings in demandlib
+    summer_temperature_limit = settings.get('Tamb_heat_limit', 15)
+    winter_temperature_limit = settings.get('winter_temperature_limit', 5)
+
+    if settings.get('zero_summer_heat_demand', False):
+        logger.warning("The option 'zero_summer_heat_demand=True' is not "
+                       "available in demandlib")
+
     houses_dict = get_annual_energy_demand(cfg)
+    # Convert dict of houses to list of houses while saving additional settings
     my_houses = []
-    for key, value in houses_dict.items():
-        value['name'] = key
-        my_houses.append(value)
+    for name, house_dict in houses_dict.items():
+        house_dict['name'] = name
+        house_dict['summer_temperature_limit'] = summer_temperature_limit
+        house_dict['winter_temperature_limit'] = winter_temperature_limit
+        my_houses.append(house_dict)
 
     df_empty = pd.DataFrame(
         index=["house_type", "N_We", "N_Pers", "Q_Heiz_a", "Q_TWW_a", "W_a"],
