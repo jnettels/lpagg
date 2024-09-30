@@ -58,14 +58,14 @@ jobs:
 
     - name: Upload 'simultaneity' windows msi installer artifact
       if: runner.os == 'Windows'  # Only applies to windows
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: gleichzeitigkeit-msi-python${{ matrix.python-version }}
         path: dist/Gleichzeitigkeit*.msi
 
     - name: Upload 'dwd2trnsys' windows msi installer artifact
       if: runner.os == 'Windows'  # Only applies to windows
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: dwd2trnsys-msi-python${{ matrix.python-version }}
         path: dist/dwd2trnsys*.msi
