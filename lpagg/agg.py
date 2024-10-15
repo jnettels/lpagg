@@ -522,8 +522,8 @@ def intermediate_printing(load_curve_houses, cfg):
         df_H = load_curve_houses_tmp
         df_D = df_H.resample('D', label='left', closed='right').sum()
         df_W = df_D.resample('W', label='right', closed='right').sum()
-        df_M = df_D.resample('M', label='right', closed='right').sum()
-        df_A = df_M.resample('A', label='right', closed='right').sum()
+        df_M = df_D.resample('ME', label='right', closed='right').sum()
+        df_A = df_M.resample('YE', label='right', closed='right').sum()
         print(df_M)
 
         # Be careful, can create huge file sizes

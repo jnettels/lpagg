@@ -38,7 +38,7 @@ import numpy as np
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
 import logging
-import pkg_resources
+import importlib.resources
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
@@ -83,8 +83,9 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
     energy_type_annual_str = energy_types_annual[energy_type]
 
     settings = cfg['settings']
-    # For the 'noarch' conda build, access the file as pkg resource object
-    with pkg_resources.resource_stream('lpagg', source_file) as resource:
+    # For the 'noarch' conda build, access the file as resource object
+    res_path = importlib.resources.files('lpagg').joinpath(source_file)
+    with importlib.resources.as_file(res_path) as resource:
         source_df = pd.read_excel(resource, sheet_name=None,
                                   skiprows=[0], header=[0, 1], index_col=[0],
                                   skipfooter=1,
@@ -224,9 +225,10 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict):
     """
     settings = cfg['settings']
     houses_list = settings['houses_list_BDEW']
-    # For the 'noarch' conda build, access the file as pkg resource object
-    with pkg_resources.resource_stream('lpagg', cfg['data']['futureSolar']
-                                       ) as resource:
+    # For the 'noarch' conda build, access the file as resource object
+    res_path = importlib.resources.files('lpagg').joinpath(
+        cfg['data']['futureSolar'])
+    with importlib.resources.as_file(res_path) as resource:
         futureSolar_df = pd.read_excel(resource,
                                        index_col=[0],
                                        sheet_name='Profile', header=[0, 1])

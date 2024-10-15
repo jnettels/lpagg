@@ -77,7 +77,7 @@ import logging
 import pickle
 import datetime as dt
 import holidays
-import pkg_resources
+import importlib.resources
 
 # Import local modules from load profile aggregator project
 import lpagg.misc
@@ -470,9 +470,10 @@ def load_profile_factors(weather_data, cfg):
     # They are labeled 'left', while the IGS-Weatherdata is labeled 'right'!
 
     # Read the excel workbook, which will return a dict of the sheets
-    # For the 'noarch' conda build, access the file as pkg resource object
-    with pkg_resources.resource_stream('lpagg', cfg['data']['typtage']
-                                       ) as resource:
+    # For the 'noarch' conda build, access the file as resource object
+    res_path = importlib.resources.files('lpagg').joinpath(
+        cfg['data']['typtage'])
+    with importlib.resources.as_file(res_path) as resource:
         typtage_sheets_dict = pd.read_excel(resource,
                                             sheet_name=None,
                                             index_col=[0, 1])
@@ -681,9 +682,10 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
     # Load the file containing the energy factors of the different typical
     # radiation year (TRY) regions, house types and 'typtage'. In VDI 4655,
     # these are the tables 10 to 24.
-    # For the 'noarch' conda build, access the file as pkg resource object
-    with pkg_resources.resource_stream('lpagg', cfg['data']['energy_factors']
-                                       ) as resource:
+    # For the 'noarch' conda build, access the file as resource object
+    res_path = importlib.resources.files('lpagg').joinpath(
+        cfg['data']['energy_factors'])
+    with importlib.resources.as_file(res_path) as resource:
         energy_factors_df = pd.read_excel(resource,
                                           sheet_name='Faktoren',
                                           index_col=[0, 1, 2])
