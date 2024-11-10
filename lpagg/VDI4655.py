@@ -104,7 +104,8 @@ def run_demandlib(weather_data, cfg):
     if settings.get('holidays'):
         country = settings['holidays'].get('country', 'DE')
         province = settings['holidays'].get('province', None)
-        holidays_list = holidays.country_holidays(country, subdiv=province)
+        holidays_dict = holidays.country_holidays(
+            country, subdiv=province,  years=settings['start'].year)
 
     # These are global settings in lpagg, but per-house settings in demandlib
     summer_temperature_limit = settings.get('Tamb_heat_limit', 15)
@@ -136,7 +137,7 @@ def run_demandlib(weather_data, cfg):
     # Define the region
     my_region = vdi.Region(
         year,
-        holidays=holidays_list,
+        holidays=holidays_dict,
         try_region=my_houses[0]['TRY'],
         houses=my_houses,
         resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
