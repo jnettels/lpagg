@@ -225,7 +225,6 @@ setup(
                                           'OpenSSL',
                                           'pandas.tests',
                                           # 'PIL',
-                                          # 'pkg_resources',
                                           'prompt_toolkit',
                                           'pycparser',
                                           'pydoc_data',
