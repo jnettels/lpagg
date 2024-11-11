@@ -648,8 +648,9 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
         load_ran = load_curve_houses.T.groupby(level='energy').sum().T
         load_ref = load_curve_houses_ref.T.groupby(level='energy').sum().T
     except KeyError:
-        # TODO: This error appeared first in pandas 0.25.0
-        # Swapping the levels before grouping seems to fix it, though.
+        # This error appeared first in pandas 0.25.0. Swapping the levels
+        # before grouping fixed it. In pandas >= 2.0 the issue is solved,
+        # but the workaroud is kept for backwards compatibility
         load_curve_houses_ran = load_curve_houses.copy()
         load_curve_houses_ran = load_curve_houses_ran.swaplevel(
                 i='energy', j='house', axis=1)
