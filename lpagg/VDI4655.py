@@ -691,7 +691,7 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
                                           sheet_name='Faktoren',
                                           index_col=[0, 1, 2])
 
-    if settings.get('zero_summer_heat_demand', None) is not None:
+    if settings.get('zero_summer_heat_demand', False) is True:
         # Reduze the value of 'F_Heiz_TT' to zero.
         # For modern houses, this eliminates the heat demand in summer
         energy_factors_df.loc[(slice(None), slice(None), 'F_Heiz_TT'),
