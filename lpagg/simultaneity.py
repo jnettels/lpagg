@@ -669,13 +669,51 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
                                    + load_ran['Q_TWW_TT']).max() / hours
     sf_df.loc['P_max_kW', 'el'] = load_ran['W_TT'].max() / hours
 
+    # Calculate reference power, without artificial simultaneity introduced
+    # by time shift. However, some simultaneity effects might still be
+    # included if different original load profiles were used, with power
+    # peaks at different times of the year
     sf_df.loc['P_max_ref_kW', 'th_RH'] = load_ref['Q_Heiz_TT'].max() / hours
     sf_df.loc['P_max_ref_kW', 'th_TWE'] = load_ref['Q_TWW_TT'].max() / hours
     sf_df.loc['P_max_ref_kW', 'th'] = (load_ref['Q_Heiz_TT']
                                        + load_ref['Q_TWW_TT']).max() / hours
     sf_df.loc['P_max_ref_kW', 'el'] = load_ref['W_TT'].max() / hours
 
-    sf_df.loc['GLF'] = sf_df.loc['P_max_kW'].div(sf_df.loc['P_max_ref_kW'])
+    sf_df.loc['GLF_timeshift'] = \
+        sf_df.loc['P_max_kW'].div(sf_df.loc['P_max_ref_kW'])
+
+    # Calculate a 'static' refrence power value. This is just the sum of
+    # the maximum power for each house, regardless of shape of profile
+    sf_df.loc['P_max_ref_static_kW', 'th_RH'] = (
+        load_curve_houses_ref.xs('Q_Heiz_TT', level='energy', axis=1)
+        .max().sum() / hours)
+    sf_df.loc['P_max_ref_static_kW', 'th_TWE'] = (
+        load_curve_houses_ref.xs('Q_TWW_TT', level='energy', axis=1)
+        .max().sum() / hours)
+    sf_df.loc['P_max_ref_static_kW', 'th'] = (
+        (load_curve_houses_ref.xs('Q_Heiz_TT', level='energy', axis=1)
+         + load_curve_houses_ref.xs('Q_TWW_TT', level='energy', axis=1))
+        .max().sum() / hours)
+    sf_df.loc['P_max_ref_static_kW', 'el'] = (
+        load_curve_houses_ref.xs('W_TT', level='energy', axis=1)
+        .max().sum() / hours)
+    sf_df.loc['GLF'] = sf_df.loc['P_max_kW'].div(
+        sf_df.loc['P_max_ref_static_kW'])
+
+    sf_df['Comment'] = [
+        "The maximum load in the resulting profiles at one point in time, "
+        "after application of time shift (due to definition of standard "
+        "deviation 'sigma')",
+        "The maximum load in the input profiles at one point in time "
+        "(without time shift)",
+        "GLF_timeshift = P_max_kW / P_max_ref_kW (this simultaneity factor "
+        "is useful for measuring the effect of the time shift)",
+        "The 'static' sum of the maxima of each individual input profile, "
+        "regardless of time",
+        "GLF = P_max_kW / P_max_ref_static_kW (this is the relevant "
+        "overall simultaneity factor)",
+        ]
+
 
     # Calculate a reference simultaneity factor with DIN 4708
     homes_count = 0
