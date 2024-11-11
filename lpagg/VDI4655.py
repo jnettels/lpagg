@@ -391,7 +391,7 @@ def get_typical_days(weather_data, cfg):
     # The interpolation to 15min may cause a slight difference of daily means
     # compared to 60min, in rare cases shifting from >5.0 to <5.0.
     # Rounding to the first decimal place may prevent this issue.
-    ccover_avg_list = ccover_avg_list.round(decimals=1)
+    # ccover_avg_list = ccover_avg_list.round(decimals=1)
 
     # Read through list of cloud cover line by line and apply the definition
     cloudy_list = []
