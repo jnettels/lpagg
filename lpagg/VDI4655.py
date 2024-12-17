@@ -100,12 +100,17 @@ def run_demandlib(weather_data, cfg):
 
     settings = cfg['settings']
 
-    holidays_list = []
+    try:
+        year = settings['start'].year  # A datetime object
+    except (KeyError, AttributeError):
+        year = settings['start'][0]  # A list, starting with the year
+
+    holidays_dict = dict()
     if settings.get('holidays'):
         country = settings['holidays'].get('country', 'DE')
         province = settings['holidays'].get('province', None)
         holidays_dict = holidays.country_holidays(
-            country, subdiv=province,  years=settings['start'].year)
+            country, subdiv=province, years=year)
 
     # These are global settings in lpagg, but per-house settings in demandlib
     summer_temperature_limit = settings.get('Tamb_heat_limit', 15)
@@ -128,11 +133,6 @@ def run_demandlib(weather_data, cfg):
         index=["house_type", "N_We", "N_Pers", "Q_Heiz_a", "Q_TWW_a", "W_a"],
         dtype='float')
     df_empty.columns.set_names('name', inplace=True)
-
-    try:
-        year = settings['start'].year  # A datetime object
-    except (KeyError, AttributeError):
-        year = settings['start'][0]  # A list, starting with the year
 
     # Define the region
     my_region = vdi.Region(
