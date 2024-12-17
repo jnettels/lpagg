@@ -168,8 +168,9 @@ def get_houses_from_table_file(cfg):
             # to be calculated according to VDI4655.
             # For this to work, we need to delete them from the dict.
             for energy in ['Q_TWW_a', 'W_a']:
-                if df_dict[house][energy] is np.nan:
-                    del df_dict[house][energy]
+                if energy in df_dict[house].keys():
+                    if df_dict[house][energy] is np.nan:
+                        del df_dict[house][energy]
 
             # Issue a warning, if necessary:
             if cfg['houses'].get(house) is not None:
