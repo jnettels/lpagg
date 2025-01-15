@@ -80,7 +80,7 @@ def perform_configuration(config_file='', cfg=None, ignore_errors=False):
     logger.info('Using configuration file ' + config_file)
 
     if cfg is None:
-        with open(config_file, 'r') as file:
+        with open(config_file, 'r', encoding='utf8') as file:
             cfg = yaml.load(file, Loader=yaml.UnsafeLoader)
 
     # Read settings from the cfg
