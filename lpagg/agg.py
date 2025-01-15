@@ -42,6 +42,7 @@ import yaml                      # Read YAML configuration files
 from scipy import optimize
 import logging
 import datetime
+# from memory_profiler import profile
 
 # Import local modules from load profile aggregator project
 import lpagg.weather_converter   # Script for interpolation of weather files
@@ -221,6 +222,38 @@ def aggregator_run(cfg):
         of each house.
 
     """
+    if cfg['settings'].get('unique_profile_workflow', True):
+        cfg = preprocess_unique_profiles(cfg)
+
+        # Now the "sorting" of houses has to be triggered manually
+        cfg = lpagg.agg.houses_sort(cfg)
+
+        # Aggregate load profiles
+        result_dict = _aggregator_run(cfg)
+
+        # Run the post-processing (assign unique profiles to all buildings)
+        result_dict = postprocess_unique_profiles(result_dict, cfg)
+
+    else:
+        result_dict = _aggregator_run(cfg)
+
+    return result_dict
+
+
+def _aggregator_run(cfg):
+    """Run the aggregator to create the load profiles.
+
+    Args:
+        cfg (dict): A dictionary containing the dicts 'settings' and 'houses'.
+
+    Returns:
+        result_dict (dict): A dictionary containing the resulting DataFrames.
+        ``weather_data`` contains the input weather data combined with the
+        aggregated load profiles. ``load_curve_houses`` contains all individual
+        profiles of the houses. ``P_max_houses`` contains the peak power
+        of each house.
+
+    """
     settings = cfg['settings']
     weather_data = load_weather_file(cfg)
 
@@ -310,6 +343,218 @@ def aggregator_run(cfg):
                    }
 
     return result_dict
+
+
+def preprocess_unique_profiles(cfg):
+    """Perform pre-processing of workflow with unique profiles."""
+    logger.info("Perform pre-processing of workflow with unique profiles")
+
+    # VDI4655 defines default values for annual eletricity and domestic
+    # hot water energy demand. Fill in those values where appropriate
+    lpagg.VDI4655.get_annual_energy_demand(cfg)  # updates cfg['houses']
+    # Create DataFrame from dict for easier workflow
+    df = pd.DataFrame.from_dict(cfg['houses'], orient='index')
+    df_unique = df.copy()
+    # Set all not-na values to 1 (normalized total energy demand of 1 kWh)
+    cols_energy = ['Q_Heiz_a', 'Q_Kalt_a', 'Q_TWW_a', 'W_a']
+    cols_energy = [c for c in cols_energy if c in df_unique.columns]
+    df_unique[cols_energy] = df_unique[cols_energy] * 0 + 1
+    # Disable sigma for unique profiles (set not-na to 0)
+    df_unique['sigma'] *= 0
+
+    if 'copies' in df_unique.columns:  # Not supported yet
+        # Set number of copies to default value '1'
+        df_unique['copies'] = df_unique['copies'] * 0 + 1
+
+    df_unique = df_unique.drop_duplicates().reset_index(drop=True)
+    df_unique = df_unique.reset_index().rename(columns={'index': 'id_unique'})
+
+    df = df.merge(df_unique
+                  .drop(columns=cols_energy + ['sigma', 'copies'])
+                  ).set_index(df.index)
+
+    # Replace the regular 'houses' dict with only the unique buildings
+    cfg['houses'] = df_unique.drop(columns='id_unique').to_dict(orient='index')
+    # Store an additional entry in the config, which will later be used
+    # to assign the unique profiles to each building
+    cfg['houses_id_unique'] = df.to_dict(orient='index')
+
+    # For settings where the default is True, set them specifically
+    cfg['settings']['calc_P_max'] = True
+
+    # Create a backup of original configuration settings
+    cfg['settings_bak'] = cfg['settings'].copy()
+    # Set all settings to False which need to be disabled for the
+    # run with the unique profiles
+    cfg['settings']['print_houses_dat'] = False
+    cfg['settings']['print_houses_xlsx'] = False
+    cfg['settings']['calc_P_max'] = False
+    cfg['settings']['print_P_max'] = False
+    cfg['settings']['print_GLF_stats'] = False
+    cfg['settings']['show_plot'] = False
+
+    logger.info('Number of unique profiles: %s', len(df_unique))
+
+    return cfg
+
+
+# @profile  # Decorator for memory monitoring
+def postprocess_unique_profiles(agg_dict, cfg,
+                                dtype='auto',
+                                length_enable_float32=10000,
+                                workflow='A'):
+    """Perform post-processing of workflow with unique profiles."""
+    logger.info("Perform post-processing of workflow with unique profiles")
+
+    # Process load curve DataFrame
+    df_lc = agg_dict['load_curve_houses']
+    # all-na columns are not part of the desired output and need to be removed
+    df_lc = df_lc.dropna(axis='columns', how='all')
+    df_lc = df_lc.rename_axis(columns={'house': 'id_unique'})
+
+    # Process unique houses DataFrame
+    df_unique = pd.DataFrame.from_dict(cfg['houses_id_unique'], orient='index')
+    df_unique = df_unique.rename_axis(index=['house'])
+    cols_keep = ['Q_Heiz_a', 'Q_Kalt_a', 'Q_TWW_a', 'W_a', 'id_unique']
+    cols_keep = [c for c in cols_keep if c in df_unique]
+    df_unique = df_unique[cols_keep]
+    df_unique = df_unique.set_index(['id_unique'], append=True)
+    df_unique = df_unique.rename(columns={'Q_Heiz_a': 'Q_Heiz_TT',
+                                          'Q_Kalt_a': 'Q_Kalt_TT',
+                                          'Q_TWW_a': 'Q_TWW_TT',
+                                          'W_a': 'W_TT'})
+    df_unique = df_unique.rename_axis(columns=['energy'])
+    df_unique = df_unique.stack(future_stack=True)  # Keep NA values
+
+    # The next step is probably the most memory-intensive operation.
+    # For scenarios with >10000 buildings it might cause problems for
+    # systems with e.g. 16GB RAM. Changing the dtype to float32 helped in
+    # certain cases.
+    if dtype == 'auto':
+        if len(df_unique) > length_enable_float32:
+            dtype = 'float32'
+            df_lc = df_lc.astype(dtype)
+            df_unique = df_unique.astype(dtype)
+
+    # Match the annual energy sum of each building with its unique profile.
+    # During tests with very large datasets, different workflows were
+    # explored.
+    if workflow == "A":
+        logger.info("Match unique profiles (Workflow %s)", workflow)
+        df_lc = (
+            pd.DataFrame(index=df_lc.index, columns=df_unique.index,
+                         dtype=df_lc.dtypes.values[0])
+            .fillna(1.0)
+            .mul(df_unique)
+            .mul(df_lc, axis='index')  # Multiply matching parts of multiindex
+            .dropna(axis='columns', how='all')
+            )
+
+    elif workflow == "B":
+        logger.info("Match unique profiles (Workflow %s)", workflow)
+        df_lc = df_lc.T.multiply(df_unique, axis=0).T
+        df_lc = df_lc.dropna(axis='columns', how='all')
+
+    elif workflow == "dask":  # Does not work (yet)!
+        logger.info("Match unique profiles (Workflow %s)", workflow)
+        raise NotImplementedError("Using dask for large datasets should be "
+                                  "possible, but does not work yet.")
+        # import dask.dataframe as dd
+        # df_lc.columns = df_lc.columns.to_flat_index()
+        # df_unique.index = df_unique.index.to_flat_index()
+
+        # df_res = (
+        #     pd.DataFrame(index=df_lc.index, columns=df_unique.index,
+        #                  dtype=df_lc.dtypes.values[0])
+        #     .fillna(1.0)
+        #     .mul(df_unique)
+        #     )
+
+        # # Convert Pandas DataFrames to Dask DataFrames
+        # dd_res = dd.from_pandas(df_res, npartitions=8)
+        # dd_lc = dd.from_pandas(df_lc, npartitions=8)
+        # dd_unique = dd.from_pandas(df_unique, npartitions=8)
+
+        # dd_lc = (
+        #     dd_res
+        #     # .mul(dd_unique)
+        #     .mul(dd_lc, axis='index')
+        #     )
+        # df_lc = df_lc.compute()
+
+    # Adapt result DataFrame to expected output
+
+    # Restore the original sorting of the houses from df_unique.
+    # To do that, match their column index contents and level order
+    idx = df_unique.index.to_frame(index=False)
+    idx = pd.merge(idx,
+                   df_lc.columns.to_frame(index=False),
+                   on=idx.columns.to_list())
+    df_unique = df_unique.reindex(pd.MultiIndex.from_frame(idx))
+
+    # Match levels and their order in df_lc to load_curve_houses
+    df_lc = df_lc.droplevel('id_unique', axis='columns')
+    df_lc = df_lc.reorder_levels(agg_dict['load_curve_houses'].columns.names,
+                                 axis='columns')
+    # Match levels and their order in df_unique to df_lc
+    df_unique = (df_unique
+                 .droplevel('id_unique')
+                 .reorder_levels(df_lc.columns.names)
+                 )
+    # Now the actual sorting of the column index can happen
+    df_lc = df_lc.reindex(df_unique.index, axis='columns')  # remove?
+
+    # Test success by comparing the annual sum of each building
+    df_lc_sum = df_lc.sum(min_count=1)
+    df_unique_compare = df_unique.dropna().astype(df_lc_sum.dtype)
+    if not df_lc_sum.round(4).equals(df_unique_compare.round(4)):
+        if dtype == 'float32':
+            txt = ("Annual sums of individual profiles do not "
+                   "match the input sums. When using dtype 'float32', "
+                   "this can be expected to occur.")
+            if df_unique.sum() == df_lc.sum().sum():
+                txt += (" However, the total annual sum of all profiles is "
+                        "correct.")
+            logger.warning(txt)
+        else:
+            raise ValueError("Mismatch of sums in profile post-processing")
+
+    # Restore settings
+    for key, value in cfg['settings'].items():
+        cfg['settings_bak'].setdefault(key, value)
+    cfg['settings'] = cfg['settings_bak']
+
+    # Now repeat the remaining steps of _aggregator_run with the full dataset
+
+    # Randomize the load profiles of identical houses
+    df_lc = lpagg.simultaneity.copy_and_randomize_houses(
+            df_lc, cfg['houses_id_unique'], cfg)
+
+    # Save some intermediate result files
+    P_max_houses = lpagg.agg.intermediate_printing(df_lc, cfg)
+
+    weather_data = agg_dict['weather_data']
+
+    # Remove all columns from weather data that need to be updated
+    weather_data = weather_data.drop(
+        columns=(cfg['settings']['energy_demands_types']
+                 + ['T_VL', 'T_RL', 'M_dot']),
+        errors='ignore')
+    weather_data = lpagg.agg.sum_up_all_houses(df_lc, weather_data, cfg)
+
+    # Implementation 'Heizkurve (Vorlauf- und Rücklauftemperatur)'
+    cfg = fit_heizkurve(weather_data, cfg)  # Optional
+    calc_heizkurve(weather_data, cfg)
+
+    # Normalize results to a total of 1 kWh per year
+    normalize_energy(weather_data, cfg)  # Optional
+
+    # Update the results in the aggregation dictionary
+    agg_dict['load_curve_houses'] = df_lc
+    agg_dict['P_max_houses'] = P_max_houses
+    agg_dict['weather_data'] = weather_data
+
+    return agg_dict
 
 
 def load_weather_file(cfg):
