@@ -99,6 +99,7 @@ def run_demandlib(weather_data, cfg):
     from demandlib import vdi
 
     settings = cfg['settings']
+    houses_list = settings['houses_list_VDI']
 
     try:
         year = settings['start'].year  # A datetime object
@@ -124,10 +125,19 @@ def run_demandlib(weather_data, cfg):
     # Convert dict of houses to list of houses while saving additional settings
     my_houses = []
     for name, house_dict in houses_dict.items():
+        if name not in houses_list:
+            continue  # Generate VDI profiles only for buildings in VDI list
         house_dict['name'] = name
         house_dict['summer_temperature_limit'] = summer_temperature_limit
         house_dict['winter_temperature_limit'] = winter_temperature_limit
         my_houses.append(house_dict)
+
+    if len(my_houses) == 0:
+        multiindex = pd.MultiIndex.from_product([[], []],
+                                                names=['house', 'energy'])
+        lc = pd.DataFrame(index=weather_data.index,
+                          columns=multiindex, dtype='float')
+        return lc, houses_dict
 
     df_empty = pd.DataFrame(
         index=["house_type", "N_We", "N_Pers", "Q_Heiz_a", "Q_TWW_a", "W_a"],
@@ -138,14 +148,15 @@ def run_demandlib(weather_data, cfg):
     my_region = vdi.Region(
         year,
         holidays=holidays_dict,
-        try_region=my_houses[0]['TRY'],
+        try_region=my_houses[0]['TRY'],  # Use region of first house for all
         houses=my_houses,
         resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
         file_weather=settings['weather_file'],
+        zero_summer_heat_demand=settings.get('zero_summer_heat_demand'),
     )
 
     # Calculate load profiles
-    logger.info('Calculate load profiles with demandlib')
+    logger.info('Create %s VDI 4655 profiles with demandlib', len(my_houses))
     lc = my_region.get_load_curve_houses()
 
     # Demandlib uses a different time step notation then lpagg
