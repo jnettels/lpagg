@@ -61,8 +61,8 @@ dividing the maximum loads with and without the normal distribution.
 import os
 import logging
 import pandas as pd
-import functools
 import numpy as np
+import scipy.stats
 import matplotlib.pyplot as plt  # Plotting library
 import matplotlib as mpl
 
@@ -504,8 +504,6 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
         None.
 
     """
-    import matplotlib.dates as mdates
-
     language = cfg['settings'].get('language', 'de')
     if language == 'en':
         txt_P_th = 'thermal power in [kW]'
@@ -547,27 +545,39 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
         if load_shift.dropna().empty:
             continue  # skip emtpy plots
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=[10, 5])
         ax = fig.gca()
-        plt.plot(load_ref, '--', label=txt_ref)
-        plt.plot(load_shift, label=txt_shift)
+        load_ref.shift(periods=-1, freq="infer").plot(
+            ax=ax, label=txt_ref, style='--', color='tab:red')
+        load_shift.shift(periods=-1, freq="infer").plot(
+            ax=ax, label=txt_shift, color='tab:blue')
         plt.axhline(load_ref.max(), linestyle='-.',
-                    label=txt_ref_max, color='#5eccf3')
+                    label=txt_ref_max, color='tab:orange')
         plt.axhline(load_shift.max(), linestyle='-.',
-                    label=txt_shift_max, color='#e8d654')
+                    label=txt_shift_max, color='tab:cyan')
         plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, 1.0))
         plt.ylabel(ylabel)
+        plt.xlabel("")
         ax.yaxis.grid(True)  # Activate grid on horizontal axis
-        ax.xaxis.set_tick_params(rotation=30)  # rotation is useful sometimes
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d %H:%M'))
         plt.tight_layout()  # Fit plot within figure cleanly
-        plt.show(block=False)  # Show plot without blocking the script
+
+        # Save plot
+        lpagg.misc.savefig_filetypes(
+            cfg['print_folder'],
+            filename=ylabel + ' (shift)',
+            filetypes=cfg['settings'].get('save_plot_filetypes', None),
+            dpi=400)
+
+        if cfg['settings'].get('show_plot', False) is True:
+            plt.show(block=False)  # Show plot without blocking the script
+        else:
+            plt.close()
 
         # Save raw data
         df_excel = pd.concat([load_shift, load_ref], axis='columns',
                              keys=[txt_shift, txt_ref])
         df_excel.to_excel(os.path.join(cfg['print_folder'],
-                                       ylabel+'.xlsx'))
+                                       ylabel + ' (shift)'+'.xlsx'))
 
 
 def debug_plot_normal_histogram(house_name, randoms_int, cfg):
@@ -579,7 +589,7 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
     settings = cfg['settings']
     save_folder = cfg['print_folder']
     plot_normal_histogram(house_name, randoms_int, save_folder, cfg=cfg,
-                          set_hist=dict({'PNG': True, 'PDF': True}))
+                          filetypes=['png', 'svg', 'pdf'])
 
     if settings.get('show_plot', False) is True:
         plt.show(block=False)  # Show plot without blocking the script
@@ -588,15 +598,19 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
 
 
 def plot_normal_histogram(house_name, randoms_int, save_folder=None,
-                          set_hist=dict(), cfg=dict()):
+                          filetypes=None, cfg=dict()):
     """Save a histogram of the values in ``randoms_int`` to a .png file."""
     language = cfg.get('settings', {}).get('language', 'de')
     if language == 'en':
-        txt_xlabel = 'time steps'
+        txt_xlabel = 'shifted time steps'
         txt_ylabel = 'frequency'
+        txt_label_norm = 'normal distribution'
+        txt_label_data = 'buildings'
     else:
-        txt_xlabel = 'Zeitschritte'
+        txt_xlabel = 'Verschobene Zeitschritte'
         txt_ylabel = 'Häufigkeit'
+        txt_label_norm = 'Normalverteilung'
+        txt_label_data = 'Gebäude'
 
     logger.debug('Interval shifts applied to ' + str(house_name) + ':')
     logger.debug(randoms_int)
@@ -606,41 +620,34 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
     title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
     logger.debug(text_mean_std)
 
-    # Create a histogram of the data
+    # Prepare a histogram of the data
     limit = max(-1*min(randoms_int), max(randoms_int))
-    bins = range(-limit, limit+2)
+    bins = np.arange(-limit-0.5, limit+1.5)
+
+    # Create a histogram of the data
     default_font = plt.rcParams.get('font.size')
     plt.rcParams.update({'font.size': 16})
     fig = plt.figure()
     ax = fig.gca()
     ax.yaxis.grid(True)  # Activate grid on horizontal axis
-    n, bins, patches = plt.hist(randoms_int, bins, align='left',
-                                rwidth=0.9)
+    n, bins, patches = plt.hist(randoms_int, bins, align='mid',
+                                rwidth=0.9, label=txt_label_data)
+    if cfg['settings'].get('GLF_stats_include_normal', True):
+        # Create an ideal normal distribution for reference
+        x_norm = np.linspace(min(bins), max(bins), 100)
+        y_norm = scipy.stats.norm.pdf(x_norm, mu, sigma)
+        y_norm_scaled = y_norm/max(y_norm)*max(n)
+        ax.plot(x_norm, y_norm_scaled, label=txt_label_norm)
     plt.title(str(len(randoms_int))+' '+str(house_name)+' ('+title_mu_std+')')
     plt.xlabel(txt_xlabel)
     plt.ylabel(txt_ylabel)
+    if cfg['settings'].get('GLF_stats_include_normal', True):
+        plt.legend()
 
-    if save_folder is not None:
-        # Make sure the save path exists
-        if not os.path.exists(save_folder):
-            os.makedirs(save_folder)
-
-        if set_hist.get('PNG', False):
-            plt.savefig(os.path.join(save_folder,
-                                     'histogram_'+str(house_name)+'.png'),
-                        bbox_inches='tight', dpi=200)
-        if set_hist.get('SVG', False):
-            plt.savefig(os.path.join(save_folder,
-                                     'histogram_'+str(house_name)+'.svg'),
-                        bbox_inches='tight')
-        if set_hist.get('PDF', False):
-            plt.savefig(os.path.join(save_folder,
-                                     'histogram_'+str(house_name)+'.pdf'),
-                        bbox_inches='tight')
-
-        # Store randoms_int
-        # pd.DataFrame(randoms_int).to_excel(
-        #     os.path.join(save_folder, 'histogram_'+str(house_name)+'.xlsx'))
+    lpagg.misc.savefig_filetypes(
+        save_folder,
+        filename='Histogram '+str(house_name),
+        filetypes=cfg['settings'].get('save_plot_filetypes', None))
 
     # Reset settings
     plt.rcParams.update({'font.size': default_font})

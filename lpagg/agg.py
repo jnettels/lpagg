@@ -1097,15 +1097,44 @@ def plot_and_print(weather_data, cfg):
     pd.reset_option('display.precision')  # ...and reset the setting from above
 
     # Display a plot on screen for the user
-    if settings.get('show_plot', False) is True:
-        logger.info('Showing plot of energy demand types...')
-        fig = plt.figure()
-        ax = fig.gca()
-        for energy_demand_type in settings['energy_demands_types']:
-            weather_data[energy_demand_type].plot(label=energy_demand_type)
-        ax.yaxis.grid(True)  # Activate grid on horizontal axis
-        plt.legend()
-        plt.show(block=False)  # Show the plot, without blocking the script
+    if (settings.get('show_plot', False) is True
+       or settings.get('save_plot_filetypes', None)):
+        logger.info('Show and/or save plots of energy demand types')
+        if cfg['settings'].get('language', 'de') == 'en':
+            txt_P_th = 'thermal power in [kW]'
+            txt_P_el = 'electrical power in [kW]'
+        else:
+            txt_P_th = 'thermische Leistung in [kW]'
+            txt_P_el = 'elektrische Leistung in [kW]'
+
+        for cols, ylabel in zip(
+                [sum_list_th, sum_list_el],
+                [txt_P_th, txt_P_el]
+                ):
+            df_plot = weather_data[cols].dropna(how='all', axis='columns')
+            if len(cols) == 0 or df_plot.empty:
+                continue  # skip empty plots
+
+            fig = plt.figure()
+            ax = fig.gca()
+            hours = cfg['settings']['interpolation_freq'].seconds / 3600.0  # h
+            (df_plot
+             .div(hours)
+             .shift(periods=-1, freq="infer")
+             .plot(ax=ax, xlabel="", ylabel=ylabel, style='--')
+             )
+            plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, 1.0))
+            ax.yaxis.grid(True)  # Activate grid on horizontal axis
+
+            lpagg.misc.savefig_filetypes(
+                cfg['print_folder'], filename=ylabel,
+                filetypes=cfg['settings'].get('save_plot_filetypes', None),
+                dpi=400)
+
+            if cfg['settings'].get('show_plot', False) is True:
+                plt.show(block=False)  # Show plot without blocking the script
+            else:
+                plt.close()
 
     # Add a row at zero hours for the initialization in TRNSYS
     if settings.get('include_zero_row', False) is True:

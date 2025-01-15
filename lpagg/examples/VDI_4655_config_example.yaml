@@ -35,10 +35,12 @@ settings:
     print_index:    False
 
     ### Display a plot of the energy demand types on screen when finished
-    # show_plot:      True
+    # show_plot: True
+    ### Save plots if defined. Available: ['png', 'svg', 'pdf']
+    save_plot_filetypes: ['svg']
 
     ### Time step used for interpolation, e.g. '15 minutes' or '1 hours'
-#    intervall:      15 minutes
+    # intervall:      15 minutes
     intervall:      1 hours
 
     ### Start and ende date & time for interpolation
@@ -87,11 +89,24 @@ settings:
     ### Activate the debugging flag to display more info in the terminal
     log_level: debug
 
-    ### Print *_houses.xlsx file (in addition to .dat, which is always saved).
+    ### Print *_houses.dat / *_houses.xlsx file
     ### Be careful, can create large file sizes that take long to save!
+    # print_houses_dat: True
     # print_houses_xlsx: True
+
+    ### Other output settings
+    # calc_P_max: False  # Calculate peak power per building
     # print_P_max: True  # Print peak thermal power to separate file
-    # print_GLF_stats: True
+    # print_GLF_stats: True  # Print time shift distribution
+    # GLF_stats_include_normal: True  # Include normal in distribution
+
+    ### Language used for certain plots ('de', or 'en')
+    # language: de
+
+    ### Use the 'demandlib' module for creation of profiles
+    ### (Note: Currently this is not easily installable)
+    # use_demandlib: True
+
 
 ### This section is not part of VDI 4655:
 ### In this section you can define the relevant input for the 'Heizkurve'.
