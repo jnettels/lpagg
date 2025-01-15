@@ -174,7 +174,7 @@ def resample_energy(df, freq):
 
 def df_to_excel(df, path, sheet_names=[], merge_cells=False,
                 check_permission=True, **kwargs):
-    """Save a DataFrame to an Excel file.
+    """Save one or multiple DataFrames to an Excel file.
 
     Wrapper around pandas' function ``DataFrame.to_excel()``, which creates
     the required directory.
@@ -238,17 +238,16 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
 
     if isinstance(df, Sequence) and not isinstance(df, str):
         # Save a list of DataFrame objects into a single Excel file
-        writer = pd.ExcelWriter(path)
-        for i, df_ in enumerate(df):
-            try:  # Use given sheet name, or just an enumeration
-                sheet = sheet_names[i]
-            except IndexError:
-                sheet = str(i)
-            # Add current sheet to the ExcelWriter by calling this
-            # function recursively
-            df_to_excel(df=df_, path=writer, sheet_name=sheet,
-                        merge_cells=merge_cells, **kwargs)
-        writer.save()  # Save the actual Excel file
+        with pd.ExcelWriter(path) as writer:
+            for i, df_ in enumerate(df):
+                try:  # Use given sheet name, or just an enumeration
+                    sheet = sheet_names[i]
+                except IndexError:
+                    sheet = str(i)
+                # Add current sheet to the ExcelWriter by calling this
+                # function recursively
+                df_to_excel(df=df_, path=writer, sheet_name=sheet,
+                            merge_cells=merge_cells, **kwargs)
 
     else:
         # Per default, the sheet cells are frozen to keep the index visible
@@ -261,7 +260,7 @@ def df_to_excel(df, path, sheet_names=[], merge_cells=False,
 
             kwargs['freeze_panes'] = (freeze_rows, len(df.index.names))
         elif kwargs['freeze_panes'] is False:
-            del(kwargs['freeze_panes'])
+            del kwargs['freeze_panes']
 
         # Save one DataFrame to one Excel file
         df.to_excel(path, merge_cells=merge_cells, **kwargs)
