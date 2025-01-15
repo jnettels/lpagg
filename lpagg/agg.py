@@ -132,7 +132,7 @@ def perform_configuration(config_file='', cfg=None, ignore_errors=False):
     weather_file = os.path.join(cfg['base_folder'], settings['weather_file'])
     cfg['settings']['weather_file'] = os.path.abspath(weather_file)
 
-    language = cfg['settings'].get('language', 'de')
+    language = cfg['settings'].get('language', 'en')
     if language == 'de':
         # Define language for axis labels (month names)
         locale.setlocale(locale.LC_ALL, 'de_DE.UTF-8')
