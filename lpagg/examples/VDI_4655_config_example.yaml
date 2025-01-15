@@ -116,13 +116,6 @@ Verteilnetz:
     # loss_total_kWh:     1.19461 # kWh (Optional: fit of loss_coefficient)
 
 
-### You can use the following factors to adjust any (or none) of the annual
-### energy demand values. This helps scale the demand to a desired value
-#adjustment_factors:
-#    f_Q_Heiz:   1.17
-#    f_Q_TWW:    1.17
-#    f_W:        .8
-
 ### You can normalize all results to a total of 1 kWh per year.
 # normalize: True
 

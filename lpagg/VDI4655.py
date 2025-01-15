@@ -648,16 +648,6 @@ def get_annual_energy_demand(cfg):
             logger.warning('Q_Heiz_a not defined for ' + house_name
                            + '. Using default ' + str(Q_Heiz_a) + ' kWh')
 
-        # Apply the adjustment factors
-        houses_dict[house_name]['Q_Heiz_a'] *= \
-            cfg.get('adjustment_factors', dict()).get('f_Q_Heiz', 1)
-
-        houses_dict[house_name]['W_a'] *= \
-            cfg.get('adjustment_factors', dict()).get('f_W', 1)
-
-        houses_dict[house_name]['Q_TWW_a'] *= \
-            cfg.get('adjustment_factors', dict()).get('f_Q_TWW', 1)
-
     return houses_dict
 
 
