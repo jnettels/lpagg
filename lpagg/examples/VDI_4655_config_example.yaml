@@ -136,12 +136,16 @@ Verteilnetz:
 ### - G1G: BDEW Gebäude "Büro" (Gewerbe werktags 8:00 – 18:00 Uhr)
 ### - G4G: BDEW Gebäude "Handel" (Läden aller Art, Öffnungszeiten Werktag bis
 ###        abends, Samstag bis nachmittags)
+###
+### When setting use_demandlib=True, all house_types from the demandlib
+### BDEW implementation become available. See their documentation here:
+### https://demandlib.readthedocs.io/en/latest/bdew.html
 
 houses:
     EFH:
         Q_Heiz_a:       6000    # kWh, Jährlicher Heizenergieverbrauch
-        # Q_TWW_a:        2290    # kWh, Jährliche Energiemenge Trinkwarmwasser
-        # W_a:            3467    # kWh, Jährlicher Strombedarf
+        Q_TWW_a:        calculate    # kWh, Jährliche Energiemenge Trinkwarmwasser
+        W_a:            calculate    # kWh, Jährlicher Strombedarf
         TRY:            4       # TRY region
         house_type:     EFH
         N_Pers:         3       # Anzahl Personen
@@ -151,8 +155,8 @@ houses:
 
     MFH:
         Q_Heiz_a:       60000   # kWh, Jährlicher Heizenergieverbrauch
-        # Q_TWW_a:        35031   # kWh, Jährliche Energiemenge Trinkwarmwasser
-        # W_a:            35658   # kWh, Jährlicher Strombedarf
+        Q_TWW_a:        calculate   # kWh, Jährliche Energiemenge Trinkwarmwasser
+        W_a:            calculate   # kWh, Jährlicher Strombedarf
         TRY:            4       # TRY region
         house_type:     MFH
         N_Pers:         45      # Anzahl Personen
@@ -160,12 +164,12 @@ houses:
         copies:         25      # Total copies. Can be randomized with 'sigma'
         sigma:          2       # Standard deviation of normal distribution
 
-    Buero:
+    Büro:
         Q_Heiz_a:       50000   # kWh, Jährlicher Heizenergieverbrauch
         Q_Kalt_a:       7000    # kWh, Jährlicher Kältebedarf
         Q_TWW_a:        1500    # kWh, Jährliche Energiemenge Trinkwarmwasser
         W_a:            60000   # kWh, Jährlicher Strombedarf
-        house_type:     G1G
+        house_type:     GHD/G1
         N_Pers:         0      # Anzahl Personen
         N_WE:           0      # Anzahl Wohneinheiten
         copies:         5
@@ -175,7 +179,7 @@ houses:
         Q_Kalt_a:       43000   # kWh, Jährlicher Kältebedarf
         Q_TWW_a:        4500    # kWh, Jährliche Energiemenge Trinkwarmwasser
         W_a:            110000  # kWh, Jährlicher Strombedarf
-        house_type:     G4G
+        house_type:     GHA/G4
         N_Pers:         0      # Anzahl Personen
         N_WE:           0      # Anzahl Wohneinheiten
         copies:         10

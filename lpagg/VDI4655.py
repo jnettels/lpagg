@@ -520,7 +520,7 @@ def load_profile_factors(weather_data, cfg):
     # (each time stamp now describes the data in the interval before)
     typtage_df = typtage_df.resample(rule=interpolation_freq, level='Zeit',
                                      label='right', closed='left').sum()
-    typtage_df = typtage_df.stack(['house', 'typtag'])
+    typtage_df = typtage_df.stack(['house', 'typtag'], future_stack=True)
     typtage_df = typtage_df.reorder_levels(['house', 'typtag', 'Zeit'])
     typtage_df = typtage_df.sort_index()
 
@@ -633,26 +633,13 @@ def get_annual_energy_demand(cfg):
             # (6.2.3) Calculate annual DHW energy demand of houses:
             Q_TWW_a = N_WE * 1000  # kWh
 
-        else:
-            # No house category given. Just use annual demand of 1 kWh
-            W_a = 1
-            Q_TWW_a = 1
-
-        # If W_a and/or Q_TWW_a were already defined by the user in the yaml
-        # file, we use those values instead of the calculated ones:
-        W_a = houses_dict[house_name].get('W_a', W_a)
-        Q_TWW_a = houses_dict[house_name].get('Q_TWW_a', Q_TWW_a)
-
-        # Store the results in the dict
-        houses_dict[house_name]['W_a'] = W_a
-        houses_dict[house_name]['Q_TWW_a'] = Q_TWW_a
-
-        # Assign defaults if values are not defined
-        if houses_dict[house_name].get('Q_Heiz_a', None) is None:
-            Q_Heiz_a = 1  # kWh
-            houses_dict[house_name]['Q_Heiz_a'] = Q_Heiz_a
-            logger.warning('Q_Heiz_a not defined for ' + house_name
-                           + '. Using default ' + str(Q_Heiz_a) + ' kWh')
+        # The default values for W_a and Q_TWW_a are only stored and used if
+        # the user set the input value to any string (e.g. 'calculate').
+        # Missing key or NaN value means the profile should not be created.
+        if isinstance(houses_dict[house_name].get('W_a'), str):
+            houses_dict[house_name]['W_a'] = W_a
+        if isinstance(houses_dict[house_name].get('Q_TWW_a'), str):
+            houses_dict[house_name]['Q_TWW_a'] = Q_TWW_a
 
     return houses_dict
 
@@ -724,9 +711,9 @@ def get_daily_energy_demand_houses(houses_dict, cfg):
             continue  # 'Continue' skips the rest of the current for-loop
 
         # Get yearly energy demands
-        Q_Heiz_a = houses_dict[house_name]['Q_Heiz_a']
-        W_a = houses_dict[house_name]['W_a']
-        Q_TWW_a = houses_dict[house_name]['Q_TWW_a']
+        Q_Heiz_a = houses_dict[house_name].get('Q_Heiz_a', float('NaN'))
+        W_a = houses_dict[house_name].get('W_a', float('NaN'))
+        Q_TWW_a = houses_dict[house_name].get('Q_TWW_a', float('NaN'))
 
         # (6.4) Do calculations according to VDI 4655 for each 'typtag'
         for typtag in typtage_combinations:
@@ -826,12 +813,12 @@ def get_load_curve_houses(load_profile_df, houses_dict, weather_data, cfg,
     # desired total energy demand of the full year. Here we fix that:
     for column in load_curve_houses.columns:
         if column[1] == 'Q_Heiz_TT':
-            Q_a = houses_dict[column[0]]['Q_Heiz_a']
+            Q_a = houses_dict[column[0]].get('Q_Heiz_a', float('NaN'))
         elif column[1] == 'Q_TWW_TT':
-            Q_a = houses_dict[column[0]]['Q_TWW_a']
+            Q_a = houses_dict[column[0]].get('Q_TWW_a', float('NaN'))
         elif column[1] == 'W_TT':
-            Q_a = houses_dict[column[0]]['W_a']
-        sum_ = load_curve_houses[column].sum()
+            Q_a = houses_dict[column[0]].get('W_a', float('NaN'))
+        sum_ = load_curve_houses[column].sum(min_count=1)
         if sum_ != 0:  # Would produce NaN otherwise
             load_curve_houses[column] = load_curve_houses[column]/sum_ * Q_a
 

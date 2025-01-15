@@ -307,16 +307,6 @@ def _aggregator_run(cfg):
     load_curve_houses = lpagg.simultaneity.copy_and_randomize_houses(
             load_curve_houses, houses_dict, cfg)
 
-    # TODO temporary solution!!!
-    # load_curve_houses, df_ref = lpagg.simultaneity.create_simultaneity(
-    #     load_curve_houses,
-    #     sigma=settings['sigma'],
-    #     copies=0,
-    #     seed=4)
-
-    # Debugging: Show the daily sum of each energy demand type:
-    # print(load_curve_houses.resample('D', label='left', closed='right').sum())
-
     # Save some intermediate result files
     P_max_houses = intermediate_printing(load_curve_houses, cfg)
 
@@ -621,7 +611,7 @@ def flatten_daily_TWE(load_curve_houses, settings):
         # Overwrite original DataFrame
         load_curve_houses.loc[
                 :, (slice(None), slice(None), 'Q_TWW_TT')] = Q_TWW_avg_list
-#        print(load_curve_houses)
+        # print(load_curve_houses)
 
     return load_curve_houses
 
@@ -735,14 +725,9 @@ def add_external_profiles(load_curve_houses, cfg):
     del ext_profile
     del ext_profiles
 
-    # TODO: The following line should be removed someday. See Pandas issue:
-    # https://github.com/pandas-dev/pandas/issues/24671
-    load_curve_houses.fillna(0, axis=1, inplace=True)
-
     logger.debug('Add external profiles: Grouping...')
     load_curve_houses = load_curve_houses.T.groupby(
             level=['class', 'house', 'energy']).sum().T
-#    print(load_curve_houses)
 
     return load_curve_houses
 
@@ -751,68 +736,88 @@ def intermediate_printing(load_curve_houses, cfg):
     """Perform some intermediate printing tasks."""
     settings = cfg['settings']
 
-    # TODO: The following line should be removed someday. See Pandas issue:
-    # https://github.com/pandas-dev/pandas/issues/24671
-    load_curve_houses.fillna(0, axis=1, inplace=True)
+    if (settings.get('print_houses_dat', False) or
+       settings.get('print_houses_xlsx', False)):
+        # Print load profile for each house (creates large file sizes!)
+        load_curve_houses_tmp = (load_curve_houses
+                                 .T.groupby(level=['house', 'energy']).sum().T
+                                 .sort_index(axis=1))
 
-    # Print load profile for each house (creates large file sizes!)
-    load_curve_houses_tmp = (load_curve_houses
-                             .T.groupby(level=['house', 'energy']).sum().T
-                             .sort_index(axis=1))
+        if settings.get('print_houses_dat', False):
+            logger.info('Printing *_houses.dat file')
+            print(load_curve_houses_tmp.head())
+            load_curve_houses_tmp.to_csv(
+                    os.path.join(cfg['print_folder'],
+                                 os.path.splitext(settings['print_file'])[0]
+                                 + '_houses.dat'))
 
-    if logger.isEnabledFor(logging.DEBUG):
-        logger.info('Printing *_houses.dat file')
-        print(load_curve_houses_tmp.head())
-        load_curve_houses_tmp.to_csv(
-                os.path.join(cfg['print_folder'],
-                             os.path.splitext(settings['print_file'])[0]
-                             + '_houses.dat'))
+        if settings.get('print_houses_xlsx', False):
+            logger.info('Printing *_houses.xlsx file')
+            df_H = load_curve_houses_tmp
+            df_D = df_H.resample('D', label='left', closed='right').sum()
+            df_W = df_D.resample('W', label='right', closed='right').sum()
+            df_M = df_D.resample('ME', label='right', closed='right').sum()
+            df_A = df_M.resample('YE', label='right', closed='right').sum()
+            print(df_M)
 
-    if settings.get('print_houses_xlsx', False):
-        logger.info('Printing *_houses.xlsx file')
-        df_H = load_curve_houses_tmp
-        df_D = df_H.resample('D', label='left', closed='right').sum()
-        df_W = df_D.resample('W', label='right', closed='right').sum()
-        df_M = df_D.resample('ME', label='right', closed='right').sum()
-        df_A = df_M.resample('YE', label='right', closed='right').sum()
-        print(df_M)
+            # Be careful, can create huge file sizes
+            lpagg.misc.df_to_excel(
+                df=[df_H, df_D, df_W, df_M, df_A],
+                sheet_names=['Hour', 'Day', 'Week', 'Month', 'Year'],
+                path=os.path.join(cfg['print_folder'],
+                                  os.path.splitext(settings['print_file'])[0]
+                                  + '_houses.xlsx'),
+                merge_cells=True,
+                )
 
-        # Be careful, can create huge file sizes
-        df_to_excel(df=[df_H, df_D, df_W, df_M, df_A],
-                    sheet_names=['Hour', 'Day', 'Week', 'Month', 'Year'],
-                    path=os.path.join(
-                        cfg['print_folder'],
-                        os.path.splitext(settings['print_file'])[0]
-                        + '_houses.xlsx'),
-                    merge_cells=True,
-                    )
+    if settings.get('calc_P_max', True):
+        # Print peak power
+        hours = settings['interpolation_freq'].seconds / 3600.0  # h
+        P_max_houses = load_curve_houses.copy()
 
-    # Print peak power
-    hours = settings['interpolation_freq'].seconds / 3600.0  # h
-    P_max_houses = load_curve_houses.copy()
-    P_max_houses = P_max_houses.stack(["class", "house"])
-    P_max_houses["Q_th"] = (P_max_houses["Q_Heiz_TT"]
-                            + P_max_houses["Q_TWW_TT"])
-    P_max_houses = P_max_houses.unstack(["class", "house"])
-    P_max_houses = (P_max_houses
-                    .T.groupby(level=['house', 'energy']).sum().T
-                    .max(axis=0)
-                    .unstack()
-                    .sort_index()
-                    .rename(columns={'Q_Heiz_TT': 'P_th_RH',
-                                     'Q_TWW_TT': 'P_th_TWE',
-                                     'W_TT': 'P_el',
-                                     'Q_th': 'P_th'})
-                    )
+        if 'class' in P_max_houses.columns.names:
+            P_max_houses = P_max_houses.stack(["class", "house"],
+                                              future_stack=True)
+        else:
+            P_max_houses = P_max_houses.stack(["house"], future_stack=True)
 
-    P_max_houses = P_max_houses / hours  # Convert kWh to kW
-    if settings.get('print_P_max', False):
-        logger.info('Printing *_P_max.dat and .xlsx files')
-        P_max_houses.to_csv(os.path.join(cfg['print_folder'], os.path.splitext(
-            settings['print_file'])[0] + '_P_max.dat'))
-        df_to_excel(df=[P_max_houses], sheet_names=['P_max (kW)'],
-                    path=os.path.join(cfg['print_folder'], os.path.splitext(
+        cols_Q = ['Q_Heiz_TT', 'Q_TWW_TT']
+        cols_Q = [c for c in cols_Q if c in P_max_houses.columns]
+        P_max_houses["Q_th"] = (P_max_houses[cols_Q]
+                                .sum(axis='columns', min_count=1))
+        P_max_houses = P_max_houses.dropna(how='all', axis='columns')
+
+        if 'class' in P_max_houses.index.names:
+            P_max_houses = P_max_houses.unstack(["class", "house"])
+        else:
+            P_max_houses = P_max_houses.unstack(["house"])
+
+        P_max_houses = (P_max_houses
+                        .T.groupby(level=['house', 'energy']).sum().T
+                        .max(axis=0)
+                        .unstack()
+                        .sort_index()
+                        .rename(columns={'Q_Heiz_TT': 'P_th_RH',
+                                         'Q_TWW_TT': 'P_th_TWE',
+                                         'Q_Kalt_TT': 'P_Kälte',
+                                         'W_TT': 'P_el',
+                                         'Q_th': 'P_th'})
+                        )
+
+        P_max_houses = P_max_houses / hours  # Convert kWh to kW
+        if settings.get('print_P_max', False):
+            logger.info('Printing *_P_max.dat and .xlsx files')
+            P_max_houses.to_csv(os.path.join(
+                cfg['print_folder'],
+                os.path.splitext(settings['print_file'])[0] + '_P_max.dat'))
+            lpagg.misc.df_to_excel(
+                df=[P_max_houses], sheet_names=['P_max (kW)'],
+                path=os.path.join(
+                    cfg['print_folder'],
+                    os.path.splitext(
                         settings['print_file'])[0] + '_P_max.xlsx'))
+    else:
+        P_max_houses = None
 
     return P_max_houses
 
@@ -829,22 +834,26 @@ def sum_up_all_houses(load_curve_houses, weather_data, cfg):
     (if a dict ``rename_columns`` is defined in ``settings``).
     """
     settings = cfg['settings']
-    # TODO: The following line should be removed someday. See Pandas issue:
-    # https://github.com/pandas-dev/pandas/issues/24671
-    load_curve_houses.fillna(0, axis=1, inplace=True)
 
-    load_curve_houses_sum = load_curve_houses.T.groupby(
-            level=['energy', 'class']).sum().T
+    if 'class' in load_curve_houses.columns.names:
+        load_curve_houses_sum = load_curve_houses.T.groupby(
+                level=['energy', 'class']).sum().T
+    else:
+        load_curve_houses_sum = load_curve_houses.T.groupby(
+                level=['energy']).sum().T
 
     rename_dict = settings.get('rename_columns', dict())
     load_curve_houses_sum.rename(columns=rename_dict, inplace=True)
-#    print(load_curve_houses_sum)
+    # print(load_curve_houses_sum)
 
-    # Flatten the heirarchical index
-    settings['energy_demands_types'] = ['_'.join(col).strip() for col in
-                                        load_curve_houses_sum.columns.values]
+    if load_curve_houses_sum.columns.nlevels > 1:
+        # Flatten the heirarchical index
+        settings['energy_demands_types'] = [
+            '_'.join(c).strip() for c in load_curve_houses_sum.columns.values]
+        load_curve_houses_sum.columns = settings['energy_demands_types']
+    else:
+        settings['energy_demands_types'] = list(load_curve_houses_sum.columns)
 
-    load_curve_houses_sum.columns = settings['energy_demands_types']
     # Concatenate the weather_data and load_curve_houses_sum DataFrames
     weather_data = pd.concat([weather_data, load_curve_houses_sum], axis=1)
     return weather_data
@@ -892,16 +901,10 @@ def calc_heizkurve(weather_data, cfg):
                 T_VL_Heiz = phi**(1/(1+m)) * dTm_N + 0.5*phi*dT_N + T_i  # °C
                 T_RL_Heiz = phi**(1/(1+m)) * dTm_N - 0.5*phi*dT_N + T_i  # °C
 
-                Q_Heiz = 0
-                try:  # Households may or may not have been defined
-                    Q_Heiz += weather_data.loc[date_obj]['E_th_RH_HH']   # kWh
-                except Exception:
-                    pass
-                try:  # GHD may or may not have been defined
-                    Q_Heiz += weather_data.loc[date_obj]['E_th_RH_GHD']  # kWh
-                except Exception:
-                    pass
-
+                # Sum up the appropriate existing columns
+                cols_Q = ['E_th_RH', 'E_th_RH_HH', 'E_th_RH_GHD']
+                cols_Q = [c for c in cols_Q if c in weather_data.columns]
+                Q_Heiz = weather_data.loc[date_obj, cols_Q].sum()  # kWh
                 Q_dot_Heiz = Q_Heiz / hours                              # kW
                 M_dot_Heiz = Q_dot_Heiz/(c_p*(T_VL_Heiz-T_RL_Heiz))*3600
                 # unit of M_dot_Heiz: kg/h
@@ -916,15 +919,9 @@ def calc_heizkurve(weather_data, cfg):
             T_VL_TWW = T_VL_N
             T_RL_TWW = T_RL_N
 
-            Q_TWW = 0
-            try:  # Households may or may not have been defined
-                Q_TWW += weather_data.loc[date_obj]['E_th_TWE_HH']    # kWh
-            except Exception:
-                pass
-            try:  # GHD may or may not have been defined
-                Q_TWW += weather_data.loc[date_obj]['E_th_TWE_GHD']   # kWh
-            except Exception:
-                pass
+            cols_Q = ['E_th_TWE', 'E_th_TWE_HH', 'E_th_TWE_GHD']
+            cols_Q = [c for c in cols_Q if c in weather_data.columns]
+            Q_TWW = weather_data.loc[date_obj, cols_Q].sum()  # kWh
             Q_dot_TWW = Q_TWW / hours                                 # kW
             M_dot_TWW = Q_dot_TWW/(c_p*(T_VL_TWW - T_RL_TWW))*3600    # kg/h
 
@@ -975,10 +972,10 @@ def calc_heizkurve(weather_data, cfg):
         weather_data['M_dot'] = M_dot_list
 
     else:  # Create dummy columns if no heatcurve calculation was performed
-        weather_data['E_th_loss'] = 0
-        weather_data['T_VL'] = 0
-        weather_data['T_RL'] = 0
-        weather_data['M_dot'] = 0
+        weather_data['E_th_loss'] = np.nan
+        weather_data['T_VL'] = np.nan
+        weather_data['T_RL'] = np.nan
+        weather_data['M_dot'] = np.nan
 
     # Add the loss to the energy demand types
     if 'E_th_loss' not in settings['energy_demands_types']:
@@ -1057,7 +1054,7 @@ def plot_and_print(weather_data, cfg):
     # Print a table of the energy sums to the console (monthly and annual)
     filter_sum = ['E_th_', 'E_el']
     filter_sum_th = ['E_th_']
-    filter_sum_el = ['E_el_']
+    filter_sum_el = ['E_el']
     sum_list = []
     sum_list_th = []
     sum_list_el = []
@@ -1186,8 +1183,6 @@ def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET', normalize=True):
     # They have to stay constant, since they are normalized to a certain sum.
     if normalize:
         logger.debug('Normalize after applying DST')
-        df_DST = df_DST.div(df_DST.sum()).mul(df_default.sum())
-        # Columns with a sum of zero produce NaN, so we fill these
-        df_DST.fillna(0, inplace=True)
+        df_DST = df_DST.div(df_DST.sum(min_count=1)).mul(df_default.sum())
 
     return df_DST

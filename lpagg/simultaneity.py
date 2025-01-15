@@ -404,7 +404,9 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
     logger.debug('Memory usage: {} MB'.format(memory))
 
     # Code requires house as the top column level
-    load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
+    if 'class' in load_curve_houses.columns.names:
+        load_curve_houses = load_curve_houses.swaplevel('house', 'class',
+                                                        axis=1)
 
     # Fix the 'randomness' (every run of the script generates the same results)
     np.random.seed(4)
@@ -412,7 +414,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
 
     # Create a temporary dict with all the info needed for randomizer
     randomizer_dict = dict()
-    for house_name in settings['houses_list']:
+    for house_name in houses_dict.keys():
         copies = houses_dict[house_name].get('copies', 1)
         # Get standard deviation (spread or “width”) of the distribution:
         sigma = houses_dict[house_name].get('sigma', False)
@@ -447,36 +449,41 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
     logger.debug('Copy houses')
     load_curve_houses = copy_df_columns(
         load_curve_houses, copies_list, level='house')
-    # load_curve_houses = copy_houses(load_curve_houses, randomizer_dict)
-    # Store a reference that will not be randomized
-    load_curve_houses_ref = load_curve_houses.copy()
-    # Randomize all the houses
-    logger.debug('Randomize houses')
-    # randomize_houses(load_curve_houses, randomizer_dict)
-    shift_columns(load_curve_houses, shift_list, level='house')
 
-    # Plot histograms of all buildings and each building individually
-    if sigma_used and cfg.get('settings', {}).get('print_GLF_stats', False):
-        for house_name in houses:
-            randoms_int = randomizer_dict[house_name]['shifts']
-            if len(randoms_int) > 1:
-                debug_plot_normal_histogram(house_name, randoms_int, cfg)
+    if sigma_used:  # This part is only required if sigma is actually used
+        # Store a reference that will not be randomized
+        load_curve_houses_ref = load_curve_houses.copy()
+        # Randomize all the houses
+        logger.debug('Randomize houses')
+        shift_columns(load_curve_houses, shift_list, level='house')
+        # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
+        calc_GLF(load_curve_houses, load_curve_houses_ref, cfg)
 
-        language = cfg.get('settings', {}).get('language', 'de')
-        if language == 'en':
-            txt_title = 'buildings'
-        else:
-            txt_title = 'Gebäude gesamt'
-        debug_plot_normal_histogram(txt_title, shift_list, cfg)
+        # Perform some plotting
+        if (cfg['settings'].get('show_plot', False)
+           or cfg['settings'].get('save_plot_filetypes', None)):
 
-    # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
-    calc_GLF(load_curve_houses, load_curve_houses_ref, cfg)
+            # Plot histograms of all buildings and each building individually
+            for house_name in houses:
+                randoms_int = randomizer_dict[house_name]['shifts']
+                if len(randoms_int) > 1:  # Only when using multiple copies
+                    debug_plot_normal_histogram(house_name, randoms_int, cfg)
 
-    if cfg['settings'].get('show_plot', False) is True:
-        # Plot lineplots of shifted and reference load profiles
-        plot_shifted_lineplots(load_curve_houses, load_curve_houses_ref, cfg)
+            language = cfg.get('settings', {}).get('language', 'de')
+            if language == 'en':
+                txt_title = 'buildings'
+            else:
+                txt_title = 'Gebäude gesamt'
+            debug_plot_normal_histogram(txt_title, shift_list, cfg)
 
-    load_curve_houses = load_curve_houses.swaplevel('house', 'class', axis=1)
+            # Plot lineplots of shifted and reference load profiles
+            plot_shifted_lineplots(load_curve_houses, load_curve_houses_ref,
+                                   cfg)
+
+    # Prepare result for return
+    if 'class' in load_curve_houses.columns.names:
+        load_curve_houses = load_curve_houses.swaplevel('house', 'class',
+                                                        axis=1)
 
     return load_curve_houses
 
@@ -522,10 +529,14 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
     load_ref = df_ref.T.groupby(level='energy').sum().T / hours
 
     # Separate the energies into thermal and electrical
-    load_th_shift = load_shift[['Q_Heiz_TT', 'Q_TWW_TT']].sum(axis=1)
-    load_el_shift = load_shift['W_TT']
-    load_th_ref = load_ref[['Q_Heiz_TT', 'Q_TWW_TT']].sum(axis=1)
-    load_el_ref = load_ref['W_TT']
+    cols_th = ['Q_Heiz_TT', 'Q_TWW_TT']
+    cols_el = ['W_TT']
+    cols_th = [c for c in cols_th if c in load_shift.columns]
+    cols_el = [c for c in cols_el if c in load_shift.columns]
+    load_th_shift = load_shift[cols_th].sum(min_count=1, axis=1)
+    load_el_shift = load_shift[cols_el].sum(min_count=1, axis=1)
+    load_th_ref = load_ref[cols_th].sum(min_count=1, axis=1)
+    load_el_ref = load_ref[cols_el].sum(min_count=1, axis=1)
 
     # Create two plot figures for thermal and electrical
     for load_shift, load_ref, ylabel in zip(
@@ -533,6 +544,8 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
             [load_th_ref, load_el_ref],
             [txt_P_th, txt_P_el]
             ):
+        if load_shift.dropna().empty:
+            continue  # skip emtpy plots
 
         fig = plt.figure()
         ax = fig.gca()
@@ -660,43 +673,54 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
         load_ref = load_curve_houses_ref.T.groupby(level='energy').sum().T
 
     hours = settings['interpolation_freq'].seconds / 3600.0        # h
-    sf_df = pd.DataFrame(index=['P_max_kW', 'P_max_ref_kW', 'GLF'],
-                         columns=['th_RH', 'th_TWE', 'th', 'el'],
-                         dtype='float')
-    sf_df.loc['P_max_kW', 'th_RH'] = load_ran['Q_Heiz_TT'].max() / hours
-    sf_df.loc['P_max_kW', 'th_TWE'] = load_ran['Q_TWW_TT'].max() / hours
-    sf_df.loc['P_max_kW', 'th'] = (load_ran['Q_Heiz_TT']
-                                   + load_ran['Q_TWW_TT']).max() / hours
-    sf_df.loc['P_max_kW', 'el'] = load_ran['W_TT'].max() / hours
 
-    # Calculate reference power, without artificial simultaneity introduced
-    # by time shift. However, some simultaneity effects might still be
-    # included if different original load profiles were used, with power
-    # peaks at different times of the year
-    sf_df.loc['P_max_ref_kW', 'th_RH'] = load_ref['Q_Heiz_TT'].max() / hours
-    sf_df.loc['P_max_ref_kW', 'th_TWE'] = load_ref['Q_TWW_TT'].max() / hours
-    sf_df.loc['P_max_ref_kW', 'th'] = (load_ref['Q_Heiz_TT']
-                                       + load_ref['Q_TWW_TT']).max() / hours
-    sf_df.loc['P_max_ref_kW', 'el'] = load_ref['W_TT'].max() / hours
+    # Calculate sum of thermal powers (heating and hot water)
+    th_sum_cols = ['Q_Heiz_TT', 'Q_TWW_TT']
+    th_sum_cols = [c for c in th_sum_cols if c in load_ran.columns]
+    load_ran['th'] = load_ran[th_sum_cols].sum(axis='columns')
+    load_ref['th'] = load_ref[th_sum_cols].sum(axis='columns')
 
+    # P_max_kW: Calculate maximum power of the randomized load profiles
+    # P_max_ref_kW: Calculate reference power, without artificial
+    # simultaneity introduced by time shift. However, some simultaneity
+    # effects might still be included if different original load profiles
+    # were used, with power peaks at different times of the year
+    sf_df = pd.concat([(load_ran.max() / hours),
+                       (load_ref.max() / hours)],
+                      axis='columns',
+                      keys=['P_max_kW', 'P_max_ref_kW']
+                      ).T
+
+    sf_df = sf_df.rename(columns={'Q_Heiz_TT': 'th_RH', 'Q_TWW_TT': 'th_TWE'})
+
+    # Calculate a simultaneity factor that shows the impact of time shift
     sf_df.loc['GLF_timeshift'] = \
         sf_df.loc['P_max_kW'].div(sf_df.loc['P_max_ref_kW'])
 
     # Calculate a 'static' refrence power value. This is just the sum of
     # the maximum power for each house, regardless of shape of profile
-    sf_df.loc['P_max_ref_static_kW', 'th_RH'] = (
-        load_curve_houses_ref.xs('Q_Heiz_TT', level='energy', axis=1)
-        .max().sum() / hours)
-    sf_df.loc['P_max_ref_static_kW', 'th_TWE'] = (
-        load_curve_houses_ref.xs('Q_TWW_TT', level='energy', axis=1)
-        .max().sum() / hours)
-    sf_df.loc['P_max_ref_static_kW', 'th'] = (
-        (load_curve_houses_ref.xs('Q_Heiz_TT', level='energy', axis=1)
-         + load_curve_houses_ref.xs('Q_TWW_TT', level='energy', axis=1))
-        .max().sum() / hours)
-    sf_df.loc['P_max_ref_static_kW', 'el'] = (
-        load_curve_houses_ref.xs('W_TT', level='energy', axis=1)
-        .max().sum() / hours)
+    if 'Q_Heiz_TT' in load_ran.columns:
+        sf_df.loc['P_max_ref_static_kW', 'th_RH'] = (
+            load_curve_houses_ref.xs('Q_Heiz_TT', level='energy', axis=1)
+            .max().sum() / hours)
+    if 'Q_TWW_TT' in load_ran.columns:
+        sf_df.loc['P_max_ref_static_kW', 'th_TWE'] = (
+            load_curve_houses_ref.xs('Q_TWW_TT', level='energy', axis=1)
+            .max().sum() / hours)
+    if 'Q_Heiz_TT' in load_ran.columns and 'Q_TWW_TT' in load_ran.columns:
+        sf_df.loc['P_max_ref_static_kW', 'th'] = (
+            (load_curve_houses_ref.xs('Q_Heiz_TT', level='energy', axis=1)
+             + load_curve_houses_ref.xs('Q_TWW_TT', level='energy', axis=1))
+            .max().sum() / hours)
+    if 'W_TT' in load_ran.columns:
+        sf_df.loc['P_max_ref_static_kW', 'el'] = (
+            load_curve_houses_ref.xs('W_TT', level='energy', axis=1)
+            .max().sum() / hours)
+    if 'Q_Kalt_TT' in load_ran.columns:
+        sf_df.loc['P_max_ref_static_kW', 'Q_Kalt_TT'] = (
+            load_curve_houses_ref.xs('Q_Kalt_TT', level='energy', axis=1)
+            .max().sum() / hours)
+    # Calculate overall simultaneity factor
     sf_df.loc['GLF'] = sf_df.loc['P_max_kW'].div(
         sf_df.loc['P_max_ref_static_kW'])
 
@@ -713,7 +737,6 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
         "GLF = P_max_kW / P_max_ref_static_kW (this is the relevant "
         "overall simultaneity factor)",
         ]
-
 
     # Calculate a reference simultaneity factor with DIN 4708
     homes_count = 0
