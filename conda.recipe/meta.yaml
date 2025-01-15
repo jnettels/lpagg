@@ -36,11 +36,11 @@ requirements:
     build:
         - python
         - setuptools_scm
-        - pandas >=1.2.1
+        - pandas >=2.1
 
     run:
         - python
-        - pandas >=1.2.1
+        - pandas >=2.1
         - openpyxl >=3.0.3
         - pyyaml >=5.1
         - matplotlib
