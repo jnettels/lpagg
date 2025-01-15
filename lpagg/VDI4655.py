@@ -155,11 +155,6 @@ def run_demandlib(weather_data, cfg):
     lc.columns.set_names(['house', 'energy'], inplace=True)
     lc.index.set_names(['Time'], inplace=True)
 
-    # This has nothing to do with demandlib, but for BDEW we currently need
-    # more information added to weather_data
-    # TODO: Move this to lpagg.BDEW
-    get_typical_days(weather_data, cfg)
-
     return lc, houses_dict
 
 

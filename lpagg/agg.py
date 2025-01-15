@@ -232,8 +232,14 @@ def aggregator_run(cfg):
     # For the GHD building sector, combine profiles from various sources:
     # (not part of VDI 4655)
     logger.debug('Load commercial profiles')
-    GHD_profiles = lpagg.BDEW.get_GHD_profiles(weather_data, cfg, houses_dict)
-
+    if cfg['settings'].get('use_demandlib', False):
+        GHD_profiles = lpagg.BDEW.run_demandlib(weather_data, cfg, houses_dict)
+    else:
+        # Identify seasons and weekdays for BDEW
+        lpagg.VDI4655.get_typical_days(weather_data, cfg)
+        # Get the profiles
+        GHD_profiles = lpagg.BDEW.get_GHD_profiles(weather_data, cfg,
+                                                   houses_dict)
     logger.debug('Combine residential and commercial profiles')
     load_curve_houses = pd.concat([load_curve_houses, GHD_profiles],
                                   axis=1, sort=False,
