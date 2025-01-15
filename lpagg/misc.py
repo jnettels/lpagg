@@ -41,6 +41,7 @@ import logging
 import pandas as pd              # Pandas
 import matplotlib.pyplot as plt  # Plotting library
 import matplotlib as mpl
+import importlib.resources
 from tkinter import Tk, filedialog
 
 # Define the logging function
@@ -77,10 +78,23 @@ def file_dialog(initialdir=os.getcwd(),
     Return:
         path (str): File path
     """
-    root = Tk()
-    root.withdraw()
+    root = Tk()  # Create window to use for the file dialog
+
+    # Set a custom taskbar icon
+    # For the 'noarch' conda build, access the file as resource object
+    res_path = importlib.resources.files('lpagg').joinpath('../res/icon.ico')
+    with importlib.resources.as_file(res_path) as resource:
+        root.iconbitmap(resource)  # Set the custom taskbar icon
+
+    root.title("lpagg")
+    root.geometry("300x1")  # Show window only as title bar
+    root.lift()  # Bring the window to the front
+
+    # Open the file dialog window
     file = filedialog.askopenfilename(initialdir=initialdir, title=title,
                                       filetypes=filetypes)
+    root.destroy()  # Destroy the root window after selection
+
     if file == '' or len(file) == 0:
         path = None
     else:
