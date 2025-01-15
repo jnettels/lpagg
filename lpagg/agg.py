@@ -883,7 +883,8 @@ def plot_and_print(weather_data, cfg):
             cfg['print_folder'],
             settings['print_file'],
             settings.get('print_index', True),
-            settings.get('print_header', True))
+            settings.get('print_header', True),
+            sheet_name='kWh')
 
 
 def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET', normalize=True):

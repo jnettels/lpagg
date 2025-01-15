@@ -696,7 +696,7 @@ def analyse_weather_file(weather_data, interpolation_freq, weather_file,
 
 def print_IGS_weather_file(weather_data, print_folder, print_file,
                            bool_print_index, bool_print_header,
-                           type99_header=None):
+                           type99_header=None, **kwargs):
     """Print the results to a file."""
     if not os.path.exists(print_folder):
         os.makedirs(print_folder)
@@ -715,7 +715,7 @@ def print_IGS_weather_file(weather_data, print_folder, print_file,
 
     print_path = os.path.splitext(print_path)[0]+'.xlsx'
     logger.info('Printing to '+print_path)
-    weather_data.to_excel(print_path)
+    weather_data.to_excel(print_path, **kwargs)
 
     return True
 
