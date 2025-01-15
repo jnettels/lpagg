@@ -39,6 +39,7 @@ import multiprocessing           # Parallel (Multi-) Processing
 import os                        # Operaing System
 import logging
 import pandas as pd              # Pandas
+import matplotlib.pyplot as plt  # Plotting library
 import matplotlib as mpl
 from tkinter import Tk, filedialog
 
@@ -263,3 +264,21 @@ def get_TRY_polygons_GeoDataFrame(col_try="TRY_code"):
         os.path.join(filedir, 'resources_weather', 'TRY_polygons.geojson'))
     TRY_polygons.rename(columns={"TRY_code": col_try}, inplace=True)
     return TRY_polygons
+
+
+def savefig_filetypes(save_folder, filename, filetypes=None, dpi=200):
+    """Save active matplotlib figure to all given file types."""
+    if save_folder is not None and filetypes is not None:
+        # Make sure the save path exists
+        if not os.path.exists(save_folder):
+            os.makedirs(save_folder)
+
+        if 'png' in filetypes:
+            plt.savefig(os.path.join(save_folder, filename+'.png'),
+                        bbox_inches='tight', dpi=dpi)
+        if 'svg' in filetypes:
+            plt.savefig(os.path.join(save_folder, filename+'.svg'),
+                        bbox_inches='tight')
+        if 'pdf' in filetypes:
+            plt.savefig(os.path.join(save_folder, filename+'.pdf'),
+                        bbox_inches='tight')
