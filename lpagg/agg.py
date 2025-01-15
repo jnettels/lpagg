@@ -158,20 +158,13 @@ def get_houses_from_table_file(cfg):
         kwargs = cfg['houses_table_file'].get('kwargs', dict())
         kwargs.setdefault('index_col', 0)
         df = pd.read_excel(file, **kwargs)
+        if cfg['houses_table_file'].get('transpose'):
+            df = df.T
         df_dict = df.to_dict()  # Convert DataFrame to dictionary
 
         cfg.setdefault('houses', dict())  # define, if it does not exist
         # Add each house to the existing 'houses' dict
         for house in df_dict.keys():
-            # There is one special case to catch:
-            # If Q_TWW_a or W_a are left empty in Excel, they are supposed
-            # to be calculated according to VDI4655.
-            # For this to work, we need to delete them from the dict.
-            for energy in ['Q_TWW_a', 'W_a']:
-                if energy in df_dict[house].keys():
-                    if df_dict[house][energy] is np.nan:
-                        del df_dict[house][energy]
-
             # Issue a warning, if necessary:
             if cfg['houses'].get(house) is not None:
                 logger.warning('You are overwriting the data of house {} '

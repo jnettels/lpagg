@@ -189,5 +189,6 @@ houses:
 ### be calculated according to VDI4655 automatically.
 # houses_table_file:
 #     file: ./VDI_4655_houses_example.xlsx  # path relative to this config
+#     transpose: False  # Flip rows and columns of the input table
 #     kwargs:  # optional keyword arguments for pandas read_excel()
 #         sheet_name: Example  # If no name is given, the first one is used
