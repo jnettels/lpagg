@@ -33,7 +33,7 @@ import lpagg.misc
 import lpagg.agg
 
 
-def main_test():
+def main_test(use_demandlib=False, unique_profile_workflow=True):
     """Run test function."""
     lpagg.misc.setup()
 
@@ -46,6 +46,11 @@ def main_test():
 
     # Import the config YAML file and add the default settings
     cfg = lpagg.agg.perform_configuration(file)
+
+    # Change the configuration to run with different test settings
+    cfg['settings']['use_demandlib'] = use_demandlib
+    cfg['settings']['unique_profile_workflow'] = unique_profile_workflow
+
     log_level = 'ERROR'
     logging.getLogger('lpagg.agg').setLevel(level=log_level)
     logging.getLogger('lpagg.misc').setLevel(level=log_level)
@@ -73,9 +78,47 @@ def main_test():
 class TestMethods(unittest.TestCase):
     """Defines tests."""
 
-    def test(self):
+    def test_lpagg_internal(self):
         """Test the calculated total energy demand in kWh."""
-        self.assertAlmostEqual(main_test(), 7674663.094635218)
+        self.assertAlmostEqual(
+            main_test(use_demandlib=False, unique_profile_workflow=False),
+            7674663.094635218)
+
+    def test_lpagg_internal_with_unique_profile(self):
+        """Test the calculated total energy demand in kWh."""
+        self.assertAlmostEqual(
+            main_test(use_demandlib=False, unique_profile_workflow=True),
+            7674663.094635218)
+
+    def test_demandlib(self):
+        """Test the calculated total energy demand in kWh."""
+        try:  # if import is successfull, use demandlib
+            from demandlib import vdi
+        except ImportError:  # if demandlib is not available, do not test
+            self.assertEqual(0, 0)
+        else:  # demandlib with vdi is available, so test it
+            # The total energy differs between 'lpagg internal' and
+            # 'demandlib', because a heat loss calculation is included.
+            # The shape of the profiles differ, so heat losses are not the
+            # same for each time step.
+            self.assertAlmostEqual(
+                main_test(use_demandlib=True, unique_profile_workflow=False),
+                7467881.584333282)
+
+    def test_demandlib_with_unique_profile(self):
+        """Test the calculated total energy demand in kWh."""
+        try:  # if import is successfull, use demandlib
+            from demandlib import vdi
+        except ImportError:  # if demandlib is not available, do not test
+            self.assertEqual(0, 0)
+        else:  # demandlib with vdi is available, so test it
+            # The total energy differs between 'lpagg internal' and
+            # 'demandlib', because a heat loss calculation is included.
+            # The shape of the profiles differ, so heat losses are not the
+            # same for each time step.
+            self.assertAlmostEqual(
+                main_test(use_demandlib=True, unique_profile_workflow=True),
+                7467881.584333282)
 
 
 if __name__ == '__main__':
