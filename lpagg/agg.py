@@ -356,9 +356,17 @@ def preprocess_unique_profiles(cfg):
         # Set number of copies to default value '1'
         df_unique['copies'] = df_unique['copies'] * 0 + 1
 
-    df_unique = df_unique.drop_duplicates().reset_index(drop=True)
-    df_unique = df_unique.reset_index().rename(columns={'index': 'id_unique'})
+    # Identify unique settings (apart from energy columns)
+    duplicate_subset = df_unique.columns
+    duplicate_subset = [c for c in duplicate_subset if c not in cols_energy]
+    df_unique = (df_unique
+                 .drop_duplicates(subset=duplicate_subset)
+                 .reset_index(drop=True)  # Drop house names index
+                 .rename_axis(index='id_unique')  # Rename new unique index
+                 .reset_index()  # Move new (unique) index to the columns
+                 )
 
+    # Assign each actual building its id_unique
     df = df.merge(df_unique
                   .drop(columns=cols_energy + ['sigma', 'copies'])
                   ).set_index(df.index)
