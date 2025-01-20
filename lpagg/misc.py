@@ -82,7 +82,7 @@ def file_dialog(initialdir=os.getcwd(),
 
     # Set a custom taskbar icon
     # For the 'noarch' conda build, access the file as resource object
-    res_path = importlib.resources.files('lpagg').joinpath('../res/icon.ico')
+    res_path = importlib.resources.files('lpagg').joinpath('./res/icon.ico')
     with importlib.resources.as_file(res_path) as resource:
         root.iconbitmap(resource)  # Set the custom taskbar icon
 

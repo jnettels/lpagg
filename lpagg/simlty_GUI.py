@@ -468,8 +468,8 @@ def main():
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
     os.environ['QT_AUTO_SCREEN_SCALE_FACTOR'] = '1'
+    QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
     app = QtWidgets.QApplication([])
-    app.setAttribute(Qt.Qt.AA_EnableHighDpiScaling)
     gui = MainClassAsGUI()  # gui has inherited from QMainWindow
     gui.setWindowTitle('Gleichzeitigkeit')
 
@@ -478,7 +478,7 @@ def main():
         iconFile = os.path.join(homePath, 'icon.png')
     else:  # Otherwise, if running unfrozen (e.g., within Spyder)
         homePath = os.path.dirname(__file__)
-        iconFile = os.path.join(homePath, '../res/icon.ico')
+        iconFile = os.path.join(homePath, './res/icon.ico')
 
     app.setWindowIcon(QtGui.QIcon(iconFile))
     gui.setWindowIcon(QtGui.QIcon(iconFile))
