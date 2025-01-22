@@ -84,7 +84,10 @@ def file_dialog(initialdir=os.getcwd(),
     # For the 'noarch' conda build, access the file as resource object
     res_path = importlib.resources.files('lpagg').joinpath('./res/icon.ico')
     with importlib.resources.as_file(res_path) as resource:
-        root.iconbitmap(resource)  # Set the custom taskbar icon
+        try:
+            root.iconbitmap(resource)  # Set the custom taskbar icon
+        except Exception:
+            pass  # Does not work on linux
 
     root.title("lpagg")
     root.geometry("300x1")  # Show window only as title bar
