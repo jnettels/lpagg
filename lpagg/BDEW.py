@@ -312,9 +312,12 @@ def run_demandlib(weather_data, cfg, houses_dict):
     # But lpagg also provides the option to generate a (generalized) cooling
     # profile. This is calculated internally by lpagg and combined with the
     # demandlib results
-    futureSolar_profiles = load_futureSolar_profiles(
-        weather_data, cfg, houses_dict,
-        energy_types=['Q_Kalt_TT'])
+    if 'Q_Kalt_a' in pd.DataFrame.from_dict(houses_dict, 'index').columns:
+        futureSolar_profiles = load_futureSolar_profiles(
+            weather_data, cfg, houses_dict,
+            energy_types=['Q_Kalt_TT'])
+    else:  # Skip the whole step if no cooling is defined for any house
+        futureSolar_profiles = pd.DataFrame()
 
     GHD_profiles = pd.concat([demandlib_profiles,
                               futureSolar_profiles],
