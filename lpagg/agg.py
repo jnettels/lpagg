@@ -378,7 +378,7 @@ def preprocess_unique_profiles(cfg):
     cfg['houses_id_unique'] = df.to_dict(orient='index')
 
     # For settings where the default is True, set them specifically
-    cfg['settings']['calc_P_max'] = True
+    cfg['settings'].setdefault('calc_P_max', True)
 
     # Create a backup of original configuration settings
     cfg['settings_bak'] = cfg['settings'].copy()
