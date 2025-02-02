@@ -1111,9 +1111,13 @@ def plot_and_print(weather_data, cfg):
         if cfg['settings'].get('language', 'de') == 'en':
             txt_P_th = 'thermal power in [kW]'
             txt_P_el = 'electrical power in [kW]'
+            txt_xlabel = 'Hours'
+            txt_title_sorted = 'Sorted load curves'
         else:
             txt_P_th = 'thermische Leistung in [kW]'
             txt_P_el = 'elektrische Leistung in [kW]'
+            txt_xlabel = 'Stunden'
+            txt_title_sorted = 'Jahresdauerlinien'
 
         for cols, ylabel in zip(
                 [sum_list_th, sum_list_el],
@@ -1123,14 +1127,15 @@ def plot_and_print(weather_data, cfg):
             if len(cols) == 0 or df_plot.empty:
                 continue  # skip empty plots
 
+            hours = cfg['settings']['interpolation_freq'].seconds / 3600.0  # h
+            df_plot = (df_plot
+                       .div(hours)  # convert kWh to kW
+                       .shift(periods=-1, freq="infer")  # Start at 00:00
+                       )
+
             fig = plt.figure()
             ax = fig.gca()
-            hours = cfg['settings']['interpolation_freq'].seconds / 3600.0  # h
-            (df_plot
-             .div(hours)
-             .shift(periods=-1, freq="infer")
-             .plot(ax=ax, xlabel="", ylabel=ylabel, style='--')
-             )
+            df_plot.plot(ax=ax, xlabel="", ylabel=ylabel, style='--')
             plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, 1.0))
             ax.yaxis.grid(True)  # Activate grid on horizontal axis
 
@@ -1143,6 +1148,15 @@ def plot_and_print(weather_data, cfg):
                 plt.show(block=False)  # Show plot without blocking the script
             else:
                 plt.close()
+
+            lpagg.misc.plot_sorted_load_curve(
+                df_plot,
+                xlabel=txt_xlabel,
+                ylabel=ylabel,
+                title=txt_title_sorted,
+                filename=ylabel + " (sorted)",
+                cfg=cfg,
+                )
 
     # Add a row at zero hours for the initialization in TRNSYS
     if settings.get('include_zero_row', False) is True:

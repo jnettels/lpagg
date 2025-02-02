@@ -282,6 +282,56 @@ def get_TRY_polygons_GeoDataFrame(col_try="TRY_code"):
     return TRY_polygons
 
 
+def plot_sorted_load_curve(df, cfg, y_list=None, xlabel="Hours", ylabel=None,
+                           filename=None, plot_show=True, set_zero_to_nan=True,
+                           title=None,  **kwargs):
+    """Plot sorted annual load curve."""
+    from pandas.tseries.frequencies import to_offset
+
+    # Filter out non-existing columns
+    if y_list is not None:
+        y_list = [col for col in y_list if col in df.columns]
+    else:
+        y_list = df.columns.to_list()
+
+    # Filter out empty columns (test for NaN and 0)
+    y_list = [c for c in y_list if any(df[c].notna())]
+    y_list = [c for c in y_list if any(df[c] != 0)]
+
+    if set_zero_to_nan:
+        df = df.replace(0, float('NaN'))
+
+    # Create index for x axis of new plot
+    freq = pd.to_timedelta(to_offset(pd.infer_freq(df.index)))
+    timedelta = df.index[-1] - (df.index[0] - freq)
+    index = pd.timedelta_range(start=freq, end=timedelta, freq=freq,
+                               name=xlabel) / pd.Timedelta(1, 'h')
+
+    # Create a new DataFrame and fill it with the sorted values
+    df_sorted = pd.DataFrame(index=index)
+    for y_col in y_list:
+        sort = df.sort_values(by=y_col, axis=0, ascending=False)
+        df_sorted[y_col] = sort[y_col].values
+
+    # ax.suptitle()
+    ax = df_sorted[y_list].plot(
+        xlabel=xlabel, ylabel=ylabel, title=title, **kwargs)
+    ax.yaxis.grid(True)  # Activate grid on horizontal axis
+
+    if filename is not None:
+        savefig_filetypes(
+            cfg['print_folder'], filename=filename,
+            filetypes=cfg['settings'].get('save_plot_filetypes', None),
+            dpi=400)
+
+    if cfg['settings'].get('show_plot', False) is True:
+        plt.show(block=False)  # Show plot without blocking the script
+    else:
+        plt.close()
+
+    return
+
+
 def savefig_filetypes(save_folder, filename, filetypes=None, dpi=200):
     """Save active matplotlib figure to all given file types."""
     if save_folder is not None and filetypes is not None:
