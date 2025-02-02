@@ -422,6 +422,18 @@ def postprocess_unique_profiles(agg_dict, cfg,
                                           'Q_TWW_a': 'Q_TWW_TT',
                                           'W_a': 'W_TT'})
     df_unique = df_unique.rename_axis(columns=['energy'])
+
+    if cfg['settings'].get('print_unique_profiles', False):
+        logger.info("Print unique profiles to file")
+        df_lc.to_csv(os.path.join(
+            cfg['print_folder'],
+            os.path.splitext(cfg['settings']['print_file'])[0]
+            + '_unique_profiles.dat'))
+        df_unique.to_csv(os.path.join(
+            cfg['print_folder'],
+            os.path.splitext(cfg['settings']['print_file'])[0]
+            + '_unique_buildings.dat'))
+
     df_unique = df_unique.stack(future_stack=True)  # Keep NA values
 
     # The next step is probably the most memory-intensive operation.

@@ -107,6 +107,10 @@ settings:
     ### (Note: Currently this is not easily installable)
     # use_demandlib: True
 
+    ### Settings related to 'unique profile" workflow
+    # unique_profile_workflow: True  # Only calculate unique profiles
+    # print_unique_profiles: True  # Print the unique profiles
+
 
 ### This section is not part of VDI 4655:
 ### In this section you can define the relevant input for the 'Heizkurve'.
