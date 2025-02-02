@@ -410,6 +410,17 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
             house_type_heat = matches[0].upper()
 
         if house_type_heat is not None:
+            if house_type_heat in ['EFH', 'MFH']:
+                # For residential buildings, building_class (1-11) is
+                # dependent on the age of the building. It could become
+                # another input in the future, for now it is fixed
+                building_class = 5
+            else:  # For non-residential buildings, building_class is always 0
+                building_class = 0
+
+            # Wind class is fixed, could become an input in the future
+            wind_class = 0
+
             # Get load profile for energy demand for heating
             Q_heat = houses_dict[house_name].get(
                 energy_types_annual['Q_Heiz_TT'], float('NaN'))
@@ -422,8 +433,8 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
                     name=house_name,
                     annual_heat_demand=Q_heat,
                     shlp_type=house_type_heat,
-                    building_class=0,
-                    wind_class=0,
+                    building_class=building_class,
+                    wind_class=wind_class,
                     ww_incl=False,
                     )
 
@@ -445,8 +456,8 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
                     name=house_name,
                     annual_heat_demand=Q_DHW,
                     shlp_type=house_type_heat,
-                    building_class=0,
-                    wind_class=0,
+                    building_class=building_class,
+                    wind_class=wind_class,
                     ww_only=True,
                     )
                 lp_DHW = heatBuilding.get_bdew_profile()
