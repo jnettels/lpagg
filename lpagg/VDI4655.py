@@ -117,10 +117,6 @@ def run_demandlib(weather_data, cfg):
     summer_temperature_limit = settings.get('Tamb_heat_limit', 15)
     winter_temperature_limit = settings.get('winter_temperature_limit', 5)
 
-    if settings.get('zero_summer_heat_demand', False):
-        logger.warning("The option 'zero_summer_heat_demand=True' is not "
-                       "available in demandlib")
-
     houses_dict = get_annual_energy_demand(cfg)
     # Convert dict of houses to list of houses while saving additional settings
     my_houses = []
@@ -128,8 +124,10 @@ def run_demandlib(weather_data, cfg):
         if name not in houses_list:
             continue  # Generate VDI profiles only for buildings in VDI list
         house_dict['name'] = name
-        house_dict['summer_temperature_limit'] = summer_temperature_limit
-        house_dict['winter_temperature_limit'] = winter_temperature_limit
+        house_dict.setdefault('summer_temperature_limit',
+                              summer_temperature_limit)
+        house_dict.setdefault('winter_temperature_limit',
+                              winter_temperature_limit)
         my_houses.append(house_dict)
 
     if len(my_houses) == 0:
@@ -311,6 +309,16 @@ def get_typical_days(weather_data, cfg):
     # For low- and zero-energy houses, the average daily temperatures have
     # to be adapted to the actual conditions. (see VDI 4655, page 15)
     Tamb_heat_limit = settings.get('Tamb_heat_limit', 15)  # °C
+
+    for house_name, house_dict in cfg['houses'].items():
+        if (house_dict.get('summer_temperature_limit', None) is not None
+           or house_dict.get('winter_temperature_limit', None) is not None):
+            logger.warning("Setting 'summer_temperature_limit' or "
+                           "'winter_temperature_limit' per building is only "
+                           "supported when setting 'use_demandlib=True'. "
+                           "These values are ignored and only the global "
+                           "setting is used.")
+            break
 
     # Read through list of temperatures line by line and apply the definition
     for tamb_avg in tamb_avg_list:
