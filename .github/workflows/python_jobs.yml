@@ -17,16 +17,14 @@ jobs:
       uses: actions/checkout@v1  # use the latest code commit
 
     - name: Setup conda with python ${{ matrix.python-version }}
-      uses: s-weigand/setup-conda@v1
+      uses: conda-incubator/setup-miniconda@v3
       with:
-        update-conda: false
+        auto-update-conda: true
+        activate-environment: work
         python-version: ${{ matrix.python-version }}
 
-    - name: Initialize powershell for conda (Windows only)
-      if: runner.os == 'Windows'
-      run: conda init powershell
-
     - name: Install dependencies with conda
+      shell: pwsh  # Needed where conda env is used
       run: |
         # conda install numpy -y
         # conda install conda-build setuptools setuptools_scm pandas pyqt xlsxwriter openpyxl -y
@@ -39,20 +37,21 @@ jobs:
         conda install python=${{ matrix.python-version }} numpy conda-build setuptools setuptools_scm pandas pyqt xlsxwriter openpyxl cx_freeze -c conda-forge -y
 
     - name: Build & install lpagg with conda
+      shell: pwsh  # Needed where conda env is used
       run: |
         conda build conda.recipe -c conda-forge
         conda install lpagg --use-local -c conda-forge
 
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
+      shell: pwsh  # Needed where conda env is used
       if: runner.os == 'Windows'  # Only applies to windows
       run: |
-        conda activate base  # Activate conda environment
         python setup_exe.py bdist_msi
 
     - name: Build MSI installer for 'dwd2trnsys' GUI version (Windows only)
+      shell: pwsh  # Needed where conda env is used
       if: runner.os == 'Windows'  # Only applies to windows
       run: |
-        conda activate base  # Activate conda environment
         conda install geopy -y
         python setup_d2t_exe.py bdist_msi
 
@@ -71,6 +70,7 @@ jobs:
         path: dist/dwd2trnsys*.msi
 
     - name: Lint with flake8
+      shell: pwsh  # Needed where conda env is used
       if: runner.os == 'Linux'  # Only needs to run once
       run: |
         conda install flake8
