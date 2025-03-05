@@ -40,7 +40,7 @@ jobs:
       shell: pwsh  # Needed where conda env is used
       run: |
         conda build conda.recipe -c conda-forge
-        conda install lpagg --use-local -c conda-forge
+        conda install lpagg -c local -c conda-forge
 
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
       shell: pwsh  # Needed where conda env is used
