@@ -86,6 +86,10 @@ settings:
     ### Use daily mean as constant value for domestic hot water
     # flatten_daily_TWE: True
 
+    ### If True, all columns with equal shift value are
+    ### shifted together, which increases the speed significantly
+    # sort_shifts: True
+
     ### Activate the debugging flag to display more info in the terminal
     log_level: debug
 

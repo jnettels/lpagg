@@ -278,36 +278,15 @@ def shift_columns(df, shift_list, level=None, sort_shifts=True):
                 continue
             # For each unique shift, get all columns and shift them together
             shift_cols = df_shifts[df_shifts['shift'] == shift]['name']
-            df.loc[:, pd.IndexSlice[shift_cols]] = (
-                dataframe_roll(df.loc[:, pd.IndexSlice[shift_cols]], shift))
-    else:  # Only kept for debugging purposes. Should be slower in most cases
+            df.loc[:, pd.IndexSlice[shift_cols]] = np.roll(
+                df.loc[:, pd.IndexSlice[shift_cols]].to_numpy(),
+                shift, axis=0)
+    else:  # Should be slower in most cases, but may use less memory
         for col, shift in zip(columns, shift_list):
             if shift != 0:
-                df[col] = dataframe_roll(df[col], shift)
+                df[col] = np.roll(df[col].to_numpy(), shift, axis=0)
 
     return df
-
-
-def dataframe_roll(df, steps):
-    """Roll DataFrame (or Series) values by the given number of steps.
-
-    Elements that roll beyond the last position are re-introduced at the first.
-    This is a wrapper around numpy.roll().
-
-    df (DataFrame): The DataFrame (or Series) to shift.
-
-    steps (int): Positive or negative number of steps to shift df.
-    """
-    if isinstance(df, pd.DataFrame):
-        df_new = pd.DataFrame(index=df.index, columns=df.columns,
-                              data=np.roll(df.to_numpy(), steps, axis=0))
-    elif isinstance(df, pd.Series):
-        df_new = pd.Series(index=df.index,
-                           data=np.roll(df.to_numpy(), steps, axis=0))
-    else:
-        raise ValueError("Input must be DataFrame or Series")
-
-    return df_new
 
 
 def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
@@ -455,7 +434,8 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
         load_curve_houses_ref = load_curve_houses.copy()
         # Randomize all the houses
         logger.debug('Randomize houses')
-        shift_columns(load_curve_houses, shift_list, level='house')
+        shift_columns(load_curve_houses, shift_list, level='house',
+                      sort_shifts=settings.get('sort_shifts', True))
         # Calculate "simultaneity factor" (Gleichzeitigkeitsfaktor)
         calc_GLF(load_curve_houses, load_curve_houses_ref, cfg)
 
@@ -484,7 +464,8 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
     if 'class' in load_curve_houses.columns.names:
         load_curve_houses = load_curve_houses.swaplevel('house', 'class',
                                                         axis=1)
-
+    # Store the shift list for further usage
+    cfg['settings']['shift_list'] = shift_list
     return load_curve_houses
 
 
