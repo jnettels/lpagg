@@ -312,7 +312,8 @@ def run_demandlib(weather_data, cfg, houses_dict):
     # But lpagg also provides the option to generate a (generalized) cooling
     # profile. This is calculated internally by lpagg and combined with the
     # demandlib results
-    if 'Q_Kalt_a' in pd.DataFrame.from_dict(houses_dict, 'index').columns:
+    df_houses = pd.DataFrame.from_dict(houses_dict, 'index')
+    if 'Q_Kalt_a' in df_houses.columns and df_houses['Q_Kalt_a'].notna().any():
         futureSolar_profiles = load_futureSolar_profiles(
             weather_data, cfg, houses_dict,
             energy_types=['Q_Kalt_TT'])
@@ -354,7 +355,6 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
     # Demandlib uses a different time step notation then lpagg
     # (In demandlib, time Label describes the beginning of the time step)
     weather_data_dl = weather_data.shift(periods=-1, freq="infer")
-
     settings = cfg['settings']
     houses_list = settings['houses_list_BDEW']
     energy_types = ['Q_Heiz_TT', 'Q_TWW_TT', 'W_TT']
@@ -368,7 +368,9 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
                                 columns=multiindex,
                                 dtype='float')
 
-    if len(houses_list) == 0:  # Skip
+    if len(houses_list) == 0:  # Skip function and return empty DataFrame
+        # Demandlib uses a different time step notation then lpagg
+        ret_profiles.index = ret_profiles.index.shift(periods=1)
         return ret_profiles
 
     year = int(weather_data.index[0].year)
