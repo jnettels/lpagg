@@ -712,6 +712,8 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
     sf_df.loc['GLF'] = sf_df.loc['P_max_kW'].div(
         sf_df.loc['P_max_ref_static_kW'])
 
+    sf_df_wo_comment = sf_df.copy()  # Save a copy without comments for print
+
     sf_df['Comment'] = [
         "The maximum load in the resulting profiles at one point in time, "
         "after application of time shift (due to definition of standard "
@@ -747,7 +749,7 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
 
     if logger.isEnabledFor(logging.INFO):
         logger.info('Simultaneity factors (Gleichzeitigkeitsfaktoren):')
-        print(sf_df)
+        print(sf_df_wo_comment)
 
     if settings.get('print_GLF_stats', False):
         # Make sure the save path exists and save the DataFrame
@@ -757,6 +759,9 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
         with pd.ExcelWriter(os.path.join(save_folder, 'GLF.xlsx')) as writer:
             sf_df.to_excel(writer, sheet_name='GLF')
             DIN4708_df.to_excel(writer, sheet_name='DIN4708')
+
+    # Store the table with the simultaneity factor results in the cfg dict
+    cfg['simultaneity_factor_results'] = sf_df.to_dict(orient='index')
 
     return None
 
