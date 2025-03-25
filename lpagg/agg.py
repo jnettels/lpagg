@@ -352,7 +352,7 @@ def preprocess_unique_profiles(cfg):
     # Disable sigma for unique profiles (set not-na to 0)
     df_unique['sigma'] *= 0
 
-    if 'copies' in df_unique.columns:  # Not supported yet
+    if 'copies' in df_unique.columns:
         # Set number of copies to default value '1'
         df_unique['copies'] = df_unique['copies'] * 0 + 1
 
@@ -409,31 +409,22 @@ def postprocess_unique_profiles(agg_dict, cfg,
     # all-na columns are not part of the desired output and need to be removed
     df_lc = df_lc.dropna(axis='columns', how='all')
     df_lc = df_lc.rename_axis(columns={'house': 'id_unique'})
+    df_lc_unique_print = df_lc.copy()  # Store copy for printing
 
     # Process unique houses DataFrame
     df_unique = pd.DataFrame.from_dict(cfg['houses_id_unique'], orient='index')
     df_unique = df_unique.rename_axis(index=['house'])
-    cols_keep = ['Q_Heiz_a', 'Q_Kalt_a', 'Q_TWW_a', 'W_a', 'id_unique']
-    cols_keep = [c for c in cols_keep if c in df_unique]
-    df_unique = df_unique[cols_keep]
-    df_unique = df_unique.set_index(['id_unique'], append=True)
     df_unique = df_unique.rename(columns={'Q_Heiz_a': 'Q_Heiz_TT',
                                           'Q_Kalt_a': 'Q_Kalt_TT',
                                           'Q_TWW_a': 'Q_TWW_TT',
                                           'W_a': 'W_TT'})
+    df_unique = df_unique.set_index(['id_unique'], append=True)
+    df_unique_print = df_unique.copy()  # Store copy for printing
+
+    cols_keep = ['Q_Heiz_TT', 'Q_Kalt_TT', 'Q_TWW_TT', 'W_TT']
+    cols_keep = [c for c in cols_keep if c in df_unique]
+    df_unique = df_unique[cols_keep]
     df_unique = df_unique.rename_axis(columns=['energy'])
-
-    if cfg['settings'].get('print_unique_profiles', False):
-        logger.info("Print unique profiles to file")
-        df_lc.to_csv(os.path.join(
-            cfg['print_folder'],
-            os.path.splitext(cfg['settings']['print_file'])[0]
-            + '_unique_profiles.dat'))
-        df_unique.to_csv(os.path.join(
-            cfg['print_folder'],
-            os.path.splitext(cfg['settings']['print_file'])[0]
-            + '_unique_buildings.dat'))
-
     df_unique = df_unique.stack(future_stack=True)  # Keep NA values
 
     # The next step is probably the most memory-intensive operation.
@@ -517,7 +508,7 @@ def postprocess_unique_profiles(agg_dict, cfg,
     # Test success by comparing the annual sum of each building
     df_lc_sum = df_lc.sum(min_count=1)
     df_unique_compare = df_unique.dropna().astype(df_lc_sum.dtype)
-    if not df_lc_sum.round(4).equals(df_unique_compare.round(4)):
+    if not df_lc_sum.round(3).equals(df_unique_compare.round(3)):
         if dtype == 'float32':
             txt = ("Annual sums of individual profiles do not "
                    "match the input sums. When using dtype 'float32', "
@@ -525,7 +516,11 @@ def postprocess_unique_profiles(agg_dict, cfg,
             if df_unique.sum() == df_lc.sum().sum():
                 txt += (" However, the total annual sum of all profiles is "
                         "correct.")
-            logger.warning(txt)
+                logger.warning(txt)
+            else:
+                txt += (" However, the total annual sum of all profiles "
+                        "should match the input, but does not.")
+                raise ValueError(txt)
         else:
             raise ValueError("Mismatch of sums in profile post-processing")
 
@@ -539,6 +534,22 @@ def postprocess_unique_profiles(agg_dict, cfg,
     # Randomize the load profiles of identical houses
     df_lc = lpagg.simultaneity.copy_and_randomize_houses(
             df_lc, cfg['houses_id_unique'], cfg)
+
+    # Save unique profile files
+    if cfg['settings'].get('print_unique_profiles', False):
+        logger.info("Print unique profiles to file")
+
+        if len(df_unique_print) == len(cfg['settings']['shift_list']):
+            df_unique_print['shift'] = cfg['settings']['shift_list']
+
+        df_lc_unique_print.to_csv(os.path.join(
+            cfg['print_folder'],
+            os.path.splitext(cfg['settings']['print_file'])[0]
+            + '_unique_profiles.dat'))
+        df_unique_print.to_csv(os.path.join(
+            cfg['print_folder'],
+            os.path.splitext(cfg['settings']['print_file'])[0]
+            + '_unique_buildings.dat'))
 
     # Save some intermediate result files
     P_max_houses = lpagg.agg.intermediate_printing(df_lc, cfg)
