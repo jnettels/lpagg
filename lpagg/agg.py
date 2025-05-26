@@ -33,6 +33,7 @@ Module agg
 The aggregator module is the core of the load profile aggregator project.
 
 """
+import copy
 import locale
 import numpy as np
 import pandas as pd              # Pandas
@@ -40,6 +41,7 @@ import os                        # Operaing System
 import matplotlib.pyplot as plt  # Plotting library
 import yaml                      # Read YAML configuration files
 from scipy import optimize
+from scipy.optimize import minimize_scalar
 import logging
 import datetime
 # from memory_profiler import profile
@@ -228,6 +230,34 @@ def aggregator_run(cfg):
         of each house.
 
     """
+    fit_sigma = False
+    df_houses = pd.DataFrame.from_dict(cfg['houses'], orient='index')
+    if "sigma" in df_houses.columns:
+        sigma_list = df_houses['sigma'].unique()
+        if (sigma_list == 'fit').all():
+            fit_sigma = True
+
+    if not fit_sigma:
+        result_dict = _aggregator_run_unique_profils(cfg)
+    else:
+        result_dict = _aggregator_run_sigma_fit(cfg)
+    return result_dict
+
+
+def _aggregator_run_unique_profils(cfg):
+    """Run the aggregator with the 'unique profiles workflow'.
+
+    Args:
+        cfg (dict): A dictionary containing the dicts 'settings' and 'houses'.
+
+    Returns:
+        result_dict (dict): A dictionary containing the resulting DataFrames.
+        ``weather_data`` contains the input weather data combined with the
+        aggregated load profiles. ``load_curve_houses`` contains all individual
+        profiles of the houses. ``P_max_houses`` contains the peak power
+        of each house.
+
+    """
     if cfg['settings'].get('unique_profile_workflow', True):
         cfg = preprocess_unique_profiles(cfg)
 
@@ -244,6 +274,86 @@ def aggregator_run(cfg):
         result_dict = _aggregator_run(cfg)
 
     return result_dict
+
+
+def _aggregator_run_sigma_fit(cfg):
+    """Run the aggregator while fitting the simultaneity to literature data.
+
+    The complete aggregator process is performed in a loop to fit
+    the resulting simultaneity factor to a literature value derived from
+    the number of buildings connected to a district heating grid, by
+    choosing the standard deviation sigma.
+
+    Args:
+        cfg (dict): A dictionary containing the dicts 'settings' and 'houses'.
+
+    Returns:
+        result_dict (dict): A dictionary containing the resulting DataFrames.
+        ``weather_data`` contains the input weather data combined with the
+        aggregated load profiles. ``load_curve_houses`` contains all individual
+        profiles of the houses. ``P_max_houses`` contains the peak power
+        of each house.
+
+    """
+    cfg_backup = copy.deepcopy(cfg)
+    cfg['settings']['print_houses_dat'] = False
+    cfg['settings']['print_houses_xlsx'] = False
+    cfg['settings']['calc_P_max'] = False
+    cfg['settings']['print_P_max'] = False
+    cfg['settings']['print_GLF_stats'] = False
+    cfg['settings']['show_plot'] = False
+    cfg['settings']['save_plot_filetypes'] = None
+
+    def black_box(sigma):
+        sigma = abs(sigma)
+        df_houses = pd.DataFrame.from_dict(cfg['houses'], orient='index')
+        df_houses['sigma'] = sigma
+        cfg['houses'] = df_houses.to_dict(orient='index')
+
+        _aggregator_run_unique_profils(cfg)
+
+        df_sf = pd.DataFrame.from_dict(
+            cfg.get('simultaneity_factor_results', dict()), orient='index')
+        if df_sf.empty:
+            sf_lpagg = 1
+        else:
+            sf_lpagg = df_sf.loc['GLF', 'th']
+
+        sf_formula = simultaneity_factor(len(df_houses))
+        f_sigma = abs(sf_lpagg - sf_formula)
+        return f_sigma
+
+    opt_result = minimize_scalar(black_box, tol=1e-4,
+                                 # options=dict(disp=3),
+                                 )
+
+    sigma_result = opt_result.x
+
+    cfg = copy.deepcopy(cfg_backup)
+    df_houses = pd.DataFrame.from_dict(cfg['houses'], orient='index')
+    df_houses['sigma'] = sigma_result
+    cfg['houses'] = df_houses.to_dict(orient='index')
+    result_dict = _aggregator_run_unique_profils(cfg)
+
+    return result_dict
+
+
+def simultaneity_factor(n, decimals=5):
+    """Calculate simultaneity factor based on number of consumers n.
+
+    Winter, Walter; Haslauer, Thomas; Obernberger, Ingwald (2001)
+    Untersuchungen der Gleichzeitigkeit in kleinen und
+    mittleren Nahwärmenetzen. In: Euroheat & Power (9/10).
+    """
+    n = np.asarray(n, dtype=float)
+    a = 0.449677646267461
+    b = 0.551234688
+    c = 53.84382392
+    d = 1.762743268
+    f = a + b / (1 + (n / c) ** d)
+    f = np.clip(f, a_min=0, a_max=1)
+    f = np.round(f, decimals)
+    return f
 
 
 def _aggregator_run(cfg):
@@ -350,6 +460,7 @@ def preprocess_unique_profiles(cfg):
     lpagg.VDI4655.get_annual_energy_demand(cfg)  # updates cfg['houses']
     # Create DataFrame from dict for easier workflow
     df = pd.DataFrame.from_dict(cfg['houses'], orient='index')
+    df = df.drop(columns='id_unique', errors='ignore')
     df_unique = df.copy()
     # Set all not-na values to 1 (normalized total energy demand of 1 kWh)
     cols_energy = ['Q_Heiz_a', 'Q_Kalt_a', 'Q_TWW_a', 'W_a']
@@ -396,6 +507,7 @@ def preprocess_unique_profiles(cfg):
     cfg['settings']['print_P_max'] = False
     cfg['settings']['print_GLF_stats'] = False
     cfg['settings']['show_plot'] = False
+    cfg['settings']['save_plot_filetypes'] = None
 
     logger.info('Number of unique profiles: %s', len(df_unique))
 
@@ -534,12 +646,13 @@ def postprocess_unique_profiles(agg_dict, cfg,
     for key, value in cfg['settings'].items():
         cfg['settings_bak'].setdefault(key, value)
     cfg['settings'] = cfg['settings_bak']
+    cfg['houses'] = cfg['houses_id_unique']
 
     # Now repeat the remaining steps of _aggregator_run with the full dataset
 
     # Randomize the load profiles of identical houses
     df_lc = lpagg.simultaneity.copy_and_randomize_houses(
-            df_lc, cfg['houses_id_unique'], cfg)
+            df_lc, cfg['houses'], cfg)
 
     # Save unique profile files
     if cfg['settings'].get('print_unique_profiles', False):
