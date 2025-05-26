@@ -713,6 +713,9 @@ def print_IGS_weather_file(weather_data, print_folder, print_file,
     if not os.path.exists(print_folder):
         os.makedirs(print_folder)
 
+    if print_file is None:
+        return
+
     print_path = os.path.join(print_folder, print_file)
     logger.info('Printing to '+print_path)
 
