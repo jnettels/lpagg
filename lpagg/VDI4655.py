@@ -30,15 +30,15 @@ of buildings from different sources.
 
 Module VDI 4655
 ---------------
-This is an implementation of the calculation of economic efficiency
-using the annuity method defined in the German VDI 4655.
+This is an implementation of the calculation of load profiles
+defined in the German VDI 4655.
 
     **VDI 4655**
 
     **Reference load profiles of single-family and
     multi-family houses for the use of CHP systems**
 
-    *May 2008 (ICS 91.140.01)*
+    *May 2008 (ICS 91.140.10)*
 
 Copyright:
 
