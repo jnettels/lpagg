@@ -114,12 +114,14 @@ def run_demandlib(weather_data, cfg):
             country, subdiv=province, years=year)
 
     # These are global settings in lpagg, but per-house settings in demandlib
-    summer_temperature_limit = settings.get('Tamb_heat_limit', 15)
+    summer_temperature_limit = settings.get('summer_temperature_limit', 15)
     winter_temperature_limit = settings.get('winter_temperature_limit', 5)
 
     houses_dict = get_annual_energy_demand(cfg)
+
     # Convert dict of houses to list of houses while saving additional settings
     my_houses = []
+    try_region = None
     for name, house_dict in houses_dict.items():
         if name not in houses_list:
             continue  # Generate VDI profiles only for buildings in VDI list
@@ -128,7 +130,13 @@ def run_demandlib(weather_data, cfg):
                               summer_temperature_limit)
         house_dict.setdefault('winter_temperature_limit',
                               winter_temperature_limit)
-        my_houses.append(house_dict)
+        # For demandlib, we need to remove unsupported attributes
+        house_dict_demandlib = house_dict.copy()
+        try_region = house_dict_demandlib.pop("TRY")
+        house_dict_demandlib.pop("copies", None)
+        house_dict_demandlib.pop("sigma", None)
+        house_dict_demandlib.pop("Q_Kalt_a", None)
+        my_houses.append(house_dict_demandlib)
 
     if len(my_houses) == 0:
         multiindex = pd.MultiIndex.from_product([[], []],
@@ -142,16 +150,31 @@ def run_demandlib(weather_data, cfg):
         dtype='float')
     df_empty.columns.set_names('name', inplace=True)
 
-    # Define the region
-    my_region = vdi.Region(
-        year,
-        holidays=holidays_dict,
-        try_region=my_houses[0]['TRY'],  # Use region of first house for all
-        houses=my_houses,
-        resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
-        file_weather=settings['weather_file'],
-        zero_summer_heat_demand=settings.get('zero_summer_heat_demand'),
-    )
+    try:
+        if settings['weather_file'] is None:
+            climate = vdi.Climate().from_try_data(int(try_region))
+        else:
+            climate = vdi.Climate().from_dwd_weather_file(
+                settings['weather_file'], try_region)
+
+        my_region = vdi.Region(
+            year,
+            holidays=holidays_dict,
+            climate=climate,
+            houses=my_houses,
+            resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
+            zero_summer_heat_demand=settings.get('zero_summer_heat_demand'),
+        )
+    except AttributeError:
+        my_region = vdi.Region(
+            year,
+            holidays=holidays_dict,
+            try_region=try_region,
+            houses=my_houses,
+            resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
+            file_weather=settings['weather_file'],
+            zero_summer_heat_demand=settings.get('zero_summer_heat_demand'),
+        )
 
     # Calculate load profiles
     logger.info('Create %s VDI 4655 profiles with demandlib', len(my_houses))
@@ -308,7 +331,8 @@ def get_typical_days(weather_data, cfg):
     # The VDI 4655 default heat limit is 15°C (definition of summer days).
     # For low- and zero-energy houses, the average daily temperatures have
     # to be adapted to the actual conditions. (see VDI 4655, page 15)
-    Tamb_heat_limit = settings.get('Tamb_heat_limit', 15)  # °C
+    T_lim_summer = settings.get('summer_temperature_limit', 15)  # °C
+    T_lim_winter = settings.get('winter_temperature_limit', 5)  # °C
 
     for house_name, house_dict in cfg['houses'].items():
         if (house_dict.get('summer_temperature_limit', None) is not None
@@ -322,9 +346,9 @@ def get_typical_days(weather_data, cfg):
 
     # Read through list of temperatures line by line and apply the definition
     for tamb_avg in tamb_avg_list:
-        if tamb_avg < 5:
+        if tamb_avg < T_lim_winter:
             season_list.append('W')  # Winter
-        elif tamb_avg > Tamb_heat_limit:
+        elif tamb_avg > T_lim_summer:
             season_list.append('S')  # Summer
         else:
             season_list.append('U')  # Übergang (Transition)

@@ -350,7 +350,7 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
     https://www.avacon-netz.de/content/dam/revu-global/avacon-netz/documents/Energie_anschliessen/netzzugang-gas/Leitfaden_20180329_Abwicklung-Standardlastprofile-Gas.pdf
     """
     import holidays
-    from demandlib import bdew  # Requires demandlib v0.2.1
+    from demandlib import bdew  # Requires demandlib>=0.2.2
 
     # Demandlib uses a different time step notation then lpagg
     # (In demandlib, time Label describes the beginning of the time step)
@@ -497,9 +497,7 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
                     year=year,
                     holidays=holidays_dict,
                     )
-                lp_W_el = elec_slp.get_profile({house_type_el: W_a})
-                # Convert unit "W" (per 15min) to "kWh" (per 15min)
-                lp_W_el *= 1/4
+                lp_W_el = elec_slp.get_scaled_profiles({house_type_el: W_a})
                 # Resample to the desired frequency (time intervall)
                 lp_W_el = lpagg.misc.resample_energy(
                         lp_W_el.shift(periods=1, freq="infer"),

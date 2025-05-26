@@ -72,9 +72,9 @@ settings:
 
     ### The VDI 4655 default heat limit is 15°C (definition of summer days).
     ### For modern building types, this can be set to a lower value
-    Tamb_heat_limit: 12
-    # In addition to the Tamb_heat_limit, you may overwrite the VDI4655 and
-    # set heat demand on all summer days to zero:
+    summer_temperature_limit: 12
+    # In addition to the summer_temperature_limit, you may overwrite the
+    # VDI4655 and set heat demand on all summer days to zero:
     zero_summer_heat_demand: True
 
     # Holidays are treated as sundays. You can select a country and

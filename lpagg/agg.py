@@ -79,7 +79,8 @@ def perform_configuration(config_file='', cfg=None, ignore_errors=False):
         Configuration dictionary.
 
     """
-    logger.info('Using configuration file ' + config_file)
+    if config_file != '':
+        logger.info('Using configuration file ' + config_file)
 
     if cfg is None:
         with open(config_file, 'r', encoding='utf8') as file:
@@ -87,6 +88,11 @@ def perform_configuration(config_file='', cfg=None, ignore_errors=False):
 
     # Read settings from the cfg
     settings = cfg['settings']
+
+    if "Tamb_heat_limit" in settings.keys():
+        logger.warning("The VDI4655 setting 'Tamb_heat_limit' has been "
+                       "renamed to 'summer_temperature_limit'")
+        settings['summer_temperature_limit'] = settings['Tamb_heat_limit']
 
     settings.setdefault('print_file', 'lpagg_load.dat')
     settings.setdefault('intervall', '1 hours')
