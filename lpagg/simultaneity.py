@@ -550,7 +550,8 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
             dpi=400)
 
         if cfg['settings'].get('show_plot', False) is True:
-            plt.show(block=False)  # Show plot without blocking the script
+            # Show plot without blocking the script
+            plt.show(block=cfg['settings'].get('plot_block', True))
         else:
             plt.close()
 
@@ -573,7 +574,8 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
                           filetypes=['png', 'svg', 'pdf'])
 
     if settings.get('show_plot', False) is True:
-        plt.show(block=False)  # Show plot without blocking the script
+        # Show plot without blocking the script
+        plt.show(block=cfg['settings'].get('plot_block', True))
     else:
         plt.close()
 

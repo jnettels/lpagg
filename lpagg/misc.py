@@ -325,7 +325,8 @@ def plot_sorted_load_curve(df, cfg, y_list=None, xlabel="Hours", ylabel=None,
             dpi=400)
 
     if cfg['settings'].get('show_plot', False) is True:
-        plt.show(block=False)  # Show plot without blocking the script
+        # Show plot without blocking the script
+        plt.show(block=cfg['settings'].get('plot_block', True))
     else:
         plt.close()
 

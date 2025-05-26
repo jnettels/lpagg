@@ -1168,7 +1168,8 @@ def plot_and_print(weather_data, cfg):
                 dpi=400)
 
             if cfg['settings'].get('show_plot', False) is True:
-                plt.show(block=False)  # Show plot without blocking the script
+                # Show plot without blocking the script
+                plt.show(block=cfg['settings'].get('plot_block', True))
             else:
                 plt.close()
 
