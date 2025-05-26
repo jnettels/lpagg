@@ -508,7 +508,7 @@ def postprocess_unique_profiles(agg_dict, cfg,
     # Test success by comparing the annual sum of each building
     df_lc_sum = df_lc.sum(min_count=1)
     df_unique_compare = df_unique.dropna().astype(df_lc_sum.dtype)
-    if not df_lc_sum.round(3).equals(df_unique_compare.round(3)):
+    if ((df_lc_sum - df_unique_compare).round(6) != 0).any():
         if dtype == 'float32':
             txt = ("Annual sums of individual profiles do not "
                    "match the input sums. When using dtype 'float32', "
