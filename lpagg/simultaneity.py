@@ -679,7 +679,8 @@ def calc_GLF(load_curve_houses, load_curve_houses_ref, cfg):
                       keys=['P_max_kW', 'P_max_ref_kW']
                       ).T
 
-    sf_df = sf_df.rename(columns={'Q_Heiz_TT': 'th_RH', 'Q_TWW_TT': 'th_TWE'})
+    sf_df = sf_df.rename(
+        columns={'Q_Heiz_TT': 'th_RH', 'Q_TWW_TT': 'th_TWE', 'W_TT': 'el'})
 
     # Calculate a simultaneity factor that shows the impact of time shift
     sf_df.loc['GLF_timeshift'] = \
