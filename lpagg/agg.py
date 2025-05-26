@@ -1107,14 +1107,15 @@ def plot_and_print(weather_data, cfg):
                                                         closed='right').sum()
     logger.info('Calculations completed')
     logger.info('Monthly energy sums in kWh:')
-    weather_montly_sum = weather_daily_sum.resample('ME', label='right',
-                                                    closed='right').sum()
+    weather_monthly_sum = weather_daily_sum.resample('ME', label='right',
+                                                     closed='right').sum()
     if logger.isEnabledFor(logging.INFO):
-        print(weather_montly_sum)
+        print(weather_monthly_sum)
         print()
     logger.info('Annual energy sums in kWh:')
-    weather_annual_sum = weather_montly_sum.resample('YE', label='right',
-                                                     closed='right').sum()
+    weather_annual_sum = weather_monthly_sum.resample('YE', label='right',
+                                                      closed='right').sum()
+
     if logger.isEnabledFor(logging.INFO):
         print(weather_annual_sum)
         print('Total heat energy demand is {:.2f} kWh.'.format(
@@ -1134,17 +1135,24 @@ def plot_and_print(weather_data, cfg):
         if cfg['settings'].get('language', 'de') == 'en':
             txt_P_th = 'thermal power in [kW]'
             txt_P_el = 'electrical power in [kW]'
+            txt_E_th = 'thermal energy in [kWh]'
+            txt_E_el = 'electrical energy in [kWh]'
             txt_xlabel = 'Hours'
             txt_title_sorted = 'Sorted load curves'
+            txt_title_monthly = 'Monthly energy demand'
         else:
             txt_P_th = 'thermische Leistung in [kW]'
             txt_P_el = 'elektrische Leistung in [kW]'
+            txt_E_th = 'thermische Energie in [kWh]'
+            txt_E_el = 'elektrische Energie in [kWh]'
             txt_xlabel = 'Stunden'
             txt_title_sorted = 'Jahresdauerlinien'
+            txt_title_monthly = 'Monatlicher Energiebedarf'
 
-        for cols, ylabel in zip(
+        for cols, ylabel_P, ylabel_E in zip(
                 [sum_list_th, sum_list_el],
-                [txt_P_th, txt_P_el]
+                [txt_P_th, txt_P_el],
+                [txt_E_th, txt_E_el],
                 ):
             df_plot = weather_data[cols].dropna(how='all', axis='columns')
             if len(cols) == 0 or df_plot.empty:
@@ -1158,12 +1166,12 @@ def plot_and_print(weather_data, cfg):
 
             fig = plt.figure()
             ax = fig.gca()
-            df_plot.plot(ax=ax, xlabel="", ylabel=ylabel, style='--')
+            df_plot.plot(ax=ax, xlabel="", ylabel=ylabel_P, style='--')
             plt.legend(loc='lower center', ncol=5, bbox_to_anchor=(0.5, 1.0))
             ax.yaxis.grid(True)  # Activate grid on horizontal axis
 
             lpagg.misc.savefig_filetypes(
-                cfg['print_folder'], filename=ylabel,
+                cfg['print_folder'], filename=ylabel_P,
                 filetypes=cfg['settings'].get('save_plot_filetypes', None),
                 dpi=400)
 
@@ -1176,10 +1184,18 @@ def plot_and_print(weather_data, cfg):
             lpagg.misc.plot_sorted_load_curve(
                 df_plot,
                 xlabel=txt_xlabel,
-                ylabel=ylabel,
+                ylabel=ylabel_P,
                 title=txt_title_sorted,
-                filename=ylabel + " (sorted)",
+                filename=ylabel_P + " (sorted)",
                 cfg=cfg,
+                )
+
+            lpagg.misc.plot_monthly_energy(
+                df=weather_monthly_sum[cols],
+                cfg=cfg,
+                ylabel=ylabel_E,
+                title=txt_title_monthly,
+                filename=f"{txt_title_monthly} {ylabel_E}",
                 )
 
     # Add a row at zero hours for the initialization in TRNSYS

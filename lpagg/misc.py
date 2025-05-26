@@ -333,6 +333,35 @@ def plot_sorted_load_curve(df, cfg, y_list=None, xlabel="Hours", ylabel=None,
     return
 
 
+def plot_monthly_energy(df, cfg, ylabel, title, filename,  **kwargs):
+    """Plot monthly energy demand."""
+    cols = df.columns[::-1]  # reverse order
+    cols = [c for c in cols if any(df[c] != 0)]
+    ax = df[cols].plot(
+        kind='bar', stacked=True,
+        legend="reverse",
+        xlabel='',
+        ylabel=ylabel,
+        title=title,
+        **kwargs
+        )
+    ax.yaxis.grid(True)  # Activate grid on horizontal axis
+    ax.set_xticklabels(df.index.strftime('%b'), rotation=0)
+
+    savefig_filetypes(
+        cfg['print_folder'], filename=filename,
+        filetypes=cfg['settings'].get('save_plot_filetypes', None),
+        dpi=400)
+
+    if cfg['settings'].get('show_plot', False) is True:
+        # Show plot without blocking the script
+        plt.show(block=cfg['settings'].get('plot_block', True))
+    else:
+        plt.close()
+
+    return
+
+
 def savefig_filetypes(save_folder, filename, filetypes=None, dpi=200):
     """Save active matplotlib figure to all given file types."""
     if save_folder is not None and filetypes is not None:
