@@ -59,6 +59,7 @@ import re                         # Regular expressions
 import requests
 import logging
 import datetime
+import importlib.resources
 
 # Define the logging function
 logger = logging.getLogger(__name__)
@@ -736,7 +737,7 @@ def print_IGS_weather_file(weather_data, print_folder, print_file,
 
 
 def file_dialog_wfile(initialdir=os.getcwd()):
-    """Present a file dialog for one or more TRNSYS deck files.
+    """Present a file dialog for one or more weather data files.
 
     Args:
         None
@@ -749,11 +750,28 @@ def file_dialog_wfile(initialdir=os.getcwd()):
     title = 'Please choose a weather data file'
     logger.info(title)
     root = Tk()
-    root.withdraw()
+
+    # Set a custom taskbar icon
+    # For the 'noarch' conda build, access the file as resource object
+    path = importlib.resources.files('lpagg').joinpath('./res/icon_d2t.ico')
+    try:
+        with importlib.resources.as_file(path) as resource:
+            root.iconbitmap(resource)  # Set the custom taskbar icon
+    except Exception:
+        try:
+            root.iconbitmap('./icon_d2t.ico')  # Location for frozen .exe
+        except Exception:
+            pass  # Does not work on linux
+
+    root.title("dwd2trnsys")
+    root.geometry("300x1")  # Show window only as title bar
+    root.lift()  # Bring the window to the front
     files = filedialog.askopenfilenames(
                 initialdir=initialdir, title=title,
                 # filetypes=(('Weather File', '*.dat'),)
                 )
+    root.destroy()  # Destroy the root window after selection
+
     files = list(files)
     if files == []:
         paths = None
