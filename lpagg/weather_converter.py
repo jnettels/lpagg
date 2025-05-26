@@ -312,7 +312,7 @@ def get_TRNSYS_coordinates(weather_file_path):
     TRNSYS format:
         - decimal longitude and latitude
         - 'east of greenwich' is defined 'negative'
-    by using the website http://epsg.io.
+    by using the website https://api.maptiler.com
 
     Args:
         weather_file_path (str): path to a weather file
@@ -329,7 +329,6 @@ def get_TRNSYS_coordinates(weather_file_path):
         match = re.search(regex, txt)
         if match is not None:
             dict_match = match.groupdict()
-            url = 'http://epsg.io/trans?s_srs=3034&t_srs=4326'
 
         else:
             # Use the DWD TRY 2010 format instead
@@ -344,7 +343,6 @@ def get_TRNSYS_coordinates(weather_file_path):
                     deg, minutes, seconds = re.split('Â?°|\'', val)
                     coord = float(deg) + float(minutes)/60
                     dict_match[key] = coord
-                url = 'http://epsg.io/trans?s_srs=4326&t_srs=4326'
 
         if match is None:
             logger.error("Coordinates for 'Rechtswert' and 'Hochwert' not "
@@ -353,15 +351,29 @@ def get_TRNSYS_coordinates(weather_file_path):
                          "(DWD ortsgenaues Testreferenzjahr)")
 
     if dict_match is not None:  # Matches of the regular expression were found
+        dict_match['key'] = 'xsCQboKaJC3EWTix83xk'
+        dict_match['s_srs'] = '3034'
+        dict_match['t_srs'] = '4326'
+        url = ('https://api.maptiler.com/coordinates/transform/{x},{y}.json'
+               ).format(x=dict_match['x'], y=dict_match['y'])
+        dict_match.pop('x')
+        dict_match.pop('y')
 
         try:
             response = requests.get(url, params=dict_match)
-            coords = response.json()  # Create dict from json object
+            response.text
+            try:
+                # Create dict from json object
+                coords = response.json()['results'][0]
+            except requests.exceptions.JSONDecodeError as e:
+                raise RuntimeError(response.text) from e
+
             TRNcoords['longitude'] = float(coords['x'])*-1  # negative
             TRNcoords['latitude'] = float(coords['y'])
             logger.info('Coordinates for TRNSYS: '+str(TRNcoords))
 
-        except Exception:
+        except Exception as e:
+            logger.error(e)
             logger.error('Internet connection is required to convert '
                          'coordinates to TRNSYS format. Please fill out '
                          'longitude and latitude manually!')
@@ -434,7 +446,7 @@ def get_type99_header(weather_file_path, interpolation_freq):
     except ImportError:
         logger.info("Install 'geopy' to add location details to output")
         location = ''
-    except ValueError and KeyError:
+    except ValueError or KeyError:
         logger.error('Module GeoPy failed to find location details for '
                      'given coordinates, most likely due to missing '
                      'internet connection.')
