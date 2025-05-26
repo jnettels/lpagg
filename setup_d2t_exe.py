@@ -253,6 +253,7 @@ setup(
                                os.path.join(dlls, 'msvcp140_1.dll'),
                                os.path.join(dlls, 'freetype.dll'),
                                r'./lpagg/res/icon_d2t.png',
+                               r'./lpagg/res/icon_d2t.ico',
                                r'./README.md',
                                ],
                            'include_msvcr': True,  # Microsoft Visual C++
