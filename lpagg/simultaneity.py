@@ -59,10 +59,12 @@ dividing the maximum loads with and without the normal distribution.
 """
 
 import os
+import copy
 import logging
 import pandas as pd
 import numpy as np
 import scipy.stats
+import scipy.optimize
 import matplotlib.pyplot as plt  # Plotting library
 import matplotlib as mpl
 
@@ -342,6 +344,149 @@ def copy_and_randomize(load_curve_houses, house_name, randoms_int, sigma,
 def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
     """Create copies of houses and randomize load where needed.
 
+    Args:
+        load_curve_houses (DataFrame): Time series data to use.
+
+        houses_dict (dict): Dictionary with all the houses
+
+        cfg (dict): The configuration for the load profile aggregator
+
+    Returns:
+        load_curve_houses (DataFrame): Manipulated time series data
+
+    """
+    if cfg['settings'].get('simultaneity_fit_sigma', False):
+        load_curve_houses = _copy_and_randomize_houses_sigma_fit(
+            load_curve_houses, houses_dict, cfg)
+    else:
+        load_curve_houses = _copy_and_randomize_houses(
+            load_curve_houses, houses_dict, cfg)
+    return load_curve_houses
+
+
+def _copy_and_randomize_houses_sigma_fit(load_curve_houses, houses_dict, cfg):
+    """Run the randomization while fitting the simultaneity to literature data.
+
+    The complete randomizer process is performed in a loop to fit
+    the resulting simultaneity factor to a literature value derived from
+    the number of buildings connected to a district heating grid, by
+    choosing the standard deviation sigma.
+
+    Args:
+        load_curve_houses (DataFrame): Time series data to use.
+
+        houses_dict (dict): Dictionary with all the houses
+
+        cfg (dict): The configuration for the load profile aggregator
+
+    Returns:
+        load_curve_houses (DataFrame): Manipulated time series data
+
+    """
+    precision_sigma = 5
+    plot_fitting = False
+
+    def black_box(sigma):
+        _cfg = copy.deepcopy(cfg)
+        _cfg['settings']['print_GLF_stats'] = False
+        _cfg['settings']['show_plot'] = False
+        _cfg['settings']['save_plot_filetypes'] = None
+
+        if isinstance(sigma, np.ndarray):  # Compatibility with optimizer
+            sigma = sigma[0]
+        # Sigma must not be negative. Sigma=0 needs to be prevented, because
+        # that would skip the output of simultaneity calculations
+        sigma = max(abs(sigma), 0.0001)
+        df_houses = pd.DataFrame.from_dict(houses_dict, orient='index')
+        df_houses['sigma'] = round(sigma, precision_sigma)
+        _houses_dict = df_houses.to_dict(orient='index')
+
+        _copy_and_randomize_houses(load_curve_houses, _houses_dict, _cfg)
+
+        df_sf = pd.DataFrame.from_dict(
+            _cfg.get('simultaneity_factor_results', dict()), orient='index')
+        if df_sf.empty:
+            sf_lpagg = 1
+        else:
+            sf_lpagg = df_sf.loc['GLF', 'th']
+
+        sf_formula = simultaneity_factor(len(df_houses))
+        f_sigma = abs(sf_lpagg - sf_formula)
+
+        if plot_fitting:
+            try:
+                df_result = pd.DataFrame({"x": [sigma], "f(x)": [f_sigma]})
+                ax = df_test.plot()
+                df_result.plot.scatter(ax=ax, x="x", y="f(x)")
+                plt.show()
+            except Exception:
+                pass
+
+        # print("sf_formula", sf_formula, "sf_lpagg", sf_lpagg, "sigma", sigma)
+        return f_sigma
+
+    if plot_fitting:
+        x_test = np.arange(0, 20, 0.1)
+        f_sigma_list = [black_box(sigma) for sigma in x_test]
+        df_test = pd.Series(index=x_test, data=f_sigma_list)
+
+    opt_result = scipy.optimize.basinhopping(
+        black_box,
+        x0=[0],
+        stepsize=2.0,
+        niter=200,
+        niter_success=10,
+        # disp=True,
+        minimizer_kwargs=dict(
+            method="Powell",
+            # tol=1e-7,
+            options=dict(
+                # maxfev=50,
+                # xtol=1e-1,
+                # ftol=1e-1,
+                xtol=1e0,
+                ftol=1e0,
+                # disp=True,
+                ),
+            ),
+        seed=np.random.default_rng(42),
+        )
+
+    sigma_result = max(abs(opt_result.x), 0.0001)
+    if isinstance(sigma_result, np.ndarray):  # Compatibility with optimizer
+        sigma_result = sigma_result[0]
+
+    # cfg = copy.deepcopy(cfg_backup)
+    df_houses = pd.DataFrame.from_dict(cfg['houses'], orient='index')
+    df_houses['sigma'] = round(sigma_result, precision_sigma)
+    cfg['houses'].update(df_houses.to_dict(orient='index'))
+    load_curve_houses = _copy_and_randomize_houses(
+        load_curve_houses, houses_dict, cfg)
+
+    return load_curve_houses
+
+
+def simultaneity_factor(n, decimals=5):
+    """Calculate simultaneity factor based on number of consumers n.
+
+    Winter, Walter; Haslauer, Thomas; Obernberger, Ingwald (2001)
+    Untersuchungen der Gleichzeitigkeit in kleinen und
+    mittleren Nahwärmenetzen. In: Euroheat & Power (9/10).
+    """
+    n = np.asarray(n, dtype=float)
+    a = 0.449677646267461
+    b = 0.551234688
+    c = 53.84382392
+    d = 1.762743268
+    f = a + b / (1 + (n / c) ** d)
+    f = np.clip(f, a_min=0, a_max=1)
+    f = np.round(f, decimals)
+    return f
+
+
+def _copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
+    """Create copies of houses and randomize load where needed.
+
     Apply a normal distribution to the houses, if a standard deviation
     ``sigma`` is given in the config. This function is an internal part
     of the load profile aggregator program.
@@ -371,7 +516,7 @@ def copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
         cfg (dict): The configuration for the load profile aggregator
 
     Returns:
-        load_curve_houses (DataFrame): Manipulatted time series data
+        load_curve_houses (DataFrame): Manipulated time series data
     """
     settings = cfg['settings']
     if settings.get('GLF_on', True) is False:
@@ -598,7 +743,10 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
     logger.debug('Interval shifts applied to ' + str(house_name) + ':')
     logger.debug(randoms_int)
     mu = np.mean(randoms_int)
-    sigma = np.std(randoms_int, ddof=1)
+    if len(randoms_int) > 1:
+        sigma = np.std(randoms_int, ddof=1)
+    else:
+        sigma = np.nan
     text_mean_std = 'Mean = {:0.2f}, std = {:0.2f}'.format(mu, sigma)
     title_mu_std = r'$\mu={:0.3f},\ \sigma={:0.3f}$'.format(mu, sigma)
     logger.debug(text_mean_std)
@@ -615,7 +763,7 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
     ax.yaxis.grid(True)  # Activate grid on horizontal axis
     n, bins, patches = plt.hist(randoms_int, bins, align='mid',
                                 rwidth=0.9, label=txt_label_data)
-    if cfg['settings'].get('GLF_stats_include_normal', True):
+    if cfg['settings'].get('GLF_stats_include_normal', True) and sigma > 0:
         # Create an ideal normal distribution for reference
         x_norm = np.linspace(min(bins), max(bins), 100)
         y_norm = scipy.stats.norm.pdf(x_norm, mu, sigma)
@@ -624,7 +772,7 @@ def plot_normal_histogram(house_name, randoms_int, save_folder=None,
     plt.title(str(len(randoms_int))+' '+str(house_name)+' ('+title_mu_std+')')
     plt.xlabel(txt_xlabel)
     plt.ylabel(txt_ylabel)
-    if cfg['settings'].get('GLF_stats_include_normal', True):
+    if cfg['settings'].get('GLF_stats_include_normal', True) and sigma > 0:
         plt.legend()
 
     lpagg.misc.savefig_filetypes(
