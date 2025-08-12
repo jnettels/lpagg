@@ -484,13 +484,15 @@ def interpolate_weather_file(weather_file_path,
 #    plot_value = 'CCOVER'
 #    plot_value = 'PAMB'
 
-    weather_file = os.path.basename(weather_file_path)
 
     # Read the file and store it in a DataFrame
     if weather_data_type == 'IGS' or weather_data_type == 'TRNSYS':
         weather_data = read_IGS_weather_file(weather_file_path)
     elif weather_data_type == 'DWD':
         weather_data = read_DWD_weather_file(weather_file_path)
+    elif weather_data_type is None:
+        # Assume the object already is a DataFrame with correct columns
+        weather_data = weather_file_path
     else:
         logger.error('Weather data type "'+weather_data_type+'" unknown!')
         exit()
@@ -498,9 +500,14 @@ def interpolate_weather_file(weather_file_path,
     # Assumption: The IGS weather files always start at January 01.
     current_year = datetime_start.year
     newyear = datetime.datetime(current_year, 1, 1)
-    # Convert hours of year to DateTime and make that the index of DataFrame
-    weather_data.index = pd.to_timedelta(weather_data['HOUR'],
-                                         unit='h') + newyear
+
+    if weather_data_type is not None:
+        weather_file = os.path.basename(weather_file_path)
+        # Convert hours of year to DateTime and make that the index of DataFrame
+        weather_data.index = pd.to_timedelta(weather_data['HOUR'],
+                                             unit='h') + newyear
+    else:
+        weather_file = "Weather Data"
 
     # Infer the time frequency of the original data
     original_freq = pd.infer_freq(weather_data.index)
@@ -568,7 +575,7 @@ def interpolate_weather_file(weather_file_path,
 
     # Remove leapyear from DataFrame (optional)
     if calendar.isleap(current_year) is True:
-        logger.warn(str(current_year)+' is a leap year. Be careful!')
+        logger.warning(str(current_year)+' is a leap year. Be careful!')
     if remove_leapyear is True:
         weather_data = weather_data[~((weather_data.index.month == 2) &
                                       (weather_data.index.day == 29))]

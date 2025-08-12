@@ -71,6 +71,7 @@ Most of the settings for this script are controlled with a configuration file
 called 'config_file', the location of which is defined down below.
 """
 
+import os
 import pandas as pd
 import functools
 import logging
@@ -97,6 +98,32 @@ def run_demandlib(weather_data, cfg):
     https://github.com/oemof/demandlib
     """
     from demandlib import vdi
+
+    def climate_from_custom_weather(weather, try_region):
+        """Create a Climate object from a DataFrame with weather data."""
+        vdi.Climate().check_try_region(try_region)
+
+        weather = weather.resample("D").mean()
+
+        weather.loc[weather["CCOVER"] >= 5, "cloud_category"] = "B"
+        weather.loc[weather["CCOVER"] < 5, "cloud_category"] = "H"
+
+        fn_energy_factors = os.path.join(
+            os.path.dirname(vdi.__file__),
+            "vdi_data",
+            "VDI_4655_Typtag-Faktoren.csv",
+        )
+        energy_factors = pd.read_csv(
+            fn_energy_factors,
+            index_col=[0, 1, 2],
+        ).loc[try_region]
+
+        climate = vdi.Climate(
+            temperature=weather["TAMB"],
+            cloud_coverage=weather["cloud_category"],
+            energy_factors=energy_factors,
+            )
+        return climate
 
     settings = cfg['settings']
     houses_list = settings['houses_list_VDI']
@@ -153,6 +180,11 @@ def run_demandlib(weather_data, cfg):
     try:
         if settings['weather_file'] is None:
             climate = vdi.Climate().from_try_data(int(try_region))
+        elif isinstance(settings['weather_file'], vdi.Climate):
+            climate = settings['weather_file']
+        elif isinstance(settings['weather_file'], pd.DataFrame):
+            climate = climate_from_custom_weather(
+                settings['weather_file'], try_region)
         else:
             climate = vdi.Climate().from_dwd_weather_file(
                 settings['weather_file'], try_region)

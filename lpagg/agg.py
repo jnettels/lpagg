@@ -135,8 +135,10 @@ def perform_configuration(config_file='', cfg=None, ignore_errors=False):
                                 cfg['settings'].get('result_folder',
                                                     'Result')))
 
-    weather_file = os.path.join(cfg['base_folder'], settings['weather_file'])
-    cfg['settings']['weather_file'] = os.path.abspath(weather_file)
+    if not isinstance(settings['weather_file'], pd.DataFrame):
+        weather_file = os.path.join(cfg['base_folder'],
+                                    settings['weather_file'])
+        cfg['settings']['weather_file'] = os.path.abspath(weather_file)
 
     language = cfg['settings'].get('language', 'en')
     if language == 'de':
@@ -522,7 +524,7 @@ def postprocess_unique_profiles(agg_dict, cfg,
             txt = ("Annual sums of individual profiles do not "
                    "match the input sums. When using dtype 'float32', "
                    "this can be expected to occur.")
-            if df_unique.sum() == df_lc.sum().sum():
+            if df_unique.sum().round(8) == df_lc.sum().sum().round(8):
                 txt += (" However, the total annual sum of all profiles is "
                         "correct.")
                 logger.warning(txt)
@@ -601,15 +603,12 @@ def load_weather_file(cfg):
     except TypeError:  # Read as Timestamp objects otherwise
         datetime_start = settings['start']
         datetime_end = settings['end']
-#    datetime_start = datetime.datetime(2017,1,1,00,00,00) # Example
-#    datetime_end = datetime.datetime(2018,1,1,00,00,00)
-    interpolation_freq = pd.Timedelta(settings['intervall'])
-#    interpolation_freq = pd.Timedelta('14 minutes')
-#    interpolation_freq = pd.Timedelta('1 hours')
-    remove_leapyear = settings.get('remove_leapyear', False)
 
+    interpolation_freq = pd.Timedelta(settings['intervall'])
+    remove_leapyear = settings.get('remove_leapyear', False)
     settings['interpolation_freq'] = interpolation_freq
-    logger.info('Read and interpolate the data in weather file '+weather_file)
+    logger.info('Read and interpolate the data in weather file %s',
+                weather_file)
 
     # Call external method in weather_converter.py:
     weather_data = lpagg.weather_converter.interpolate_weather_file(
@@ -620,11 +619,15 @@ def load_weather_file(cfg):
                                     interpolation_freq,
                                     remove_leapyear)
 
-    # Analyse weather data
-    if logger.isEnabledFor(logging.INFO):
-        lpagg.weather_converter.analyse_weather_file(
-                weather_data, interpolation_freq, weather_file,
-                print_folder=cfg['print_folder'])
+    try:
+        # Analyse weather data
+        if logger.isEnabledFor(logging.INFO):
+            lpagg.weather_converter.analyse_weather_file(
+                    weather_data, interpolation_freq, weather_file,
+                    print_folder=cfg['print_folder'])
+    except KeyError:
+        pass
+
     weather_data.index.name = 'Time'
     return weather_data
 
