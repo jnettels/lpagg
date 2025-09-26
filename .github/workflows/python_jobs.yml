@@ -36,7 +36,7 @@ jobs:
 
         # There is an issue where python 3.12 always seems to be pinned as a dependency
         # Including the actually used python version in the install command works
-        conda install python=${{ matrix.python-version }} numpy conda-build setuptools setuptools_scm pandas pyqt xlsxwriter openpyxl cx_freeze -c conda-forge -y
+        conda install python=${{ matrix.python-version }} numpy conda-build setuptools setuptools_scm pandas pyqt qttools xlsxwriter openpyxl cx_freeze -c conda-forge -y
 
     - name: Build & install lpagg with conda
       run: |
@@ -73,6 +73,7 @@ jobs:
     - name: Lint with flake8
       if: runner.os == 'Linux'  # Only needs to run once
       run: |
+        conda activate base  # Activate conda environment
         conda install flake8
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
