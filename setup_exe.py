@@ -99,9 +99,9 @@ print('Building with version tag: ' + version)
 # os.environ['TK_LIBRARY'] = os.path.join(sys.exec_prefix, r'tcl\tk8.6')
 dlls = os.path.join(sys.exec_prefix, 'Library', 'bin')
 
-base = None  # None for cmd-line
+base = 'console'  # None for cmd-line
 if sys.platform == 'win32':
-    base = 'Win32GUI'  # If only a GUI should be shown
+    base = 'gui'  # If only a GUI should be shown
 
 # http://msdn.microsoft.com/en-us/library/windows/desktop/aa371847(v=vs.85).aspx
 shortcut_table = [
