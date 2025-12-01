@@ -45,6 +45,12 @@ jobs:
         # Including the actually used python version in the install command works
         conda install python=${{ matrix.python-version }} numpy conda-build setuptools setuptools_scm pandas pyqt qttools xlsxwriter openpyxl cx_freeze -c conda-forge -y
 
+    - name: Prepare bdist_msi
+      if: runner.python-version == "3.13"
+      run: |
+        # Required for bdist_msi on Python>=3.13
+        conda install conda-forge::python-msilib
+
     - name: Build & install lpagg with conda
       run: |
         conda build conda.recipe -c defaults -c conda-forge
