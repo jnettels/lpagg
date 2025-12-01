@@ -25,9 +25,13 @@ jobs:
     - name: Add conda defaults channel
       run: conda config --add channels defaults
 
-    - name: Initialize powershell for conda (Windows only)
+    - name: Initialize powershell for conda (Windows)
       if: runner.os == 'Windows'
       run: conda init powershell
+
+    - name: Initialize powershell for conda (Linux)
+      if: runner.os == 'Linux'
+      run: conda init bash
 
     - name: Install dependencies with conda
       run: |
