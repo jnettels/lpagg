@@ -29,7 +29,7 @@ jobs:
       if: runner.os == 'Windows'
       run: conda init powershell
 
-    - name: Initialize powershell for conda (Linux)
+    - name: Initialize shell for conda (Linux)
       if: runner.os == 'Linux'
       run: conda init bash
 
@@ -80,7 +80,6 @@ jobs:
     - name: Lint with flake8
       if: runner.os == 'Linux'  # Only needs to run once
       run: |
-        conda activate base  # Activate conda environment
         conda install flake8
         # stop the build if there are Python syntax errors or undefined names
         flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
