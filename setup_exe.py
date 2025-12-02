@@ -231,7 +231,7 @@ setup(
                                           'pygments',
                                           # 'PyQt5',
                                           'requests',
-                                          'scipy',
+                                          # 'scipy',
                                           'seaborn',
                                           'setuptools',
                                           'sphinx',
