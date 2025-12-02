@@ -212,7 +212,7 @@ setup(
                                           'markupsafe',
                                           # 'matplotlib',
                                           'matplotlib.tests',
-                                          'matplotlib.mpl-data',
+                                          # 'matplotlib.mpl-data',
                                           'msgpack',
                                           'nbconvert',
                                           'nbformat',
