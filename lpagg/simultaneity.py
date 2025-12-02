@@ -484,7 +484,7 @@ def simultaneity_factor(n, decimals=5):
     return f
 
 
-def _copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
+def _copy_and_randomize_houses(load_curve_houses, houses_dict, cfg, seed=4):
     """Create copies of houses and randomize load where needed.
 
     Apply a normal distribution to the houses, if a standard deviation
@@ -515,6 +515,9 @@ def _copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
 
         cfg (dict): The configuration for the load profile aggregator
 
+        seed (optional): Seed for the numpy random generator. It is fixed
+        to a value to get reproducable results. Default is 4.
+
     Returns:
         load_curve_houses (DataFrame): Manipulated time series data
     """
@@ -533,7 +536,7 @@ def _copy_and_randomize_houses(load_curve_houses, houses_dict, cfg):
                                                         axis=1)
 
     # Fix the 'randomness' (every run of the script generates the same results)
-    np.random.seed(4)
+    np.random.seed(seed)
     sigma_used = False  # Take note if a sigma > 0 used for any building
 
     # Create a temporary dict with all the info needed for randomizer
