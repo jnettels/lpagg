@@ -782,6 +782,9 @@ def intermediate_printing(load_curve_houses, cfg):
 
     if (settings.get('print_houses_dat', False) or
        settings.get('print_houses_xlsx', False)):
+        if settings.get('print_file') is None:
+            raise ValueError("Printing of house profiles is selected, "
+                             "but 'print_file' is not set")
         # Print load profile for each house (creates large file sizes!)
         load_curve_houses_tmp = (load_curve_houses
                                  .T.groupby(level=['house', 'energy']).sum().T
@@ -789,7 +792,6 @@ def intermediate_printing(load_curve_houses, cfg):
 
         if settings.get('print_houses_dat', False):
             logger.info('Printing *_houses.dat file')
-            print(load_curve_houses_tmp.head())
             load_curve_houses_tmp.to_csv(
                     os.path.join(cfg['print_folder'],
                                  os.path.splitext(settings['print_file'])[0]
@@ -802,7 +804,6 @@ def intermediate_printing(load_curve_houses, cfg):
             df_W = df_D.resample('W', label='right', closed='right').sum()
             df_M = df_D.resample('ME', label='right', closed='right').sum()
             df_A = df_M.resample('YE', label='right', closed='right').sum()
-            print(df_M)
 
             # Be careful, can create huge file sizes
             lpagg.misc.df_to_excel(
