@@ -10,7 +10,7 @@ jobs:
       fail-fast: false  # complete remaining jobs
       matrix:
         os: [windows-latest, ubuntu-latest]
-        python-version: ["3.10", "3.11"]
+        python-version: ["3.12", "3.13"]
 
     steps:
     - name: Checkout
@@ -22,9 +22,16 @@ jobs:
         update-conda: false
         python-version: ${{ matrix.python-version }}
 
-    - name: Initialize powershell for conda (Windows only)
+    - name: Add conda defaults channel
+      run: conda config --add channels defaults
+
+    - name: Initialize powershell for conda (Windows)
       if: runner.os == 'Windows'
       run: conda init powershell
+
+    - name: Initialize shell for conda (Linux)
+      if: runner.os == 'Linux'
+      run: conda init bash
 
     - name: Install dependencies with conda
       run: |
@@ -36,11 +43,17 @@ jobs:
 
         # There is an issue where python 3.12 always seems to be pinned as a dependency
         # Including the actually used python version in the install command works
-        conda install python=${{ matrix.python-version }} numpy conda-build setuptools setuptools_scm pandas pyqt xlsxwriter openpyxl cx_freeze -c conda-forge -y
+        conda install python=${{ matrix.python-version }} numpy conda-build setuptools setuptools_scm pandas pyqt qttools xlsxwriter openpyxl cx_freeze -c conda-forge -y
+
+    - name: Prepare bdist_msi
+      if: runner.os == 'Windows' && contains(fromJson('["3.13","3.14"]'), matrix.python-version)
+      run: |
+        # Required for bdist_msi on Python>=3.13
+        conda install conda-forge::python-msilib
 
     - name: Build & install lpagg with conda
       run: |
-        conda build conda.recipe -c conda-forge
+        conda build conda.recipe -c defaults -c conda-forge
         conda install lpagg --use-local -c conda-forge
 
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
