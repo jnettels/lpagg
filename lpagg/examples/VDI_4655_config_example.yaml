@@ -108,7 +108,7 @@ settings:
     # language: de
 
     ### Use the 'demandlib' module for creation of profiles
-    ### (Note: Currently this is not easily installable)
+    ### (Requires separate installation from pip)
     # use_demandlib: True
 
     ### Settings related to 'unique profile" workflow
