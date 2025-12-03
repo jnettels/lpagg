@@ -73,6 +73,7 @@ called 'config_file', the location of which is defined down below.
 
 import os
 import pandas as pd
+import numpy as np
 import functools
 import logging
 import pickle
@@ -99,10 +100,59 @@ def run_demandlib(weather_data, cfg):
     """
     from demandlib import vdi
 
+    def climate_from_dwd_weather_file(fn_weather, try_region, hoy=8760):
+        """
+        Create a demandlib climate object from a DWD weather file.
+
+        The weather file must adhere to the standard of the TRY weather
+        data published in 2016 by the German weather service DWD,
+        available at https://kunden.dwd.de/obt/.
+
+        .. note::
+
+            ``climate_from_dwd_weather_file()`` enables users to load the
+            most recent DWD test reference year weather files **at their
+            own risk**. They still need to provide a TRY region number,
+            which is required for loading the energy factors.
+            These are used for scaling the typical days relative to each
+            other, depending on the TRY region. But users need to be aware
+            that they do not have the originally intended effect when
+            used with different weather data.
+
+            Other file types are currently not supported. Instead, users
+            need to create a ``Climate()`` object and provide temperature
+            and cloud coverage time series, as well as matching energy
+            factors.
+
+        Parameters
+        ----------
+        fn_weather : str
+            Name of the weather data file to load.
+        try_region : int
+            Number of the test-reference-year region where the building
+            is located, as defined by the German weather service DWD.
+            The module ``dwd_try`` provides the function ``find_try_region()``
+            to find the correct region for given coordinates.
+        hoy : int, optional
+            Number of hours of the year. The default is 8760.
+        """
+        weather = vdi.dwd_try.read_dwd_weather_file(fn_weather)
+        weather = (
+            weather.set_index(
+                pd.date_range(
+                    dt.datetime(2010, 1, 1, 0),
+                    periods=hoy,
+                    freq="h",
+                )
+            )
+            .resample("D")
+            .mean()
+        )
+        climate = climate_from_custom_weather(weather, try_region)
+        return climate
+
     def climate_from_custom_weather(weather, try_region):
         """Create a Climate object from a DataFrame with weather data."""
-        vdi.Climate().check_try_region(try_region)
-
         weather = weather.resample("D").mean()
 
         weather.loc[weather["CCOVER"] >= 5, "cloud_category"] = "B"
@@ -163,6 +213,11 @@ def run_demandlib(weather_data, cfg):
         house_dict_demandlib.pop("copies", None)
         house_dict_demandlib.pop("sigma", None)
         house_dict_demandlib.pop("Q_Kalt_a", None)
+        # This should not be necessary, but in demandlib v0.2.2 requries
+        # even unused energies to be defined
+        house_dict_demandlib.setdefault("Q_Heiz_a", np.nan)
+        house_dict_demandlib.setdefault("W_a", np.nan)
+        house_dict_demandlib.setdefault("Q_TWW_a", np.nan)
         my_houses.append(house_dict_demandlib)
 
     if len(my_houses) == 0:
@@ -177,40 +232,33 @@ def run_demandlib(weather_data, cfg):
         dtype='float')
     df_empty.columns.set_names('name', inplace=True)
 
-    try:
-        if settings['weather_file'] is None:
-            climate = vdi.Climate().from_try_data(int(try_region))
-        elif isinstance(settings['weather_file'], vdi.Climate):
-            climate = settings['weather_file']
-        elif isinstance(settings['weather_file'], pd.DataFrame):
-            climate = climate_from_custom_weather(
-                settings['weather_file'], try_region)
-        else:
-            climate = vdi.Climate().from_dwd_weather_file(
-                settings['weather_file'], try_region)
+    # Allow different options for creating the climate and region classes
+    if settings['weather_file'] is None:
+        climate = vdi.Climate().from_try_data(int(try_region))
+    elif isinstance(settings['weather_file'], vdi.Climate):
+        climate = settings['weather_file']
+    elif isinstance(settings['weather_file'], pd.DataFrame):
+        climate = climate_from_custom_weather(
+            settings['weather_file'], try_region)
+    else:
+        climate = climate_from_dwd_weather_file(
+            settings['weather_file'], try_region)
 
-        my_region = vdi.Region(
-            year,
-            holidays=holidays_dict,
-            climate=climate,
-            houses=my_houses,
-            resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
-            zero_summer_heat_demand=settings.get('zero_summer_heat_demand'),
-        )
-    except AttributeError:
-        my_region = vdi.Region(
-            year,
-            holidays=holidays_dict,
-            try_region=try_region,
-            houses=my_houses,
-            resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
-            file_weather=settings['weather_file'],
-            zero_summer_heat_demand=settings.get('zero_summer_heat_demand'),
-        )
+    my_region = vdi.Region(
+        year,
+        holidays=holidays_dict,
+        climate=climate,
+        houses=my_houses,
+        resample_rule=pd.Timedelta(settings.get('intervall', '1 hours')),
+        zero_summer_heat_demand=settings.get('zero_summer_heat_demand'),
+    )
 
     # Calculate load profiles
     logger.info('Create %s VDI 4655 profiles with demandlib', len(my_houses))
     lc = my_region.get_load_curve_houses()
+
+    # Drop unused (nan) columns
+    lc = lc.dropna(how='all', axis='columns')
 
     # Demandlib uses a different time step notation then lpagg
     lc = lc.shift(periods=1, freq="infer").droplevel('house_type',
