@@ -56,6 +56,16 @@ jobs:
         conda build conda.recipe -c defaults -c conda-forge
         conda install lpagg --use-local -c conda-forge
 
+    - name: Test demandlib features
+        # I am not aware of how to add a pip dependency to the
+        # conda.recipe build process, so the included test
+        # does not cover the demandlib features.
+        # Here we run the test manually instead. It will use
+        # demandlib if the installed package is detected.
+      run: |
+        pip install demandlib
+        python ./conda.recipe/run_test.py
+
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
       if: runner.os == 'Windows'  # Only applies to windows
       run: |
