@@ -158,7 +158,6 @@ setup(
                                         'asyncio',
                                         'pandas.plotting._matplotlib',
                                         'openpyxl',
-                                        'xlsxwriter',
                                         ],
                            # 'namespace_packages': ['mpl_toolkits'],
                            'zip_include_packages': ['*'],  # reduze file size
@@ -166,10 +165,11 @@ setup(
                                'lpagg',
                                'PIL',
                                'matplotlib',
-                               # 'pandas', 'PyQt5',
+                               'pandas',
+                               # 'PyQt5',
                                ],
                            'includes': ['openpyxl',
-                                        'xlsxwriter',
+                                        'PIL',
                                         ],
                             'excludes': ['adodbapi',
                                           'alabaster'
@@ -255,10 +255,12 @@ setup(
                                           ],
                            'include_files': [
                                # os.path.join(dlls, 'libiomp5md.dll'),
-                               # os.path.join(dlls, 'mkl_core.2.dll'),
-                               # os.path.join(dlls, 'mkl_def.2.dll'),
-                               os.path.join(dlls, 'mkl_avx2.2.dll'),
+                               os.path.join(dlls, 'mkl_core.2.dll'),
+                               os.path.join(dlls, 'mkl_def.2.dll'),
+                               os.path.join(dlls, 'mkl_vml_avx2.2.dll'),
+                               os.path.join(dlls, 'mkl_vml_def.2.dll'),
                                os.path.join(dlls, 'mkl_intel_thread.2.dll'),
+                               os.path.join(dlls, 'mkl_avx2.2.dll'),
                                os.path.join(dlls, 'mkl_sequential.2.dll'),
                                os.path.join(dlls, 'vcruntime140.dll'),
                                os.path.join(dlls, 'msvcp140_1.dll'),
@@ -268,7 +270,6 @@ setup(
                                r'./README.md',
                                ],
                             'include_msvcr': True,  # Microsoft Visual C++
-
                            },
              'bdist_msi': {'data': {"Shortcut": shortcut_table},
                            'summary_data': {'author': author,
