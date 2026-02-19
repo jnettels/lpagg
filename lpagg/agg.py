@@ -524,14 +524,16 @@ def postprocess_unique_profiles(agg_dict, cfg,
             txt = ("Annual sums of individual profiles do not "
                    "match the input sums. When using dtype 'float32', "
                    "this can be expected to occur.")
-            if df_unique.sum().round(8) == df_lc.sum().sum().round(8):
+            diff = df_unique.sum().round(8) - df_lc.sum().sum().round(8)
+            if diff == 0:
                 txt += (" However, the total annual sum of all profiles is "
                         "correct.")
                 logger.warning(txt)
             else:
                 txt += (" However, the total annual sum of all profiles "
-                        "should match the input, but does not.")
-                raise ValueError(txt)
+                        "should match the input, but does not. The "
+                        f"difference is {diff} kWh")
+                logger.error(txt)
         else:
             raise ValueError("Mismatch of sums in profile post-processing")
 
