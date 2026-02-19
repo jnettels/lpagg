@@ -433,9 +433,9 @@ def _copy_and_randomize_houses_sigma_fit(load_curve_houses, houses_dict, cfg):
     opt_result = scipy.optimize.basinhopping(
         black_box,
         x0=[0],
-        stepsize=2.0,
-        niter=200,
-        niter_success=10,
+        stepsize=cfg['settings'].get('simultaneity_fit_stepsize', 2),
+        niter=cfg['settings'].get('simultaneity_fit_niter', 200),
+        niter_success=cfg['settings'].get('simultaneity_fit_niter_success', 10),
         # disp=True,
         minimizer_kwargs=dict(
             method="Powell",
