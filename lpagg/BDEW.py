@@ -296,7 +296,6 @@ def load_futureSolar_profiles(weather_data, cfg, houses_dict,
         elif sum_ > 0:  # Use the loaded profiles
             futureSolar_profiles[column] *= Q_a / sum_
 
-#    print(futureSolar_profiles)
     return futureSolar_profiles
 
 
@@ -370,7 +369,7 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
 
     if len(houses_list) == 0:  # Skip function and return empty DataFrame
         # Demandlib uses a different time step notation then lpagg
-        ret_profiles.index = ret_profiles.index.shift(periods=1)
+        ret_profiles.index = ret_profiles.index.shift(periods=1, freq="infer")
         return ret_profiles
 
     year = int(weather_data.index[0].year)
