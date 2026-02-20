@@ -246,7 +246,7 @@ def copy_df_columns(df, copies_list, level=None):
             else:
                 df_tmp = pd.concat([df[col]], keys=[copy_name],
                                    names=[level], axis=1)
-            df_new = pd.concat([df_new, df_tmp], axis='columns')
+            df_new = pd.concat([df_new, df_tmp], axis='columns', sort=False)
     return df_new
 
 
@@ -705,7 +705,7 @@ def plot_shifted_lineplots(df_shift, df_ref, cfg):
 
         # Save raw data
         df_excel = pd.concat([load_shift, load_ref], axis='columns',
-                             keys=[txt_shift, txt_ref])
+                             keys=[txt_shift, txt_ref], sort=False)
         df_excel.to_excel(os.path.join(cfg['print_folder'],
                                        ylabel + ' (shift)'+'.xlsx'))
 

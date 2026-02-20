@@ -38,6 +38,7 @@ import re
 import numpy as np
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
+from pandas.api.types import is_numeric_dtype
 import logging
 import importlib.resources
 
@@ -91,9 +92,18 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
                                   skiprows=[0], header=[0, 1], index_col=[0],
                                   skipfooter=1,
                                   )
-    weather_daily = (weather_data.resample('D', label='right', closed='right')
-                     .mean(numeric_only=True))
-    # print(weather_daily)
+
+    agg_dict = dict()
+    for col in weather_data.columns:
+        if is_numeric_dtype(weather_data[col]):
+            agg_dict[col] = 'mean'
+        else:
+            agg_dict[col] = 'first'
+
+    weather_daily = (weather_data
+                     .shift(periods=-1, freq="infer")
+                     .resample('D', label='left', closed='left')
+                     .agg(agg_dict))
 
     houses_list = settings['houses_list_BDEW']
     multiindex = pd.MultiIndex.from_product([houses_list, [energy_type]],
@@ -127,12 +137,8 @@ def load_BDEW_style_profiles(source_file, weather_data, cfg, houses_dict,
         profile_year = pd.Series(dtype='float')
         profiles_daily = []
         for date in weather_daily.index:
-            weekday = weather_data.loc[date]['weekday_BDEW']
-            season = weather_data.loc[date]['season_BDEW']
-            # Important: In order identify the weekday of the resampled days,
-            # we labled them 'right'. From now on we need the label 'left',
-            # so we substract '1 day' from each date:
-            date -= pd.Timedelta('1 day')
+            weekday = weather_daily.loc[date]['weekday_BDEW']
+            season = weather_daily.loc[date]['season_BDEW']
 
             source_profile = source_df[house_type][season, weekday]
 

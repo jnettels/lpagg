@@ -1281,8 +1281,8 @@ def apply_DST(df, tz_default='Etc/GMT-1', tz_DST='CET', normalize=True):
     df_DST = df_DST[df_DST.index.notnull()]
     # In October, the repeated DST-hour is not in the index yet.
     # Reindex with the initial index. This will cause missing rows in October.
-    # We fill them with method forward fill.
-    df_DST = df_DST.reindex_like(df_default, method='ffill')
+    # We fill them with the 'forward fill' method.
+    df_DST = df_DST.reindex_like(df_default).ffill()
     # Finally, make the DataFrame timezone-unaware before returning it.
     df_DST = df_DST.tz_localize(None)
 
