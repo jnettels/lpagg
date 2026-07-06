@@ -369,12 +369,12 @@ def savefig_filetypes(save_folder, filename, filetypes=None, dpi=200):
         if not os.path.exists(save_folder):
             os.makedirs(save_folder)
 
-        if 'png' in filetypes:
+        if 'png' in filetypes or 'PNG' in filetypes:
             plt.savefig(os.path.join(save_folder, filename+'.png'),
                         bbox_inches='tight', dpi=dpi)
-        if 'svg' in filetypes:
+        if 'svg' in filetypes or 'SVG' in filetypes:
             plt.savefig(os.path.join(save_folder, filename+'.svg'),
                         bbox_inches='tight')
-        if 'pdf' in filetypes:
+        if 'pdf' in filetypes or 'PDF' in filetypes:
             plt.savefig(os.path.join(save_folder, filename+'.pdf'),
                         bbox_inches='tight')

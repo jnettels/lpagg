@@ -83,19 +83,19 @@ def main():
     args = run_OptionParser()  # Read user options
 
     run(args.sigma, args.copies, args.seed, args.file,
-        set_hist=dict(PNG=True, PDF=False))
+        cfg=dict(settings=dict(save_plot_filetypes=['png', 'svg'])))
 
 
-def run(sigma, copies, seed, file, set_hist=dict(), show_plot=False):
+def run(sigma, copies, seed, file, cfg=dict(), show_plot=False):
     """Perform task and produce the output."""
     # 1) Read in data as Pandas DataFrame from the given file
     df = pd.read_excel(file, header=0, index_col=0)
-#    print(df)  # Show imported DataFrame on screen
+    # print(df)  # Show imported DataFrame on screen
 
     # 2) Create the simultaneity effect
     df, df_ref = create_simultaneity(df, sigma, copies, seed,
-                                     os.path.dirname(file), set_hist)
-#    print(df)  # Show results on screen
+                                     os.path.dirname(file), cfg)
+    # print(df)  # Show results on screen
 
     df_sum = pd.DataFrame(data={'Shift': df.sum(axis=1),
                                 'Reference': df_ref.sum(axis=1)})
@@ -128,7 +128,7 @@ def setup():
     """Set up the logger."""
     # Define the logging function
     log_level = 'DEBUG'
-#    log_level = 'INFO'
+    # log_level = 'INFO'
     logger.setLevel(level=log_level.upper())  # Logger for this module
     logging.basicConfig(format='%(asctime)-15s %(message)s')
 
@@ -174,7 +174,7 @@ def run_OptionParser():
 
 
 def create_simultaneity(df, sigma, copies, seed, save_folder=None,
-                        set_hist=dict()):
+                        cfg=dict()):
     """Apply the simultaneity effect to the columns in a given DataFrame.
 
     This function is called by ``main()`` in the standalone script mode.
@@ -207,7 +207,7 @@ def create_simultaneity(df, sigma, copies, seed, save_folder=None,
         shift_list += randoms_int
 
         # Save a histogram plot
-        plot_normal_histogram(col, randoms_int, save_folder, set_hist)
+        plot_normal_histogram(col, randoms_int, save_folder, cfg=cfg)
 
     # Each column gets same number of copies
     copies_list = [copies] * len(df.columns)
@@ -731,6 +731,8 @@ def debug_plot_normal_histogram(house_name, randoms_int, cfg):
 def plot_normal_histogram(house_name, randoms_int, save_folder=None,
                           filetypes=None, cfg=dict()):
     """Save a histogram of the values in ``randoms_int`` to a .png file."""
+    cfg.setdefault('settings', dict())
+    cfg['settings'].setdefault('save_plot_filetypes', filetypes)
     language = cfg.get('settings', {}).get('language', 'de')
     if language == 'en':
         txt_xlabel = 'shifted time steps'

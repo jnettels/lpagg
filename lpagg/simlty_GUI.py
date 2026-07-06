@@ -442,12 +442,16 @@ class SettingsGUI(QtWidgets.QWidget):
         @QtCore.pyqtSlot()
         def run(self):
             """Perform the time shift with the given settings."""
+            # Convert dict of filetypes to list
+            filetypes = [k for k, v in self.set_hist.items() if v is True]
+            cfg=dict(settings=dict(save_plot_filetypes=filetypes))
             try:
-                result = lpagg.simultaneity.run(self.settings['sigma'],
-                                                int(self.settings['copies']),
-                                                int(self.settings['seed']),
-                                                self.file,
-                                                self.set_hist)
+                result = lpagg.simultaneity.run(
+                    sigma=self.settings['sigma'],
+                    copies=int(self.settings['copies']),
+                    seed=int(self.settings['seed']),
+                    file=self.file,
+                    cfg=cfg)
             except Exception as e:
                 logger.exception(e)
                 error = traceback.format_exc()
