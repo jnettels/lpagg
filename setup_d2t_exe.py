@@ -135,9 +135,9 @@ setup(
     url='https://github.com/jnettels/lpagg',
 
     # Options for building the Windows .exe
-    executables=[Executable(r'lpagg/dwd2trnsys.py',
+    executables=[Executable(r'src/lpagg/dwd2trnsys.py',
                             # base=base,  # Removes the console (use GUI only)
-                            icon=r'./lpagg/res/icon_d2t.ico',
+                            icon=r'./src/lpagg/res/icon_d2t.ico',
                             target_name='dwd2trnsys.exe',
                             shortcut_name="dwd2trnsys",
                             shortcut_dir="ProgramMenuFolder",
@@ -250,8 +250,8 @@ setup(
                                os.path.join(dlls, 'vcruntime140.dll'),
                                os.path.join(dlls, 'msvcp140_1.dll'),
                                os.path.join(dlls, 'freetype.dll'),
-                               r'./lpagg/res/icon_d2t.png',
-                               r'./lpagg/res/icon_d2t.ico',
+                               r'./src/lpagg/res/icon_d2t.png',
+                               r'./src/lpagg/res/icon_d2t.ico',
                                r'./README.md',
                                ],
                            'include_msvcr': True,  # Microsoft Visual C++
@@ -259,7 +259,7 @@ setup(
              'bdist_msi': {'data': {"Shortcut": shortcut_table},
                            'summary_data': {'author': author,
                                             'comments': description},
-                           'install_icon': r'./lpagg/res/icon_d2t.ico',
+                           'install_icon': r'./src/lpagg/res/icon_d2t.ico',
                            'upgrade_code':
                                '{eaedb2b8-f535-439a-af23-4797a64c53c5}',
                            },
