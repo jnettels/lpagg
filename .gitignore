@@ -11,3 +11,5 @@ Result*
 *.pdf
 *.png
 *.svg
+
+.vscode/

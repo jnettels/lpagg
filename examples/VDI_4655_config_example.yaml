@@ -8,7 +8,7 @@ settings:
     ### 'IGS': Weather data in TRNSYS Type99 format.
     ### 'DWD': TRY weather data downloaded from Deutscher Wetterdienst
     ### (https://kunden.dwd.de/obt/) should work right away as type 'DWD'.
-    weather_file:       ../resources_weather/TRY2010_04_Jahr.dat
+    weather_file:       ../src/lpagg/resources_weather/TRY2010_04_Jahr.dat
     weather_data_type:  DWD
 
     ### Output file name, is saved to a 'Result' subfolder

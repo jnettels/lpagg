@@ -10,6 +10,6 @@ except PackageNotFoundError:
         # If package is not installed, try to get version from git
         from setuptools_scm import get_version
         __version__ = get_version(version_scheme='post-release',
-                                  root='..', relative_to=__file__)
+                                  root='../..', relative_to=__file__)
     except (LookupError, Exception):
         __version__ = '0.0.0'

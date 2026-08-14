@@ -39,10 +39,10 @@ def main_test(use_demandlib=False, unique_profile_workflow=True):
 
     # Get example user input. Directory is different in conda test environment
     file = os.path.join(os.path.dirname(__file__),
-                        r'./lpagg/examples/VDI_4655_config_example.yaml')
+                        r'./examples/VDI_4655_config_example.yaml')
     if not os.path.exists(file):
         file = os.path.join(os.path.dirname(__file__),
-                            r'../lpagg/examples/VDI_4655_config_example.yaml')
+                            r'../examples/VDI_4655_config_example.yaml')
 
     # Import the config YAML file and add the default settings
     cfg = lpagg.agg.perform_configuration(file)

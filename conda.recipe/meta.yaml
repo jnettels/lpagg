@@ -52,8 +52,8 @@ requirements:
 
 test:
   source_files:
-    - lpagg/examples/VDI_4655_config_example.yaml
-    - lpagg/resources_weather/TRY2010_04_Jahr.dat
+    - examples/VDI_4655_config_example.yaml
+    - src/lpagg/resources_weather/TRY2010_04_Jahr.dat
 
 about:
     home: https://github.com/jnettels/lpagg
