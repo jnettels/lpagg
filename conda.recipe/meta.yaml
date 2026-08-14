@@ -34,7 +34,7 @@ requirements:
     build:
         - python
         - pip
-        - flit_core
+        - flit-core
         - pandas >=2.1
 
     run:
