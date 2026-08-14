@@ -148,8 +148,8 @@ setup(
     url='https://github.com/jnettels/lpagg',
 
     # Options for building the Windows .exe
-    executables=[Executable(r'lpagg/simlty_GUI.py', base=base,
-                            icon=r'./lpagg/res/icon.ico',
+    executables=[Executable(r'src/lpagg/simlty_GUI.py', base=base,
+                            icon=r'./src/lpagg/res/icon.ico',
                             target_name='Gleichzeitigkeit.exe',
                             shortcut_name="Gleichzeitigkeit",
                             shortcut_dir="ProgramMenuFolder",
@@ -265,8 +265,8 @@ setup(
                                os.path.join(dlls, 'vcruntime140.dll'),
                                os.path.join(dlls, 'msvcp140_1.dll'),
                                os.path.join(dlls, 'freetype.dll'),
-                               r'./lpagg/lpagg.mplstyle',
-                               r'./lpagg/res/icon.png',
+                               r'./src/lpagg/lpagg.mplstyle',
+                               r'./src/lpagg/res/icon.png',
                                r'./README.md',
                                ],
                             'include_msvcr': True,  # Microsoft Visual C++
@@ -274,7 +274,7 @@ setup(
              'bdist_msi': {'data': {"Shortcut": shortcut_table},
                            'summary_data': {'author': author,
                                             'comments': description},
-                           'install_icon': r'./lpagg/res/icon.ico',
+                           'install_icon': r'./src/lpagg/res/icon.ico',
                            'upgrade_code':
                                '{4d27fdce-eca0-4f0a-bdf7-a06bd383351e}',
                            },
