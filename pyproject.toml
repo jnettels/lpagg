@@ -1,0 +1,69 @@
+[build-system]
+requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lpagg"
+description = "Load profile aggregator for building simulations"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "Joris Zimmermann", email = "joris.zimmermann@siz-energieplus.de" }
+]
+keywords = ["load profile", "aggregator", "building simulation"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering",
+]
+dependencies = [
+    "pandas>=1.2.1",
+    "openpyxl>=3.0.3",
+    "pyyaml>=5.1",
+    "matplotlib",
+    "scipy",
+    "requests",
+    "geopy",
+    "holidays>=0.13",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+simlty_GUI = ["PyQt5"]
+
+demandlib = ["demandlib"]
+
+[project.urls]
+Homepage = "https://github.com/jnettels/lpagg"
+Repository = "https://github.com/jnettels/lpagg"
+
+[project.scripts]
+lpagg = "lpagg.__main__:main"
+
+[project.gui-scripts]
+simlty_GUI = "lpagg.simlty_GUI:main"
+
+[tool.setuptools]
+packages = ["lpagg"]
+package-dir = { "" = "src" }
+
+[tool.setuptools.package-data]
+lpagg = ["lpagg.mplstyle"]
+"lpagg.res" = ["*.ico", "*.png"]
+"lpagg.resources_load" = ["*.xlsx"]
+"lpagg.resources_weather" = ["*_Jahr.dat", "*.geojson"]
+
+[tool.setuptools_scm]
+write_to = "src/lpagg/_version.py"
+write_to_template = "__version__ = {version!r}"
+version_scheme = "post-release"

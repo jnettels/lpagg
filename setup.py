@@ -22,74 +22,14 @@
 
 """LPagg: Load profile aggregator for building simulations.
 
-LPagg
-=====
-The load profile aggregator combines profiles for heat and power demand
-of buildings from different sources.
+This is a minimal setup.py that delegates to pyproject.toml for configuration.
 
-Setup script
-------------
-
-Run one of the following commands to install into your Python environment:
-
-.. code:: sh
-
-    python setup.py install
-
-    pip install -e <path to this folder>
+Install with:
+    pip install -e .
 
 """
+
 from setuptools import setup
-from setuptools_scm import get_version
 
-
-try:
-    version = get_version(version_scheme='post-release')
-except LookupError:
-    version = '0.0.0'
-    print('Warning: setuptools-scm requires an intact git repository to detect'
-          ' the version number for this build.')
-
-print('Building LPagg with version tag: ' + version)
-
-# The setup function
-setup(
-    name='lpagg',
-    version=version,
-    description='Load profile aggregator for building simulations',
-    long_description=open('README.md').read(),
-    license='MIT',
-    author='Joris Zimmermann',
-    author_email='joris.zimmermann@siz-energieplus.de',
-    url='https://github.com/jnettels/lpagg',
-    python_requires='>=3.7',
-    install_requires=[
-        'pandas >= 1.2.1',
-        'openpyxl >=3.0.3',
-        'pyyaml >=5.1',
-        'matplotlib',
-        'scipy',
-        'requests',
-        'geopy',
-        'holidays >=0.13',
-    ],
-    extras_require={
-        'simlty_GUI': ['PyQt5'],
-    },
-    packages=['src/lpagg',
-              'src/lpagg/res',
-              'src/lpagg/resources_load',
-              'src/lpagg/resources_weather',
-              'examples',
-              ],
-    package_data={'src/lpagg': ['lpagg.mplstyle'],
-                  'src/lpagg/res': ['*.ico', '*.png'],
-                  'src/lpagg/resources_load': ['*.xlsx'],
-                  'src/lpagg/resources_weather': ['*_Jahr.dat', '*.geojson'],
-                  'examples': ['*.yaml'],
-                  },
-    entry_points={
-        'console_scripts': ['lpagg = lpagg.__main__:main'],
-        'gui_scripts': ['simlty_GUI = lpagg.simlty_GUI:main'],
-        }
-)
+if __name__ == '__main__':
+    setup()

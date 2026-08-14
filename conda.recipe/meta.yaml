@@ -1,5 +1,3 @@
-{% set data = load_setup_py_data() %}
-
 # Run this build with conda-forge channel, due to dependencies:
 # conda build conda.recipe -c conda-forge
 
@@ -11,7 +9,7 @@
 
 package:
   name: lpagg
-  version: {{ data['version'] }}
+  version: {{ GIT_DESCRIBE_TAG }}
 
 source:
     path: ..

@@ -11,5 +11,7 @@ Result*
 *.pdf
 *.png
 *.svg
+*.egg-info
+*_version.py
 
 .vscode/
