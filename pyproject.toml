@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools>=45", "wheel", "setuptools_scm[toml]>=6.2"]
-build-backend = "setuptools.build_meta"
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
 
 [project]
 name = "lpagg"
@@ -53,17 +53,20 @@ lpagg = "lpagg.__main__:main"
 [project.gui-scripts]
 simlty_GUI = "lpagg.simlty_GUI:main"
 
-[tool.setuptools]
-packages = ["lpagg"]
-package-dir = { "" = "src" }
+[tool.flit.module]
+name = "lpagg"
+path = "src"
 
-[tool.setuptools.package-data]
-lpagg = ["lpagg.mplstyle"]
-"lpagg.res" = ["*.ico", "*.png"]
-"lpagg.resources_load" = ["*.xlsx"]
-"lpagg.resources_weather" = ["*_Jahr.dat", "*.geojson"]
-
-[tool.setuptools_scm]
-write_to = "src/lpagg/_version.py"
-write_to_template = "__version__ = {version!r}"
-version_scheme = "post-release"
+[tool.flit.sdist]
+include = [
+    "src/lpagg/",
+    "src/lpagg/lpagg.mplstyle",
+    "src/lpagg/res/*.ico",
+    "src/lpagg/res/*.png",
+    "src/lpagg/resources_load/*.xlsx",
+    "src/lpagg/resources_weather/*_Jahr.dat",
+    "src/lpagg/resources_weather/*.geojson",
+    "examples/VDI_4655_config_example.yaml",
+    "examples/VDI_4655_houses_example.xlsx",
+    "conda.recipe/",
+]
