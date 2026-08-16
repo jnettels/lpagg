@@ -98,7 +98,7 @@ def run_demandlib(weather_data, cfg):
 
     https://github.com/oemof/demandlib
     """
-    from demandlib import vdi
+    from oemof.demand import vdi
 
     def climate_from_dwd_weather_file(fn_weather, try_region, hoy=8760):
         """
