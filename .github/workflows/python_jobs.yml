@@ -63,7 +63,7 @@ jobs:
         # Here we run the test manually instead. It will use
         # demandlib if the installed package is detected.
       run: |
-        pip install demandlib
+        pip install https://github.com/oemof/oemof-demand/archive/dev.tar.gz
         python ./conda.recipe/run_test.py
 
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
