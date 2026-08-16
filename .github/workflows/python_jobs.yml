@@ -63,31 +63,31 @@ jobs:
         # Here we run the test manually instead. It will use
         # demandlib if the installed package is detected.
       run: |
-        pip install demandlib
+        pip install https://github.com/oemof/oemof-demand/archive/dev.tar.gz
         python ./conda.recipe/run_test.py
 
     - name: Build MSI installer for 'simultaneity' GUI version (Windows only)
-      if: runner.os == 'Windows'  # Only applies to windows
+      if: false #runner.os == 'Windows'  # Only applies to windows
       run: |
         conda activate base  # Activate conda environment
         python setup_exe.py bdist_msi
 
     - name: Build MSI installer for 'dwd2trnsys' GUI version (Windows only)
-      if: runner.os == 'Windows'  # Only applies to windows
+      if: false # runner.os == 'Windows'  # Only applies to windows
       run: |
         conda activate base  # Activate conda environment
         conda install geopy -y
         python setup_d2t_exe.py bdist_msi
 
     - name: Upload 'simultaneity' windows msi installer artifact
-      if: runner.os == 'Windows'  # Only applies to windows
+      if: false # runner.os == 'Windows'  # Only applies to windows
       uses: actions/upload-artifact@v4
       with:
         name: gleichzeitigkeit-msi-python${{ matrix.python-version }}
         path: dist/Gleichzeitigkeit*.msi
 
     - name: Upload 'dwd2trnsys' windows msi installer artifact
-      if: runner.os == 'Windows'  # Only applies to windows
+      if: false # runner.os == 'Windows'  # Only applies to windows
       uses: actions/upload-artifact@v4
       with:
         name: dwd2trnsys-msi-python${{ matrix.python-version }}

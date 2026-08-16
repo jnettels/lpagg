@@ -356,7 +356,7 @@ def get_demandlib_profiles(weather_data, cfg, houses_dict):
     https://www.avacon-netz.de/content/dam/revu-global/avacon-netz/documents/Energie_anschliessen/netzzugang-gas/Leitfaden_20180329_Abwicklung-Standardlastprofile-Gas.pdf
     """
     import holidays
-    from demandlib import bdew  # Requires demandlib>=0.2.2
+    from oemof.demand import bdew
 
     # Demandlib uses a different time step notation then lpagg
     # (In demandlib, time Label describes the beginning of the time step)
