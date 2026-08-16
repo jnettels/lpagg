@@ -26,7 +26,7 @@ classifiers = [
     "Topic :: Scientific/Engineering",
 ]
 dependencies = [
-    "pandas>=1.2.1",
+    "pandas>=2.1",
     "openpyxl>=3.0.3",
     "pyyaml>=5.1",
     "matplotlib",
@@ -40,7 +40,7 @@ dynamic = ["version"]
 [project.optional-dependencies]
 simlty_GUI = ["PyQt5"]
 
-demandlib = ["demandlib"]
+demandlib = ["https://github.com/oemof/oemof-demand/archive/dev.tar.gz"]
 
 [project.urls]
 Homepage = "https://github.com/jnettels/lpagg"
