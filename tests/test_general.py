@@ -21,7 +21,7 @@ The load profile aggregator combines profiles for heat and power demand
 of buildings from different sources.
 
 
-Module run_test
+Module test_general
 ---------------
 Tests to run during build process.
 """
@@ -91,34 +91,28 @@ class TestMethods(unittest.TestCase):
             7674663.094635218)
 
     def test_demandlib(self):
-        """Test the calculated total energy demand in kWh."""
-        try:  # if import is successfull, use demandlib
-            from oemof.demand import vdi
-        except ImportError:  # if demandlib is not available, do not test
-            self.assertEqual(0, 0)
-        else:  # demandlib with vdi is available, so test it
-            # The total energy differs between 'lpagg internal' and
-            # 'demandlib', because a heat loss calculation is included.
-            # The shape of the profiles differ, so heat losses are not the
-            # same for each time step.
-            self.assertAlmostEqual(
-                main_test(use_demandlib=True, unique_profile_workflow=False),
-                7467881.584333282)
+        """Test the calculated total energy demand in kWh.
+
+        The total energy differs between 'lpagg internal' and
+        'demandlib', because a heat loss calculation is included.
+        The shape of the profiles differ, so heat losses are not the
+        same for each time step.
+        """
+        self.assertAlmostEqual(
+            main_test(use_demandlib=True, unique_profile_workflow=False),
+            7467881.584333282)
 
     def test_demandlib_with_unique_profile(self):
-        """Test the calculated total energy demand in kWh."""
-        try:  # if import is successfull, use demandlib
-            from oemof.demand import vdi
-        except ImportError:  # if demandlib is not available, do not test
-            self.assertEqual(0, 0)
-        else:  # demandlib with vdi is available, so test it
-            # The total energy differs between 'lpagg internal' and
-            # 'demandlib', because a heat loss calculation is included.
-            # The shape of the profiles differ, so heat losses are not the
-            # same for each time step.
-            self.assertAlmostEqual(
-                main_test(use_demandlib=True, unique_profile_workflow=True),
-                7467881.584333282)
+        """Test the calculated total energy demand in kWh.
+
+        The total energy differs between 'lpagg internal' and
+        'demandlib', because a heat loss calculation is included.
+        The shape of the profiles differ, so heat losses are not the
+        same for each time step.
+        """
+        self.assertAlmostEqual(
+            main_test(use_demandlib=True, unique_profile_workflow=True),
+            7467881.584333282)
 
 
 if __name__ == '__main__':
