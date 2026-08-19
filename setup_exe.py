@@ -62,8 +62,6 @@ Troubleshooting
 - In general, if dll dependenices seem to be the problem, check dependencies
   with https://github.com/lucasg/Dependencies
 
-- cx_freeze >= 6.12 recommended
-
 """
 
 from setuptools_scm import get_version
@@ -255,16 +253,16 @@ setup(
                                           ],
                            'include_files': [
                                # os.path.join(dlls, 'libiomp5md.dll'),
-                               os.path.join(dlls, 'mkl_core.2.dll'),
-                               os.path.join(dlls, 'mkl_def.2.dll'),
-                               os.path.join(dlls, 'mkl_vml_avx2.2.dll'),
-                               os.path.join(dlls, 'mkl_vml_def.2.dll'),
-                               os.path.join(dlls, 'mkl_intel_thread.2.dll'),
-                               os.path.join(dlls, 'mkl_avx2.2.dll'),
-                               os.path.join(dlls, 'mkl_sequential.2.dll'),
-                               os.path.join(dlls, 'vcruntime140.dll'),
-                               os.path.join(dlls, 'msvcp140_1.dll'),
-                               os.path.join(dlls, 'freetype.dll'),
+                            #    os.path.join(dlls, 'mkl_core.2.dll'),
+                            #    os.path.join(dlls, 'mkl_def.2.dll'),
+                            #    os.path.join(dlls, 'mkl_vml_avx2.2.dll'),
+                            #    os.path.join(dlls, 'mkl_vml_def.2.dll'),
+                            #    os.path.join(dlls, 'mkl_intel_thread.2.dll'),
+                            #    os.path.join(dlls, 'mkl_avx2.2.dll'),
+                            #    os.path.join(dlls, 'mkl_sequential.2.dll'),
+                            #    os.path.join(dlls, 'vcruntime140.dll'),
+                            #    os.path.join(dlls, 'msvcp140_1.dll'),
+                            #    os.path.join(dlls, 'freetype.dll'),
                                r'./src/lpagg/lpagg.mplstyle',
                                r'./src/lpagg/res/icon.png',
                                r'./README.md',
@@ -275,8 +273,10 @@ setup(
                            'summary_data': {'author': author,
                                             'comments': description},
                            'install_icon': r'./src/lpagg/res/icon.ico',
+                           'product_name': 'Gleichzeitigkeit',
                            'upgrade_code':
                                '{4d27fdce-eca0-4f0a-bdf7-a06bd383351e}',
+                           'launch_on_finish': True,
                            },
              },
 )

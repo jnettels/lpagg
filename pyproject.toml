@@ -39,7 +39,7 @@ dynamic = ["version"]
 simlty_GUI = ["PyQt5"]
 demandlib = ["oemof.demand @ https://github.com/oemof/oemof-demand/archive/dev.tar.gz"]
 test = ["pytest>=7.0", "pytest-cov"]
-dev = ["pytest>=7.0", "pytest-cov", "tox>=3.0"]
+dev = ["pytest>=7.0", "pytest-cov", "tox>=3.0", "cx_freeze>=8.6"]
 
 [project.urls]
 Homepage = "https://github.com/jnettels/lpagg"
