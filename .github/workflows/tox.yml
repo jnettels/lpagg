@@ -18,6 +18,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0  # Fetch all history for version detection
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v7
