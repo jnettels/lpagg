@@ -16,6 +16,8 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v7  # use the latest code commit
+      with:
+        fetch-depth: 0  # Fetch all history for version detection with setuptools_scm
 
     - name: Setup conda with python ${{ matrix.python-version }}
       uses: s-weigand/setup-conda@v1
