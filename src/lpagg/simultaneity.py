@@ -410,7 +410,9 @@ def _copy_and_randomize_houses_sigma_fit(load_curve_houses, houses_dict, cfg):
         else:
             sf_lpagg = df_sf.loc['GLF', 'th']
 
-        sf_formula = simultaneity_factor(len(df_houses))
+        sf_formula = simultaneity_factor(
+            len(df_houses),
+            a=_cfg['settings'].get("a_simul", None))
         f_sigma = abs(sf_lpagg - sf_formula)
 
         if plot_fitting:
@@ -466,15 +468,33 @@ def _copy_and_randomize_houses_sigma_fit(load_curve_houses, houses_dict, cfg):
     return load_curve_houses
 
 
-def simultaneity_factor(n, decimals=5):
+def simultaneity_factor(n, decimals=5, a=None):
     """Calculate simultaneity factor based on number of consumers n.
 
     Winter, Walter; Haslauer, Thomas; Obernberger, Ingwald (2001)
     Untersuchungen der Gleichzeitigkeit in kleinen und
     mittleren Nahwärmenetzen. In: Euroheat & Power (9/10).
+
+    Parameters
+    ----------
+    n : int
+        Number of consumers.
+    decimals : int, optional
+        Number of decimal points to round result to. The default is 5.
+    a : float, optional
+        Asymptotic value in deterministic simultaneity function.
+        Can be used to adapt the default distribution from literature.
+        The default is None (which means using a~=0.45).
+
+    Returns
+    -------
+    f : float
+        Simultaneity factor.
+
     """
     n = np.asarray(n, dtype=float)
-    a = 0.449677646267461
+    if a is None:
+        a = 0.449677646267461
     b = 0.551234688
     c = 53.84382392
     d = 1.762743268
